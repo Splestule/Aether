@@ -9,6 +9,8 @@ import { UserLocation, ProcessedFlight } from "@shared/src/types";
 import { config } from "./config";
 
 function App() {
+  console.log("App component rendering");
+
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [selectedFlight, setSelectedFlight] = useState<ProcessedFlight | null>(
     null
