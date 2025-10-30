@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     port: 3000,
     host: true, // Allow external connections for VR testing
+    allowedHosts: ["recognised-examined-nicole-bras.trycloudflare.com",".trycloudflare.com","localhost"], // Cloudflare Tunnel hostname",
   },
   build: {
     target: 'esnext', // Required for WebXR

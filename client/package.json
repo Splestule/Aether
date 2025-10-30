@@ -12,7 +12,7 @@
   "dependencies": {
     "@react-three/drei": "^9.88.13",
     "@react-three/fiber": "^8.15.12",
-    "@react-three/xr": "^4.0.0",
+    "@react-three/xr": "^4.1.8",
     "@vr-flight-tracker/shared": "file:../shared",
     "autoprefixer": "^10.4.16",
     "clsx": "^2.0.0",

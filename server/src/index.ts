@@ -41,7 +41,9 @@ app.use(cors({
         'http://localhost:3000',
         'http://localhost:8080',
         `http://${process.env.LOCAL_IP}:3000`,
-        `http://${process.env.LOCAL_IP}:8080`
+        `http://${process.env.LOCAL_IP}:8080`,
+        'https://recognised-examined-nicole-bras.trycloudflare.com',
+        /\.trycloudflare\.com$/, // Allow all Cloudflare tunnels
       ],
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
