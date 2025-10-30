@@ -100,7 +100,6 @@ function SceneContent({
   selectedFlight,
   onFlightSelect,
   config,
-  userLocation,
 }: Omit<VRSceneProps, "isVRActive">) {
   const { isPresenting } = useXR();
 
@@ -160,7 +159,6 @@ export function VRScene({
   flights,
   selectedFlight,
   onFlightSelect,
-  isVRActive,
   config,
 }: VRSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
