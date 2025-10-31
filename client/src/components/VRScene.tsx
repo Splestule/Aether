@@ -16,80 +16,157 @@ interface VRSceneProps {
   config: VRConfig;
 }
 
-// VR Button Component
-function VRToggleButton() {
-  const [isPresenting, setIsPresenting] = useState(false);
+// VR Button Component - manual implementation with timeout detection
+function VRToggleButton({
+  rendererRef,
+  onStatusChange,
+  onError,
+}: {
+  rendererRef: React.RefObject<any>;
+  onStatusChange?: (status: string) => void;
+  onError?: (error: string) => void;
+}) {
+  const [buttonText, setButtonText] = useState("Enter VR");
+  const [isLoading, setIsLoading] = useState(false);
+  const { isPresenting, session } = useXR();
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  const handleClick = async () => {
-    const canvas = document.querySelector("canvas");
+  useEffect(() => {
+    canvasRef.current = document.querySelector("canvas");
+  }, []);
 
-    if (!canvas || !("xr" in navigator)) {
-      alert("WebXR not supported on this device/browser");
+  useEffect(() => {
+    setButtonText(isPresenting ? "Exit VR" : "Enter VR");
+    setIsLoading(false);
+    if (onStatusChange) {
+      onStatusChange(isPresenting ? "VR Active" : "VR Inactive");
+    }
+  }, [isPresenting, onStatusChange]);
+
+  const handleVRToggle = async () => {
+    if (!canvasRef.current || !("xr" in navigator)) {
+      const error = "WebXR not supported";
+      if (onError) onError(error);
+      if (onStatusChange) onStatusChange("Error: " + error);
       return;
     }
 
+    if (isPresenting && session) {
+      // Exit VR
+      try {
+        await session.end();
+      } catch (err: any) {
+        if (onError) onError(err?.message || "Failed to exit VR");
+      }
+      return;
+    }
+
+    // Enter VR with timeout
+    setIsLoading(true);
+    if (onStatusChange) onStatusChange("Starting VR...");
+
+    const timeout = setTimeout(() => {
+      setIsLoading(false);
+      const error = "VR session timeout - taking too long to start";
+      if (onError) onError(error);
+      if (onStatusChange) onStatusChange("Timeout Error");
+    }, 10000); // 10 second timeout
+
     try {
       const xr = (navigator as any).xr;
+      const supported = await xr.isSessionSupported("immersive-vr");
 
-      if (isPresenting) {
-        setIsPresenting(false);
-      } else {
-        const supported = await xr.isSessionSupported("immersive-vr");
-        if (!supported) {
-          alert("VR is not supported on this device/browser");
-          return;
-        }
-
-        const session = await xr.requestSession("immersive-vr", {
-          optionalFeatures: ["local-floor", "bounded-floor", "hand-tracking"],
-        });
-
-        const gl =
-          canvas.getContext("webgl2", { xrCompatible: true }) ||
-          canvas.getContext("webgl", { xrCompatible: true });
-
-        if (!gl) {
-          throw new Error("Failed to get WebGL context");
-        }
-
-        await (gl as any).makeXRCompatible?.();
-
-        await session.updateRenderState({
-          baseLayer: new (window as any).XRWebGLLayer(session, gl),
-        });
-
-        setIsPresenting(true);
-
-        session.addEventListener("end", () => {
-          setIsPresenting(false);
-        });
+      if (!supported) {
+        clearTimeout(timeout);
+        setIsLoading(false);
+        const error = "VR not supported";
+        if (onError) onError(error);
+        if (onStatusChange) onStatusChange("Error: " + error);
+        return;
       }
-    } catch (err) {
-      console.error("Failed to start VR session:", err);
-      alert(`VR Error: ${(err as Error).message}`);
-      setIsPresenting(false);
+
+      const gl =
+        canvasRef.current.getContext("webgl2") ||
+        canvasRef.current.getContext("webgl");
+
+      if (!gl) {
+        clearTimeout(timeout);
+        setIsLoading(false);
+        const error = "Failed to get WebGL context";
+        if (onError) onError(error);
+        if (onStatusChange) onStatusChange("Error: " + error);
+        return;
+      }
+
+      // Make XR compatible
+      if ((gl as any).makeXRCompatible) {
+        await (gl as any).makeXRCompatible();
+      }
+
+      const vrSession = await xr.requestSession("immersive-vr", {
+        optionalFeatures: ["local-floor", "bounded-floor"],
+      });
+
+      clearTimeout(timeout);
+
+      // Connect session to Three.js renderer's XR manager
+      const renderer = rendererRef.current;
+      if (renderer && renderer.xr) {
+        // Set the session on Three.js XR manager - this is the key!
+        renderer.xr.setSession(vrSession);
+
+        vrSession.addEventListener("end", () => {
+          setIsLoading(false);
+          if (onStatusChange) onStatusChange("VR Session Ended");
+        });
+
+        setIsLoading(false);
+        if (onStatusChange) onStatusChange("VR Active");
+        return;
+      }
+
+      // Fallback: update render state manually (shouldn't reach here usually)
+      const layer = new (window as any).XRWebGLLayer(vrSession, gl);
+      await vrSession.updateRenderState({ baseLayer: layer });
+
+      vrSession.addEventListener("end", () => {
+        setIsLoading(false);
+        if (onStatusChange) onStatusChange("VR Session Ended");
+      });
+
+      setIsLoading(false);
+      if (onStatusChange) onStatusChange("VR Active");
+    } catch (err: any) {
+      clearTimeout(timeout);
+      setIsLoading(false);
+      const error = err?.message || "Failed to start VR session";
+      if (onError) onError(error);
+      if (onStatusChange) onStatusChange("Error: " + error);
     }
   };
 
   return (
     <button
-      className="vr-toggle-button"
-      onClick={handleClick}
+      onClick={handleVRToggle}
+      disabled={isLoading}
       style={{
         position: "fixed",
         bottom: "24px",
         right: "24px",
-        background: "rgba(0, 0, 0, 0.8)",
+        background: isLoading
+          ? "rgba(100, 100, 100, 0.8)"
+          : "rgba(0, 0, 0, 0.8)",
         color: "white",
         border: "2px solid white",
         borderRadius: "8px",
         padding: "12px 24px",
         fontWeight: "bold",
-        cursor: "pointer",
+        cursor: isLoading ? "wait" : "pointer",
         zIndex: 1000,
+        opacity: isLoading ? 0.7 : 1,
       }}
     >
-      {isPresenting ? "Exit VR" : "Enter VR"}
+      {isLoading ? "Loading..." : buttonText}
     </button>
   );
 }
@@ -162,8 +239,11 @@ export function VRScene({
   config,
 }: VRSceneProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rendererRef = useRef<any>(null);
   const [canvasError, setCanvasError] = useState<string | null>(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  const [vrStatus, setVrStatus] = useState<string>("Not checked");
+  const [vrError, setVrError] = useState<string | null>(null);
 
   useEffect(() => {
     // Check WebGL support
@@ -176,6 +256,27 @@ export function VRScene({
       return;
     }
 
+    // Check WebXR support and update status
+    const checkXRSupport = async () => {
+      if ("xr" in navigator) {
+        try {
+          const xr = (navigator as any).xr;
+          const supported = await xr.isSessionSupported("immersive-vr");
+          setVrStatus(supported ? "WebXR Supported" : "WebXR Not Supported");
+          if (!supported) {
+            setVrError("VR mode is not supported on this device/browser");
+          }
+        } catch (err: any) {
+          setVrStatus("WebXR Check Failed");
+          setVrError(err?.message || "Unknown error checking WebXR support");
+        }
+      } else {
+        setVrStatus("WebXR Not Available");
+        setVrError("WebXR API not found in browser");
+      }
+    };
+
+    checkXRSupport();
     setCanvasReady(true);
   }, []);
 
@@ -229,7 +330,40 @@ export function VRScene({
 
   return (
     <>
-      <VRToggleButton />
+      {/* On-screen debug info */}
+      {(vrError || vrStatus !== "Not checked") && (
+        <div
+          style={{
+            position: "fixed",
+            top: "24px",
+            left: "24px",
+            background: vrError ? "rgba(255, 0, 0, 0.9)" : "rgba(0, 0, 0, 0.8)",
+            color: "white",
+            padding: "12px",
+            borderRadius: "8px",
+            zIndex: 10001,
+            maxWidth: "300px",
+            fontSize: "12px",
+            fontFamily: "monospace",
+          }}
+        >
+          <div>VR Status: {vrStatus}</div>
+          {vrError && (
+            <div style={{ marginTop: "8px", color: "#ffcccc" }}>
+              Error: {vrError}
+            </div>
+          )}
+        </div>
+      )}
+
+      <VRToggleButton
+        rendererRef={rendererRef}
+        onStatusChange={(status) => setVrStatus(status)}
+        onError={(error) => {
+          setVrError(error);
+          setVrStatus("VR Error");
+        }}
+      />
 
       <div
         className="vr-canvas"
@@ -250,15 +384,32 @@ export function VRScene({
             near: 0.1,
             far: 1000,
           }}
-          dpr={window.devicePixelRatio}
+          dpr={Math.min(window.devicePixelRatio, 2)}
+          frameloop="always"
           gl={{
             antialias: true,
             alpha: false,
             powerPreference: "high-performance",
+            preserveDrawingBuffer: false,
+          }}
+          onCreated={(state) => {
+            // Store renderer reference for VR session management
+            rendererRef.current = state.gl;
+
+            // Store debug info
+            const hasXR = !!state.gl.xr;
+            setVrStatus((prev) =>
+              prev === "Not checked"
+                ? hasXR
+                  ? "Canvas Ready (XR Available)"
+                  : "Canvas Ready (No XR)"
+                : prev
+            );
           }}
           onError={(error) => {
-            console.error("Canvas error:", error);
-            setCanvasError(`Canvas error: ${error}`);
+            const errorMsg = String(error);
+            setCanvasError(`Canvas error: ${errorMsg}`);
+            setVrError(errorMsg);
           }}
         >
           <SceneContent
