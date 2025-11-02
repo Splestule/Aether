@@ -1,6 +1,8 @@
-import { Suspense } from "react";
-import { Interactive, useXR, DefaultXRControllers, ARCanvas, XRButton } from "@react-three/xr";
-import { OrbitControls, Sky, Text, Billboard } from "@react-three/drei";
+import { Suspense, useRef } from "react";
+import { Interactive, useXR, DefaultXRControllers, ARCanvas, XRButton, useController } from "@react-three/xr";
+import { OrbitControls, Sky, Text } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { Vector3, Euler, Quaternion } from "three";
 import { UserLocation, ProcessedFlight, VRConfig } from "@shared/src/types.js";
 import { ARWaypoint } from "./ARWaypoint";
 import { FlightTrajectory } from "./FlightTrajectory";
@@ -21,96 +23,327 @@ interface VRSceneProps {
 }
 
 
-// VR Info Panel Component - displays flight info in VR space
-function VRInfoPanel({ flight }: { flight: ProcessedFlight }) {
+// VR Flight Info Panel - 3D panel attached to left controller
+function VRFlightInfoPanel({ 
+  flight, 
+  onClose 
+}: { 
+  flight: ProcessedFlight; 
+  onClose: () => void;
+}) {
+  const leftController = useController("left");
+  const panelRef = useRef<any>(null);
+
+  const formatHeading = (heading: number): string => {
+    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const index = Math.round(heading / 45) % 8;
+    return `${heading.toFixed(0)}° ${directions[index]}`;
+  };
+
+  const formatLastUpdate = (timestamp: number): string => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const seconds = Math.floor(diff / 1000);
+
+    if (seconds < 60) return `${seconds}s ago`;
+    const minutes = Math.floor(seconds / 60);
+    return `${minutes}m ago`;
+  };
+
+  // Attach panel to left controller
+  useFrame(() => {
+    if (panelRef.current && leftController) {
+      // Get controller position and rotation
+      const controller = leftController.controller;
+      panelRef.current.position.copy(controller.position);
+      panelRef.current.quaternion.copy(controller.quaternion);
+      
+      // Apply additional tilt backward (rotate around X axis) for better reading angle
+      const tiltBackRotation = new Euler(-Math.PI / 6, 0, 0); // -30 degrees around X axis
+      const tiltQuaternion = new Quaternion().setFromEuler(tiltBackRotation);
+      panelRef.current.quaternion.multiply(tiltQuaternion);
+      
+      // Offset panel relative to controller (in front and slightly up, in controller's local space)
+      // Convert local offset to world space
+      const localOffset = new Vector3(0.08, 0.1, 0.12);
+      localOffset.applyQuaternion(controller.quaternion);
+      panelRef.current.position.add(localOffset);
+    }
+  });
+
+  // Scale factor to make panel smaller (1.8x smaller than previous 0.4)
+  const scale = 0.4 / 1.8;
+  const baseWidth = 1.2;
+  const baseHeight = 1.6;
+
+  if (!leftController) return null;
+
   return (
-    <Billboard position={[0, 1.8, -1.2]}>
-      <group>
-        {/* Background panel */}
-        <mesh>
-          <planeGeometry args={[3.5, 2.5]} />
-          <meshBasicMaterial color="#000000" opacity={0.9} transparent />
-        </mesh>
-      
-      {/* Flight info text */}
-      <Text
-        position={[0, 1, 0.01]}
-        fontSize={0.15}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3}
-      >
-        {flight.callsign}
-      </Text>
-      
-      <Text
-        position={[0, 0.7, 0.01]}
-        fontSize={0.1}
-        color="#cccccc"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3}
-      >
-        {flight.airline || "Unknown Airline"}
-      </Text>
+    <group ref={panelRef}>
+      <group scale={[scale, scale, scale]}>
+          {/* Background panel */}
+          <mesh>
+            <planeGeometry args={[baseWidth, baseHeight]} />
+            <meshBasicMaterial 
+              color="#ffffff" 
+              opacity={0.95} 
+              transparent 
+            />
+          </mesh>
+          
+          {/* Border frame */}
+          {/* Top border */}
+          <mesh position={[0, baseHeight / 2, -0.001]}>
+            <planeGeometry args={[baseWidth + 0.02, 0.02]} />
+            <meshBasicMaterial color="#e5e7eb" />
+          </mesh>
+          {/* Bottom border */}
+          <mesh position={[0, -baseHeight / 2, -0.001]}>
+            <planeGeometry args={[baseWidth + 0.02, 0.02]} />
+            <meshBasicMaterial color="#e5e7eb" />
+          </mesh>
+          {/* Left border */}
+          <mesh position={[-baseWidth / 2 - 0.01, 0, -0.001]}>
+            <planeGeometry args={[0.02, baseHeight + 0.02]} />
+            <meshBasicMaterial color="#e5e7eb" />
+          </mesh>
+          {/* Right border */}
+          <mesh position={[baseWidth / 2 + 0.01, 0, -0.001]}>
+            <planeGeometry args={[0.02, baseHeight + 0.02]} />
+            <meshBasicMaterial color="#e5e7eb" />
+          </mesh>
 
-      <Text
-        position={[0, 0.4, 0.01]}
-        fontSize={0.08}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3}
-      >
-        Altitude: {formatAltitude(flight.gps.altitude)}
-      </Text>
+          {/* Title */}
+          <Text
+            position={[0, baseHeight / 2 - 0.05, 0.01]}
+            fontSize={0.08}
+            color="#1f2937"
+            anchorX="center"
+            anchorY="top"
+            maxWidth={baseWidth - 0.1}
+            fontWeight="bold"
+          >
+            Flight Details
+          </Text>
 
-      <Text
-        position={[0, 0.25, 0.01]}
-        fontSize={0.08}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3}
-      >
-        Speed: {formatSpeed(flight.velocity)}
-      </Text>
+          {/* Close button */}
+          <Interactive onSelect={onClose}>
+            <mesh position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.01]}>
+              <planeGeometry args={[0.08, 0.08]} />
+              <meshBasicMaterial 
+                color="#ef4444" 
+                opacity={0.8} 
+                transparent 
+              />
+            </mesh>
+            <Text
+              position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.02]}
+              fontSize={0.06}
+              color="#ffffff"
+              anchorX="center"
+              anchorY="middle"
+            >
+              ×
+            </Text>
+          </Interactive>
 
-      <Text
-        position={[0, 0.1, 0.01]}
-        fontSize={0.08}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3}
-      >
-        Distance: {formatDistance(flight.distance)}
-      </Text>
+          {/* Callsign */}
+          <Text
+            position={[0, baseHeight / 2 - 0.15, 0.01]}
+            fontSize={0.06}
+            color="#1f2937"
+            anchorX="center"
+            anchorY="top"
+            maxWidth={baseWidth - 0.1}
+            fontWeight="bold"
+          >
+            {flight.callsign}
+          </Text>
 
-      <Text
-        position={[0, -0.05, 0.01]}
-        fontSize={0.08}
-        color="#ffffff"
-        anchorX="center"
-        anchorY="top"
-        maxWidth={3}
-      >
-        Heading: {flight.heading.toFixed(0)}°
-      </Text>
+          {/* Airline */}
+          <Text
+            position={[0, baseHeight / 2 - 0.23, 0.01]}
+            fontSize={0.04}
+            color="#4b5563"
+            anchorX="center"
+            anchorY="top"
+            maxWidth={baseWidth - 0.1}
+          >
+            {flight.airline}
+          </Text>
 
-      {/* Close hint */}
-      <Text
-        position={[0, -1, 0.01]}
-        fontSize={0.06}
-        color="#aaaaaa"
-        anchorX="center"
-        anchorY="top"
-      >
-        (Click same plane again to close)
-      </Text>
-      </group>
-    </Billboard>
+          {/* ICAO */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.31, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            ICAO:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.31, 0.01]}
+            fontSize={0.035}
+            color="#1f2937"
+            anchorX="right"
+            anchorY="top"
+          >
+            {flight.icao24}
+          </Text>
+
+          {/* Position */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.39, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            Position:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.39, 0.01]}
+            fontSize={0.03}
+            color="#1f2937"
+            anchorX="right"
+            anchorY="top"
+          >
+            {flight.gps.latitude.toFixed(3)}, {flight.gps.longitude.toFixed(3)}
+          </Text>
+
+          {/* Altitude */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.47, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            Altitude:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.47, 0.01]}
+            fontSize={0.035}
+            color="#1f2937"
+            anchorX="right"
+            anchorY="top"
+          >
+            {formatAltitude(flight.gps.altitude)}
+          </Text>
+
+          {/* Speed */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.55, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            Speed:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.55, 0.01]}
+            fontSize={0.035}
+            color="#1f2937"
+            anchorX="right"
+            anchorY="top"
+          >
+            {formatSpeed(flight.velocity)}
+          </Text>
+
+          {/* Heading */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.63, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            Heading:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.63, 0.01]}
+            fontSize={0.035}
+            color="#1f2937"
+            anchorX="right"
+            anchorY="top"
+          >
+            {formatHeading(flight.heading)}
+          </Text>
+
+          {/* Distance */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.71, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            Distance:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.71, 0.01]}
+            fontSize={0.035}
+            color="#1f2937"
+            anchorX="right"
+            anchorY="top"
+          >
+            {formatDistance(flight.distance)}
+          </Text>
+
+          {/* Elevation */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.79, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            Elevation:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.79, 0.01]}
+            fontSize={0.035}
+            color="#1f2937"
+            anchorX="right"
+            anchorY="top"
+          >
+            {flight.elevation.toFixed(1)}°
+          </Text>
+
+          {/* Status */}
+          <Text
+            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.87, 0.01]}
+            fontSize={0.035}
+            color="#4b5563"
+            anchorX="left"
+            anchorY="top"
+          >
+            Status:
+          </Text>
+          <Text
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.87, 0.01]}
+            fontSize={0.035}
+            color={flight.onGround ? "#6b7280" : "#10b981"}
+            anchorX="right"
+            anchorY="top"
+          >
+            {flight.onGround ? "On Ground" : "In Flight"}
+          </Text>
+
+          {/* Last Update */}
+          <Text
+            position={[0, -baseHeight / 2 + 0.1, 0.01]}
+            fontSize={0.03}
+            color="#6b7280"
+            anchorX="center"
+            anchorY="top"
+          >
+            Updated {formatLastUpdate(flight.lastUpdate)}
+          </Text>
+        </group>
+    </group>
   );
 }
 
@@ -148,38 +381,48 @@ function SceneContent({
         />
       )}
 
-      {/* Flight objects - make them interactive in VR */}
-      {filteredFlights.map((flight) => (
-        <React.Fragment key={flight.id}>
-          <Interactive 
-            onSelect={() => {
-              // Toggle selection - click same flight to deselect
-              if (selectedFlight?.id === flight.id) {
-                onFlightSelect(null);
-              } else {
-                onFlightSelect(flight);
-              }
-            }}
-          >
-            <ARWaypoint
-              flight={flight}
-              isSelected={selectedFlight?.id === flight.id}
-              onClick={() => {
-                if (selectedFlight?.id === flight.id) {
-                  onFlightSelect(null);
-                } else {
-                  onFlightSelect(flight);
-                }
-              }}
-            />
-          </Interactive>
-          {config.enableTrajectories && <FlightTrajectory flight={flight} />}
-        </React.Fragment>
-      ))}
+      {/* Flight objects - make them interactive in VR and desktop */}
+      {filteredFlights.map((flight) => {
+        const handleSelect = () => {
+          console.log("Flight selected:", flight.callsign);
+          // Toggle selection - click same flight to deselect
+          if (selectedFlight?.id === flight.id) {
+            onFlightSelect(null);
+          } else {
+            onFlightSelect(flight);
+          }
+        };
 
-      {/* Show selected flight info in VR space */}
+        return (
+          <React.Fragment key={flight.id}>
+            {/* Interactive for VR mode */}
+            {isPresenting ? (
+              <Interactive onSelect={handleSelect}>
+                <ARWaypoint
+                  flight={flight}
+                  isSelected={selectedFlight?.id === flight.id}
+                  onClick={handleSelect}
+                />
+              </Interactive>
+            ) : (
+              // Regular onClick for desktop mode
+              <ARWaypoint
+                flight={flight}
+                isSelected={selectedFlight?.id === flight.id}
+                onClick={handleSelect}
+              />
+            )}
+            {config.enableTrajectories && <FlightTrajectory flight={flight} />}
+          </React.Fragment>
+        );
+      })}
+
+      {/* VR Info Panel - 3D panel visible in VR mode */}
       {isPresenting && selectedFlight && (
-        <VRInfoPanel flight={selectedFlight} />
+        <VRFlightInfoPanel 
+          flight={selectedFlight} 
+          onClose={() => onFlightSelect(null)} 
+        />
       )}
 
       {/* Controls - only enabled when not in VR */}

@@ -30,7 +30,15 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
   };
 
   return (
-    <div className="absolute top-4 right-4 flight-info-card">
+    <div 
+      className="flight-info-card"
+      style={{
+        position: "fixed", // Use fixed positioning for VR compatibility
+        top: "16px",
+        right: "16px",
+        zIndex: 10000, // Ensure it appears above VR canvas
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-800">Flight Details</h3>
         <button
