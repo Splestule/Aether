@@ -1,11 +1,11 @@
-import { Suspense, useRef } from "react";
+import { Suspense, useRef, useEffect } from "react";
 import { Interactive, useXR, DefaultXRControllers, ARCanvas, XRButton, useController } from "@react-three/xr";
-import { OrbitControls, Sky, Text } from "@react-three/drei";
-import { useFrame } from "@react-three/fiber";
-import { Vector3, Euler, Quaternion } from "three";
+import { OrbitControls, Text } from "@react-three/drei";
+import { useFrame, useThree } from "@react-three/fiber";
+import { Vector3, Euler, Quaternion, BackSide, Raycaster, Line, BufferGeometry, LineBasicMaterial, BufferAttribute } from "three";
 import { UserLocation, ProcessedFlight, VRConfig } from "@shared/src/types.js";
 import { ARWaypoint } from "./ARWaypoint";
-import { FlightTrajectory } from "./FlightTrajectory";
+// import { FlightTrajectory } from "./FlightTrajectory"; // Disabled - trajectories disconnect from planes
 import {
   formatSpeed,
   formatAltitude,
@@ -348,6 +348,136 @@ function VRFlightInfoPanel({
 }
 
 // Scene Content Component
+// Component to extend raycast distance for VR interactions
+function ExtendedRaycastManager() {
+  const { raycaster } = useThree();
+  
+  useEffect(() => {
+    // Extend raycaster far distance to 250km for selecting distant planes
+    // The InteractionManager in @react-three/xr uses this raycaster, so extending it
+    // will make VR controller raycasts reach up to 250km
+    if (raycaster) {
+      raycaster.far = 250000; // 250 km in meters
+      raycaster.near = 0.1;
+    }
+  }, [raycaster]);
+  
+  // Keep updating in case it gets reset
+  useFrame(() => {
+    if (raycaster && raycaster.far < 250000) {
+      raycaster.far = 250000;
+    }
+  });
+  
+  return null;
+}
+
+// Visible raycast line from VR controller (for a single controller)
+function SingleControllerRaycast({ controller, flights }: { controller: any; flights: ProcessedFlight[] }) {
+  const geometryRef = useRef(new BufferGeometry());
+  const materialRef = useRef(new LineBasicMaterial({ 
+    color: 0xffffff, 
+    transparent: true, 
+    opacity: 0.8,
+    linewidth: 2 
+  }));
+  const lineRef = useRef(new Line(geometryRef.current, materialRef.current));
+  const raycaster = useRef(new Raycaster());
+  
+  useFrame(() => {
+    if (!lineRef.current || !geometryRef.current || !materialRef.current || !controller) {
+      if (lineRef.current) {
+        lineRef.current.visible = false;
+      }
+      return;
+    }
+    
+    const controllerPosition = controller.controller.position.clone();
+    const controllerDirection = new Vector3(0, 0, -1);
+    controllerDirection.applyMatrix4(controller.controller.matrixWorld);
+    controllerDirection.sub(controllerPosition).normalize();
+    
+    // Set up raycaster
+    raycaster.current.set(controllerPosition, controllerDirection);
+    raycaster.current.far = 250000; // 250km
+    
+    // Check for intersections with waypoint collision meshes
+    const waypointMeshes: any[] = [];
+    flights.forEach((flight) => {
+      // Calculate collision sphere size (matching ARWaypoint calculation)
+      const distanceFromUser = Math.sqrt(
+        flight.position.x * flight.position.x + 
+        flight.position.y * flight.position.y + 
+        flight.position.z * flight.position.z
+      );
+      const distanceKm = distanceFromUser / 1000;
+      const baseSize = 50;
+      const distanceMultiplier = Math.max(1, Math.sqrt(distanceKm / 5));
+      const altitudeMultiplier = Math.max(1, Math.sqrt(Math.abs(flight.position.y) / 2000));
+      const sphereSize = baseSize * distanceMultiplier * altitudeMultiplier;
+      
+      // Check if ray passes close enough to the waypoint (within collision sphere radius * 3)
+      const waypointPos = new Vector3(
+        flight.position.x,
+        flight.position.y,
+        flight.position.z
+      );
+      const waypointToController = controllerPosition.clone().sub(waypointPos);
+      const t = -waypointToController.dot(controllerDirection) / controllerDirection.dot(controllerDirection);
+      
+      if (t > 0 && t <= 250000) {
+        const closestPoint = controllerPosition.clone().add(controllerDirection.clone().multiplyScalar(t));
+        const distanceToWaypoint = closestPoint.distanceTo(waypointPos);
+        
+        if (distanceToWaypoint <= sphereSize * 3) {
+          waypointMeshes.push({ flight, distance: t });
+        }
+      }
+    });
+    
+    // Find closest intersection
+    const closestIntersection = waypointMeshes.sort((a, b) => a.distance - b.distance)[0];
+    const hasHit = !!closestIntersection;
+    
+    // Calculate line end point
+    const maxDistance = 250000; // 250km
+    const hitDistance = closestIntersection ? closestIntersection.distance : maxDistance;
+    const endPoint = controllerPosition.clone().add(controllerDirection.clone().multiplyScalar(hitDistance));
+    
+    // Update line geometry
+    const positions = new Float32Array([
+      controllerPosition.x, controllerPosition.y, controllerPosition.z,
+      endPoint.x, endPoint.y, endPoint.z
+    ]);
+    geometryRef.current.setAttribute('position', new BufferAttribute(positions, 3));
+    geometryRef.current.setDrawRange(0, 2);
+    
+    // Update line visibility and color
+    lineRef.current.visible = true;
+    const color = hasHit ? 0x00ff00 : 0xffffff;
+    materialRef.current.color.setHex(color);
+  });
+  
+  return <primitive ref={lineRef} object={lineRef.current} />;
+}
+
+// Visible raycast line from all VR controllers
+function VRRaycastLine({ flights }: { flights: ProcessedFlight[] }) {
+  const { controllers } = useXR();
+  
+  if (controllers.length === 0) {
+    return null;
+  }
+  
+  return (
+    <>
+      {controllers.map((controller, index) => (
+        <SingleControllerRaycast key={index} controller={controller} flights={flights} />
+      ))}
+    </>
+  );
+}
+
 function SceneContent({
   flights,
   selectedFlight,
@@ -362,6 +492,9 @@ function SceneContent({
 
   return (
     <>
+      {/* Extend raycast distance for VR interactions */}
+      <ExtendedRaycastManager />
+      
       {/* Enhanced lighting for AR - brighter and more visible */}
       <ambientLight intensity={1.2} />
       <directionalLight position={[100, 100, 50]} intensity={1.5} castShadow />
@@ -370,15 +503,16 @@ function SceneContent({
 
       {/* VR Controllers - visible in AR/VR mode */}
       {isPresenting && <DefaultXRControllers />}
+      
+      {/* Visible raycast line from controller */}
+      {isPresenting && <VRRaycastLine flights={filteredFlights} />}
 
-      {/* Environment - Sky - only show when NOT in AR/VR (passthrough shows real world) */}
+      {/* Dark background sphere for PC mode - replaces Sky */}
       {!isPresenting && (
-        <Sky
-          distance={450000}
-          sunPosition={[0, 1, 0]}
-          inclination={0.49}
-          azimuth={0.25}
-        />
+        <mesh>
+          <sphereGeometry args={[500000, 32, 16]} />
+          <meshBasicMaterial color="#0a0a0f" side={BackSide} />
+        </mesh>
       )}
 
       {/* Flight objects - make them interactive in VR and desktop */}
@@ -395,24 +529,15 @@ function SceneContent({
 
         return (
           <React.Fragment key={flight.id}>
-            {/* Interactive for VR mode */}
-            {isPresenting ? (
-              <Interactive onSelect={handleSelect}>
-                <ARWaypoint
-                  flight={flight}
-                  isSelected={selectedFlight?.id === flight.id}
-                  onClick={handleSelect}
-                />
-              </Interactive>
-            ) : (
-              // Regular onClick for desktop mode
-              <ARWaypoint
-                flight={flight}
-                isSelected={selectedFlight?.id === flight.id}
-                onClick={handleSelect}
-              />
-            )}
-            {config.enableTrajectories && <FlightTrajectory flight={flight} />}
+            {/* Render waypoint - Interactive wraps individual meshes in VR mode */}
+            <ARWaypoint
+              flight={flight}
+              isSelected={selectedFlight?.id === flight.id}
+              onClick={handleSelect}
+              isVR={isPresenting}
+            />
+            {/* Trajectories disabled - they often disconnect from planes */}
+            {/* {config.enableTrajectories && <FlightTrajectory flight={flight} />} */}
           </React.Fragment>
         );
       })}
@@ -493,12 +618,16 @@ export function VRScene({
             position: [0, 1.6, 0],
             fov: 75,
             near: 0.1,
-            far: 10000,
+            far: 250000, // 250 km to see planes up to 200 km away
           }}
           gl={{
-            alpha: true,
+            alpha: false,
             antialias: true,
             powerPreference: "high-performance",
+          }}
+          onCreated={({ gl }) => {
+            // Set dark background color for PC mode
+            gl.setClearColor(0x0a0a0f, 1);
           }}
           sessionInit={{
             requiredFeatures: ["local-floor"],

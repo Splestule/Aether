@@ -2,11 +2,12 @@ import { UserLocation, ProcessedFlight, FlightData } from './types';
 
 /**
  * Convert GPS coordinates to VR space coordinates
+ * Uses bearing and distance to calculate local tangent plane coordinates
  * @param userLocation User's GPS position
  * @param flightLat Flight's latitude
  * @param flightLon Flight's longitude
  * @param flightAlt Flight's altitude in meters
- * @returns VR space coordinates (x, y, z)
+ * @returns VR space coordinates (x, y, z) in meters
  */
 export function gpsToVRCoordinates(
   userLocation: UserLocation,
@@ -14,14 +15,15 @@ export function gpsToVRCoordinates(
   flightLon: number,
   flightAlt: number
 ): { x: number; y: number; z: number } {
-  // Calculate distance and bearing
-  const distance = calculateDistance(
+  // Calculate horizontal distance (returns kilometers)
+  const distanceKm = calculateDistance(
     userLocation.latitude,
     userLocation.longitude,
     flightLat,
     flightLon
   );
   
+  // Calculate bearing (azimuth) in degrees
   const bearing = calculateBearing(
     userLocation.latitude,
     userLocation.longitude,
@@ -29,13 +31,17 @@ export function gpsToVRCoordinates(
     flightLon
   );
 
-  // Convert to VR space (meters)
-  // X: East-West (positive = East)
-  // Y: Up-Down (positive = Up)
-  // Z: North-South (positive = North)
-  const x = distance * Math.sin((bearing * Math.PI) / 180);
-  const z = distance * Math.cos((bearing * Math.PI) / 180);
-  const y = flightAlt - userLocation.altitude;
+  // Convert distance from kilometers to meters
+  const distanceM = distanceKm * 1000;
+
+  // Convert to VR space (meters) - local tangent plane coordinates
+  // X: East-West (positive = East) - uses sin because bearing 0° is North, 90° is East
+  // Z: North-South (positive = North) - uses cos because bearing 0° is North
+  // Y: Up-Down (positive = Up) - altitude difference in meters
+  const bearingRad = (bearing * Math.PI) / 180;
+  const x = distanceM * Math.sin(bearingRad);
+  const z = distanceM * Math.cos(bearingRad);
+  const y = flightAlt - (userLocation.altitude || 0);
 
   return { x, y, z };
 }
