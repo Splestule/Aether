@@ -215,12 +215,12 @@ function App() {
       <div className="vr-ui">
         {/* Location Selector */}
         {!userLocation && (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-900/50">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
             <div className="vr-panel p-6 max-w-2xl w-full mx-4">
-              <h1 className="text-3xl font-bold text-center mb-6 text-gray-800">
-                🚀 VR Flight Tracker
+              <h1 className="text-3xl font-bold text-center mb-6 text-white">
+                VR Flight Tracker
               </h1>
-              <p className="text-center text-gray-600 mb-6">
+              <p className="text-center text-gray-400 mb-6">
                 Select a location on the map to start tracking flights in VR
                 space
               </p>
@@ -230,11 +230,11 @@ function App() {
               <div className="mt-6 text-center">
                 <button
                   onClick={loadDemoFlights}
-                  className="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700 transition-colors"
+                  className="bg-white text-black px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors font-medium"
                 >
-                  🎮 Load Demo Flights (Prague)
+                  Load Demo Flights (Prague)
                 </button>
-                <p className="text-sm text-gray-500 mt-2">
+                <p className="text-sm text-gray-400 mt-2">
                   Click this to see demo flights around Prague for testing
                 </p>
               </div>

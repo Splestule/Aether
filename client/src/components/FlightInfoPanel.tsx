@@ -40,37 +40,37 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
       }}
     >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-800">Flight Details</h3>
+        <h3 className="text-lg font-semibold text-white">Flight Details</h3>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-gray-100 rounded-full transition-colors"
+          className="p-1 hover:bg-gray-700 rounded-full transition-colors"
         >
-          <X className="w-5 h-5 text-gray-600" />
+          <X className="w-5 h-5 text-gray-300" />
         </button>
       </div>
 
       <div className="space-y-4">
         {/* Flight Info */}
         <div className="flex items-center space-x-3">
-          <Plane className="w-5 h-5 text-blue-600" />
+          <Plane className="w-5 h-5 text-white" />
           <div>
-            <div className="font-medium text-gray-800">{flight.callsign}</div>
-            <div className="text-sm text-gray-600">{flight.airline}</div>
+            <div className="font-medium text-white">{flight.callsign}</div>
+            <div className="text-sm text-gray-400">{flight.airline}</div>
           </div>
         </div>
 
         {/* ICAO Code */}
         <div className="text-sm">
-          <span className="text-gray-600">ICAO:</span>
-          <span className="ml-2 font-mono text-gray-800">{flight.icao24}</span>
+          <span className="text-gray-400">ICAO:</span>
+          <span className="ml-2 font-mono text-white">{flight.icao24}</span>
         </div>
 
         {/* Position */}
         <div className="flex items-center space-x-3">
-          <MapPin className="w-5 h-5 text-green-600" />
+          <MapPin className="w-5 h-5 text-gray-300" />
           <div className="text-sm">
-            <div className="text-gray-600">Position</div>
-            <div className="font-mono text-gray-800">
+            <div className="text-gray-400">Position</div>
+            <div className="font-mono text-white">
               {flight.gps.latitude.toFixed(4)},{" "}
               {flight.gps.longitude.toFixed(4)}
             </div>
@@ -79,10 +79,10 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
 
         {/* Altitude */}
         <div className="flex items-center space-x-3">
-          <Navigation className="w-5 h-5 text-purple-600" />
+          <Navigation className="w-5 h-5 text-gray-300" />
           <div className="text-sm">
-            <div className="text-gray-600">Altitude</div>
-            <div className="font-medium text-gray-800">
+            <div className="text-gray-400">Altitude</div>
+            <div className="font-medium text-white">
               {formatAltitude(flight.gps.altitude)}
             </div>
           </div>
@@ -90,10 +90,10 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
 
         {/* Speed */}
         <div className="flex items-center space-x-3">
-          <Gauge className="w-5 h-5 text-orange-600" />
+          <Gauge className="w-5 h-5 text-gray-300" />
           <div className="text-sm">
-            <div className="text-gray-600">Speed</div>
-            <div className="font-medium text-gray-800">
+            <div className="text-gray-400">Speed</div>
+            <div className="font-medium text-white">
               {formatSpeed(flight.velocity)}
             </div>
           </div>
@@ -101,10 +101,10 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
 
         {/* Heading */}
         <div className="flex items-center space-x-3">
-          <Navigation className="w-5 h-5 text-blue-600" />
+          <Navigation className="w-5 h-5 text-gray-300" />
           <div className="text-sm">
-            <div className="text-gray-600">Heading</div>
-            <div className="font-medium text-gray-800">
+            <div className="text-gray-400">Heading</div>
+            <div className="font-medium text-white">
               {formatHeading(flight.heading)}
             </div>
           </div>
@@ -112,27 +112,27 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
 
         {/* Distance */}
         <div className="text-sm">
-          <span className="text-gray-600">Distance from you:</span>
-          <span className="ml-2 font-medium text-gray-800">
+          <span className="text-gray-400">Distance from you:</span>
+          <span className="ml-2 font-medium text-white">
             {formatDistance(flight.distance)}
           </span>
         </div>
 
         {/* Elevation */}
         <div className="text-sm">
-          <span className="text-gray-600">Elevation angle:</span>
-          <span className="ml-2 font-medium text-gray-800">
+          <span className="text-gray-400">Elevation angle:</span>
+          <span className="ml-2 font-medium text-white">
             {flight.elevation.toFixed(1)}°
           </span>
         </div>
 
         {/* Status */}
         <div className="text-sm">
-          <span className="text-gray-600">Status:</span>
+          <span className="text-gray-400">Status:</span>
           <span
             className={clsx(
               "ml-2 font-medium",
-              flight.onGround ? "text-gray-600" : "text-green-600"
+              flight.onGround ? "text-gray-500" : "text-white"
             )}
           >
             {flight.onGround ? "On Ground" : "In Flight"}

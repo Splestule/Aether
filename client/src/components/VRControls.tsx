@@ -26,11 +26,11 @@ export function VRControls({
       <div className="vr-panel p-3">
         <div className="flex items-center space-x-2">
           {isConnected ? (
-            <Wifi className="w-4 h-4 text-green-600" />
+            <Wifi className="w-4 h-4 text-white" />
           ) : (
-            <WifiOff className="w-4 h-4 text-red-600" />
+            <WifiOff className="w-4 h-4 text-gray-500" />
           )}
-          <span className="text-sm font-medium">
+          <span className="text-sm font-medium text-white">
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
@@ -39,8 +39,8 @@ export function VRControls({
       {/* Flight Count */}
       <div className="vr-panel p-3">
         <div className="flex items-center space-x-2">
-          <Plane className="w-4 h-4 text-blue-600" />
-          <span className="text-sm font-medium">
+          <Plane className="w-4 h-4 text-white" />
+          <span className="text-sm font-medium text-white">
             {flightCount} flights
           </span>
         </div>
@@ -53,8 +53,8 @@ export function VRControls({
           className={clsx(
             'flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors',
             isVRActive
-              ? 'bg-green-600 text-white hover:bg-green-700'
-              : 'bg-gray-600 text-white hover:bg-gray-700'
+              ? 'bg-white text-black hover:bg-gray-200'
+              : 'bg-gray-700 text-white hover:bg-gray-600'
           )}
         >
           {isVRActive ? (
@@ -73,7 +73,7 @@ export function VRControls({
         <div className="vr-panel p-3">
           <button
             onClick={onRefreshFlights}
-            className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+            className="flex items-center space-x-2 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <Plane className="w-4 h-4" />
             <span className="text-sm font-medium">Refresh Flights</span>
@@ -86,7 +86,7 @@ export function VRControls({
         <div className="vr-panel p-3">
           <button
             onClick={onBackToLocation}
-            className="flex items-center space-x-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            className="flex items-center space-x-2 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
           >
             <span className="text-sm font-medium">← Back to Map</span>
           </button>
@@ -98,7 +98,7 @@ export function VRControls({
         <div className="vr-panel p-3">
           <div className="flex items-center space-x-2">
             <div className="loading-spinner w-4 h-4"></div>
-            <span className="text-sm text-gray-600">Loading...</span>
+            <span className="text-sm text-gray-300">Loading...</span>
           </div>
         </div>
       )}

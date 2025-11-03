@@ -27,11 +27,11 @@
   }
   
   .vr-panel {
-    @apply bg-white/90 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200;
+    @apply bg-gray-900/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-700;
   }
   
   .flight-info-card {
-    @apply bg-white/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-200 p-4 min-w-[300px];
+    @apply bg-gray-900/95 backdrop-blur-sm rounded-lg shadow-xl border border-gray-700 p-4 min-w-[300px];
   }
 }
 
@@ -67,5 +67,5 @@
 
 /* Loading animation */
 .loading-spinner {
-  @apply animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600;
+  @apply animate-spin rounded-full h-8 w-8 border-b-2 border-white;
 }

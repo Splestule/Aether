@@ -85,7 +85,7 @@ function VRFlightInfoPanel({
           <mesh>
             <planeGeometry args={[baseWidth, baseHeight]} />
             <meshBasicMaterial 
-              color="#ffffff" 
+              color="#1a1a1a" 
               opacity={0.95} 
               transparent 
             />
@@ -95,29 +95,29 @@ function VRFlightInfoPanel({
           {/* Top border */}
           <mesh position={[0, baseHeight / 2, -0.001]}>
             <planeGeometry args={[baseWidth + 0.02, 0.02]} />
-            <meshBasicMaterial color="#e5e7eb" />
+            <meshBasicMaterial color="#ffffff" />
           </mesh>
           {/* Bottom border */}
           <mesh position={[0, -baseHeight / 2, -0.001]}>
             <planeGeometry args={[baseWidth + 0.02, 0.02]} />
-            <meshBasicMaterial color="#e5e7eb" />
+            <meshBasicMaterial color="#ffffff" />
           </mesh>
           {/* Left border */}
           <mesh position={[-baseWidth / 2 - 0.01, 0, -0.001]}>
             <planeGeometry args={[0.02, baseHeight + 0.02]} />
-            <meshBasicMaterial color="#e5e7eb" />
+            <meshBasicMaterial color="#ffffff" />
           </mesh>
           {/* Right border */}
           <mesh position={[baseWidth / 2 + 0.01, 0, -0.001]}>
             <planeGeometry args={[0.02, baseHeight + 0.02]} />
-            <meshBasicMaterial color="#e5e7eb" />
+            <meshBasicMaterial color="#ffffff" />
           </mesh>
 
           {/* Title */}
           <Text
             position={[0, baseHeight / 2 - 0.05, 0.01]}
             fontSize={0.08}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="center"
             anchorY="top"
             maxWidth={baseWidth - 0.1}
@@ -131,7 +131,7 @@ function VRFlightInfoPanel({
             <mesh position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.01]}>
               <planeGeometry args={[0.08, 0.08]} />
               <meshBasicMaterial 
-                color="#ef4444" 
+                color="#ffffff" 
                 opacity={0.8} 
                 transparent 
               />
@@ -139,7 +139,7 @@ function VRFlightInfoPanel({
             <Text
               position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.02]}
               fontSize={0.06}
-              color="#ffffff"
+              color="#000000"
               anchorX="center"
               anchorY="middle"
             >
@@ -151,7 +151,7 @@ function VRFlightInfoPanel({
           <Text
             position={[0, baseHeight / 2 - 0.15, 0.01]}
             fontSize={0.06}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="center"
             anchorY="top"
             maxWidth={baseWidth - 0.1}
@@ -164,7 +164,7 @@ function VRFlightInfoPanel({
           <Text
             position={[0, baseHeight / 2 - 0.23, 0.01]}
             fontSize={0.04}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="center"
             anchorY="top"
             maxWidth={baseWidth - 0.1}
@@ -176,7 +176,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.31, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -185,7 +185,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.31, 0.01]}
             fontSize={0.035}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="right"
             anchorY="top"
           >
@@ -196,7 +196,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.39, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -205,7 +205,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.39, 0.01]}
             fontSize={0.03}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="right"
             anchorY="top"
           >
@@ -216,7 +216,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.47, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -225,7 +225,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.47, 0.01]}
             fontSize={0.035}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="right"
             anchorY="top"
           >
@@ -236,7 +236,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.55, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -245,7 +245,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.55, 0.01]}
             fontSize={0.035}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="right"
             anchorY="top"
           >
@@ -256,7 +256,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.63, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -265,7 +265,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.63, 0.01]}
             fontSize={0.035}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="right"
             anchorY="top"
           >
@@ -276,7 +276,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.71, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -285,7 +285,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.71, 0.01]}
             fontSize={0.035}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="right"
             anchorY="top"
           >
@@ -296,7 +296,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.79, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -305,7 +305,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.79, 0.01]}
             fontSize={0.035}
-            color="#1f2937"
+            color="#ffffff"
             anchorX="right"
             anchorY="top"
           >
@@ -316,7 +316,7 @@ function VRFlightInfoPanel({
           <Text
             position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.87, 0.01]}
             fontSize={0.035}
-            color="#4b5563"
+            color="#a0a0a0"
             anchorX="left"
             anchorY="top"
           >
@@ -325,7 +325,7 @@ function VRFlightInfoPanel({
           <Text
             position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.87, 0.01]}
             fontSize={0.035}
-            color={flight.onGround ? "#6b7280" : "#10b981"}
+            color={flight.onGround ? "#808080" : "#ffffff"}
             anchorX="right"
             anchorY="top"
           >
@@ -336,7 +336,7 @@ function VRFlightInfoPanel({
           <Text
             position={[0, -baseHeight / 2 + 0.1, 0.01]}
             fontSize={0.03}
-            color="#6b7280"
+            color="#808080"
             anchorX="center"
             anchorY="top"
           >
