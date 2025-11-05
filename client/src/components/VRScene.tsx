@@ -4,7 +4,6 @@ import {
   useXR,
   DefaultXRControllers,
   ARCanvas,
-  XRButton,
   useController,
 } from "@react-three/xr";
 import { OrbitControls, Text } from "@react-three/drei";
@@ -653,33 +652,6 @@ export function VRScene({
 }: VRSceneProps) {
   return (
     <>
-      {/* XRButton outside ARCanvas but in the same component */}
-      <XRButton
-        mode="AR"
-        sessionInit={{
-          requiredFeatures: ["local-floor"],
-          optionalFeatures: ["bounded-floor", "hand-tracking"],
-        }}
-        style={{
-          position: "fixed",
-          top: "16px",
-          left: "50%",
-          transform: "translateX(-50%)",
-          background:
-            "linear-gradient(to right, rgba(147, 51, 234, 1), rgba(219, 39, 119, 1))",
-          color: "white",
-          border: "none",
-          borderRadius: "8px",
-          padding: "12px 24px",
-          fontWeight: "bold",
-          cursor: "pointer",
-          zIndex: 1000,
-          boxShadow: "0 4px 6px rgba(0, 0, 0, 0.3)",
-        }}
-      >
-        🚀 Enter Mixed Reality
-      </XRButton>
-
       <div
         style={{
           position: "absolute",

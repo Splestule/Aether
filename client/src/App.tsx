@@ -19,7 +19,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Flight data management
-  const { flights, clearFlights, updateFlights } = useFlights();
+  const { flights, clearFlights, updateFlights, extrapolatePositions } = useFlights();
 
   // Refresh flights for current location
   const refreshFlights = async () => {
@@ -45,7 +45,7 @@ function App() {
     }
   };
 
-  // Auto-refresh flights every 30 seconds
+  // Auto-refresh flights every 30 seconds (API calls)
   useEffect(() => {
     if (!userLocation) return;
 
@@ -55,6 +55,18 @@ function App() {
 
     return () => clearInterval(interval);
   }, [userLocation]);
+
+  // Extrapolate flight positions every 5 seconds (no API calls)
+  // Updates positions based on heading and speed without fetching from API
+  useEffect(() => {
+    if (!userLocation || flights.length === 0) return;
+
+    const interval = setInterval(() => {
+      extrapolatePositions(userLocation, 5); // 5 seconds time delta
+    }, 5000); // Update every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [userLocation, flights.length, extrapolatePositions]);
 
   const { isConnected, sendMessage } = useWebSocket(config.wsUrl, {
     onOpen: () => {
@@ -293,53 +305,8 @@ function App() {
           />
         )}
 
-        {/* Loading Indicator */}
-        {isLoading && (
-          <div className="absolute top-4 right-4 vr-panel p-4">
-            <div className="flex items-center space-x-2">
-              <div className="loading-spinner"></div>
-              <span className="text-sm text-gray-600">Loading flights...</span>
-            </div>
-          </div>
-        )}
-
-        {/* Debug Info */}
-        <div className="absolute bottom-4 right-4 vr-panel p-3 text-xs max-w-sm">
-          <div>
-            WebSocket: {isConnected ? "✅ Connected" : "❌ Disconnected"}
-          </div>
-          <div>Flights: {flights.length}</div>
-          <div>
-            Location: {userLocation ? "✅ Selected" : "❌ Not selected"}
-          </div>
-          <div>Loading: {isLoading ? "⏳ Yes" : "✅ No"}</div>
-          {flights.length > 0 && (
-            <div className="mt-2">
-              <div>First flight: {flights[0]?.callsign}</div>
-              <div>
-                Position: {flights[0]?.position.x?.toFixed(1)},{" "}
-                {flights[0]?.position.y?.toFixed(1)},{" "}
-                {flights[0]?.position.z?.toFixed(1)}
-              </div>
-              <div>Distance: {flights[0]?.distance?.toFixed(1)}km</div>
-            </div>
-          )}
-
-          {/* Flight List for Debugging */}
-          {flights.length > 0 && (
-            <div className="mt-2 max-h-32 overflow-y-auto">
-              <div className="font-semibold">Flights:</div>
-              {flights.slice(0, 5).map((flight) => (
-                <div key={flight.id} className="text-xs">
-                  {flight.callsign} - {flight.distance?.toFixed(1)}km
-                </div>
-              ))}
-              {flights.length > 5 && (
-                <div className="text-xs">... and {flights.length - 5} more</div>
-              )}
-            </div>
-          )}
-        </div>
+        {/* Loading Indicator - removed, using the one in VRControls (left side) */}
+        {/* Debug Info - removed */}
       </div>
     </div>
   );

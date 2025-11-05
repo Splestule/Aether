@@ -1,10 +1,10 @@
-import { Wifi, WifiOff, Plane, Eye, EyeOff } from 'lucide-react'
+import { Plane, Eye, EyeOff } from 'lucide-react'
 import { clsx } from 'clsx'
 
 interface VRControlsProps {
   isVRActive: boolean
   onVRToggle: () => void
-  isConnected: boolean
+  isConnected?: boolean // Optional, not currently displayed
   flightCount: number
   isLoading: boolean
   onBackToLocation?: () => void
@@ -14,7 +14,7 @@ interface VRControlsProps {
 export function VRControls({
   isVRActive,
   onVRToggle,
-  isConnected,
+  isConnected: _isConnected, // Unused but kept for future use
   flightCount,
   isLoading,
   onBackToLocation,
@@ -22,8 +22,8 @@ export function VRControls({
 }: VRControlsProps) {
   return (
     <div className="absolute top-4 left-4 space-y-2">
-      {/* Connection Status */}
-      <div className="vr-panel p-3">
+      {/* Connection Status - removed */}
+      {/* <div className="vr-panel p-3">
         <div className="flex items-center space-x-2">
           {isConnected ? (
             <Wifi className="w-4 h-4 text-white" />
@@ -34,7 +34,7 @@ export function VRControls({
             {isConnected ? 'Connected' : 'Disconnected'}
           </span>
         </div>
-      </div>
+      </div> */}
 
       {/* Flight Count */}
       <div className="vr-panel p-3">
