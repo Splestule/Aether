@@ -35,13 +35,17 @@ export function gpsToVRCoordinates(
   const distanceM = distanceKm * 1000;
 
   // Convert to VR space (meters) - local tangent plane coordinates
-  // X: East-West (positive = East) - uses sin because bearing 0° is North, 90° is East
-  // Z: North-South (positive = North) - uses cos because bearing 0° is North
-  // Y: Up-Down (positive = Up) - altitude difference in meters
+  // In Three.js: X = right/left, Z = forward/backward, Y = up/down
+  // For GPS: East-West maps to X, North-South maps to Z
+  // Bearing: 0° = North, 90° = East
+  // Fix central symmetry: swap X and Z axes
   const bearingRad = (bearing * Math.PI) / 180;
-  const x = distanceM * Math.sin(bearingRad);
-  const z = distanceM * Math.cos(bearingRad);
-  const y = flightAlt - (userLocation.altitude || 0);
+  // Swap X and Z to fix central symmetry through origin
+  // X should represent North-South: cos(bearing) gives North component
+  // Z should represent East-West: sin(bearing) gives East component
+  const x = distanceM * Math.cos(bearingRad);   // North-South (positive = North)
+  const z = distanceM * Math.sin(bearingRad);    // East-West (positive = East)
+  const y = flightAlt - (userLocation.altitude || 0);  // Height unchanged
 
   return { x, y, z };
 }
@@ -117,10 +121,13 @@ export function calculateElevation(
  */
 export function processFlightData(
   flight: FlightData,
-  userLocation: UserLocation
+  userLocation: UserLocation,
+  maxDistance: number = 200 // Default 200km, can be overridden
 ): ProcessedFlight | null {
   // Skip flights without position data
-  if (!flight.longitude || !flight.latitude || !flight.baro_altitude) {
+  // Use geo_altitude if baro_altitude is not available
+  const altitude = flight.baro_altitude || flight.geo_altitude;
+  if (!flight.longitude || !flight.latitude || (!altitude && altitude !== 0)) {
     return null;
   }
 
@@ -131,8 +138,8 @@ export function processFlightData(
     flight.longitude
   );
 
-  // Skip flights too far away (configurable)
-  if (distance > 100) { // 100km radius
+  // Skip flights too far away (use configurable maxDistance)
+  if (distance > maxDistance) {
     return null;
   }
 
@@ -140,14 +147,14 @@ export function processFlightData(
     userLocation,
     flight.latitude,
     flight.longitude,
-    flight.baro_altitude
+    altitude
   );
 
   const elevation = calculateElevation(
     userLocation,
     flight.latitude,
     flight.longitude,
-    flight.baro_altitude
+    altitude
   );
 
   const azimuth = calculateBearing(
@@ -166,7 +173,7 @@ export function processFlightData(
     gps: {
       latitude: flight.latitude,
       longitude: flight.longitude,
-      altitude: flight.baro_altitude,
+      altitude: altitude,
     },
     velocity: flight.velocity || 0,
     heading: flight.true_track || 0,

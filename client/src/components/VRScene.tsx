@@ -1,11 +1,29 @@
-import { Suspense, useRef, useEffect } from "react";
-import { Interactive, useXR, DefaultXRControllers, ARCanvas, XRButton, useController } from "@react-three/xr";
+import { Suspense, useRef, useEffect, useState } from "react";
+import {
+  Interactive,
+  useXR,
+  DefaultXRControllers,
+  ARCanvas,
+  XRButton,
+  useController,
+} from "@react-three/xr";
 import { OrbitControls, Text } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
-import { Vector3, Euler, Quaternion, BackSide, Raycaster, Line, BufferGeometry, LineBasicMaterial, BufferAttribute } from "three";
+import {
+  Vector3,
+  Euler,
+  Quaternion,
+  BackSide,
+  Raycaster,
+  Line,
+  BufferGeometry,
+  LineBasicMaterial,
+  BufferAttribute,
+} from "three";
 import { UserLocation, ProcessedFlight, VRConfig } from "@shared/src/types.js";
 import { ARWaypoint } from "./ARWaypoint";
-// import { FlightTrajectory } from "./FlightTrajectory"; // Disabled - trajectories disconnect from planes
+import { FlightTrajectory } from "./FlightTrajectory";
+import { VRCompass } from "./VRCompass";
 import {
   formatSpeed,
   formatAltitude,
@@ -22,13 +40,12 @@ interface VRSceneProps {
   config: VRConfig;
 }
 
-
 // VR Flight Info Panel - 3D panel attached to left controller
-function VRFlightInfoPanel({ 
-  flight, 
-  onClose 
-}: { 
-  flight: ProcessedFlight; 
+function VRFlightInfoPanel({
+  flight,
+  onClose,
+}: {
+  flight: ProcessedFlight;
   onClose: () => void;
 }) {
   const leftController = useController("left");
@@ -57,12 +74,12 @@ function VRFlightInfoPanel({
       const controller = leftController.controller;
       panelRef.current.position.copy(controller.position);
       panelRef.current.quaternion.copy(controller.quaternion);
-      
+
       // Apply additional tilt backward (rotate around X axis) for better reading angle
       const tiltBackRotation = new Euler(-Math.PI / 6, 0, 0); // -30 degrees around X axis
       const tiltQuaternion = new Quaternion().setFromEuler(tiltBackRotation);
       panelRef.current.quaternion.multiply(tiltQuaternion);
-      
+
       // Offset panel relative to controller (in front and slightly up, in controller's local space)
       // Convert local offset to world space
       const localOffset = new Vector3(0.08, 0.1, 0.12);
@@ -81,268 +98,260 @@ function VRFlightInfoPanel({
   return (
     <group ref={panelRef}>
       <group scale={[scale, scale, scale]}>
-          {/* Background panel */}
-          <mesh>
-            <planeGeometry args={[baseWidth, baseHeight]} />
-            <meshBasicMaterial 
-              color="#1a1a1a" 
-              opacity={0.95} 
-              transparent 
-            />
-          </mesh>
-          
-          {/* Border frame */}
-          {/* Top border */}
-          <mesh position={[0, baseHeight / 2, -0.001]}>
-            <planeGeometry args={[baseWidth + 0.02, 0.02]} />
-            <meshBasicMaterial color="#ffffff" />
-          </mesh>
-          {/* Bottom border */}
-          <mesh position={[0, -baseHeight / 2, -0.001]}>
-            <planeGeometry args={[baseWidth + 0.02, 0.02]} />
-            <meshBasicMaterial color="#ffffff" />
-          </mesh>
-          {/* Left border */}
-          <mesh position={[-baseWidth / 2 - 0.01, 0, -0.001]}>
-            <planeGeometry args={[0.02, baseHeight + 0.02]} />
-            <meshBasicMaterial color="#ffffff" />
-          </mesh>
-          {/* Right border */}
-          <mesh position={[baseWidth / 2 + 0.01, 0, -0.001]}>
-            <planeGeometry args={[0.02, baseHeight + 0.02]} />
-            <meshBasicMaterial color="#ffffff" />
-          </mesh>
+        {/* Background panel */}
+        <mesh>
+          <planeGeometry args={[baseWidth, baseHeight]} />
+          <meshBasicMaterial color="#1a1a1a" opacity={0.95} transparent />
+        </mesh>
 
-          {/* Title */}
+        {/* Border frame */}
+        {/* Top border */}
+        <mesh position={[0, baseHeight / 2, -0.001]}>
+          <planeGeometry args={[baseWidth + 0.02, 0.02]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Bottom border */}
+        <mesh position={[0, -baseHeight / 2, -0.001]}>
+          <planeGeometry args={[baseWidth + 0.02, 0.02]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Left border */}
+        <mesh position={[-baseWidth / 2 - 0.01, 0, -0.001]}>
+          <planeGeometry args={[0.02, baseHeight + 0.02]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+        {/* Right border */}
+        <mesh position={[baseWidth / 2 + 0.01, 0, -0.001]}>
+          <planeGeometry args={[0.02, baseHeight + 0.02]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+
+        {/* Title */}
+        <Text
+          position={[0, baseHeight / 2 - 0.05, 0.01]}
+          fontSize={0.08}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="top"
+          maxWidth={baseWidth - 0.1}
+          fontWeight="bold"
+        >
+          Flight Details
+        </Text>
+
+        {/* Close button */}
+        <Interactive onSelect={onClose}>
+          <mesh position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.01]}>
+            <planeGeometry args={[0.08, 0.08]} />
+            <meshBasicMaterial color="#ffffff" opacity={0.8} transparent />
+          </mesh>
           <Text
-            position={[0, baseHeight / 2 - 0.05, 0.01]}
-            fontSize={0.08}
-            color="#ffffff"
-            anchorX="center"
-            anchorY="top"
-            maxWidth={baseWidth - 0.1}
-            fontWeight="bold"
-          >
-            Flight Details
-          </Text>
-
-          {/* Close button */}
-          <Interactive onSelect={onClose}>
-            <mesh position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.01]}>
-              <planeGeometry args={[0.08, 0.08]} />
-              <meshBasicMaterial 
-                color="#ffffff" 
-                opacity={0.8} 
-                transparent 
-              />
-            </mesh>
-            <Text
-              position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.02]}
-              fontSize={0.06}
-              color="#000000"
-              anchorX="center"
-              anchorY="middle"
-            >
-              ×
-            </Text>
-          </Interactive>
-
-          {/* Callsign */}
-          <Text
-            position={[0, baseHeight / 2 - 0.15, 0.01]}
+            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.05, 0.02]}
             fontSize={0.06}
-            color="#ffffff"
+            color="#000000"
             anchorX="center"
-            anchorY="top"
-            maxWidth={baseWidth - 0.1}
-            fontWeight="bold"
+            anchorY="middle"
           >
-            {flight.callsign}
+            ×
           </Text>
+        </Interactive>
 
-          {/* Airline */}
-          <Text
-            position={[0, baseHeight / 2 - 0.23, 0.01]}
-            fontSize={0.04}
-            color="#a0a0a0"
-            anchorX="center"
-            anchorY="top"
-            maxWidth={baseWidth - 0.1}
-          >
-            {flight.airline}
-          </Text>
+        {/* Callsign */}
+        <Text
+          position={[0, baseHeight / 2 - 0.15, 0.01]}
+          fontSize={0.06}
+          color="#ffffff"
+          anchorX="center"
+          anchorY="top"
+          maxWidth={baseWidth - 0.1}
+          fontWeight="bold"
+        >
+          {flight.callsign}
+        </Text>
 
-          {/* ICAO */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.31, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            ICAO:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.31, 0.01]}
-            fontSize={0.035}
-            color="#ffffff"
-            anchorX="right"
-            anchorY="top"
-          >
-            {flight.icao24}
-          </Text>
+        {/* Airline */}
+        <Text
+          position={[0, baseHeight / 2 - 0.23, 0.01]}
+          fontSize={0.04}
+          color="#a0a0a0"
+          anchorX="center"
+          anchorY="top"
+          maxWidth={baseWidth - 0.1}
+        >
+          {flight.airline}
+        </Text>
 
-          {/* Position */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.39, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            Position:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.39, 0.01]}
-            fontSize={0.03}
-            color="#ffffff"
-            anchorX="right"
-            anchorY="top"
-          >
-            {flight.gps.latitude.toFixed(3)}, {flight.gps.longitude.toFixed(3)}
-          </Text>
+        {/* ICAO */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.31, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          ICAO:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.31, 0.01]}
+          fontSize={0.035}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="top"
+        >
+          {flight.icao24}
+        </Text>
 
-          {/* Altitude */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.47, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            Altitude:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.47, 0.01]}
-            fontSize={0.035}
-            color="#ffffff"
-            anchorX="right"
-            anchorY="top"
-          >
-            {formatAltitude(flight.gps.altitude)}
-          </Text>
+        {/* Position */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.39, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          Position:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.39, 0.01]}
+          fontSize={0.03}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="top"
+        >
+          {flight.gps.latitude.toFixed(3)}, {flight.gps.longitude.toFixed(3)}
+        </Text>
 
-          {/* Speed */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.55, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            Speed:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.55, 0.01]}
-            fontSize={0.035}
-            color="#ffffff"
-            anchorX="right"
-            anchorY="top"
-          >
-            {formatSpeed(flight.velocity)}
-          </Text>
+        {/* Altitude */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.47, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          Altitude:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.47, 0.01]}
+          fontSize={0.035}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="top"
+        >
+          {formatAltitude(flight.gps.altitude)}
+        </Text>
 
-          {/* Heading */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.63, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            Heading:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.63, 0.01]}
-            fontSize={0.035}
-            color="#ffffff"
-            anchorX="right"
-            anchorY="top"
-          >
-            {formatHeading(flight.heading)}
-          </Text>
+        {/* Speed */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.55, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          Speed:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.55, 0.01]}
+          fontSize={0.035}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="top"
+        >
+          {formatSpeed(flight.velocity)}
+        </Text>
 
-          {/* Distance */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.71, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            Distance:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.71, 0.01]}
-            fontSize={0.035}
-            color="#ffffff"
-            anchorX="right"
-            anchorY="top"
-          >
-            {formatDistance(flight.distance)}
-          </Text>
+        {/* Heading */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.63, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          Heading:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.63, 0.01]}
+          fontSize={0.035}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="top"
+        >
+          {formatHeading(flight.heading)}
+        </Text>
 
-          {/* Elevation */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.79, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            Elevation:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.79, 0.01]}
-            fontSize={0.035}
-            color="#ffffff"
-            anchorX="right"
-            anchorY="top"
-          >
-            {flight.elevation.toFixed(1)}°
-          </Text>
+        {/* Distance */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.71, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          Distance:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.71, 0.01]}
+          fontSize={0.035}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="top"
+        >
+          {formatDistance(flight.distance)}
+        </Text>
 
-          {/* Status */}
-          <Text
-            position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.87, 0.01]}
-            fontSize={0.035}
-            color="#a0a0a0"
-            anchorX="left"
-            anchorY="top"
-          >
-            Status:
-          </Text>
-          <Text
-            position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.87, 0.01]}
-            fontSize={0.035}
-            color={flight.onGround ? "#808080" : "#ffffff"}
-            anchorX="right"
-            anchorY="top"
-          >
-            {flight.onGround ? "On Ground" : "In Flight"}
-          </Text>
+        {/* Elevation */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.79, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          Elevation:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.79, 0.01]}
+          fontSize={0.035}
+          color="#ffffff"
+          anchorX="right"
+          anchorY="top"
+        >
+          {flight.elevation.toFixed(1)}°
+        </Text>
 
-          {/* Last Update */}
-          <Text
-            position={[0, -baseHeight / 2 + 0.1, 0.01]}
-            fontSize={0.03}
-            color="#808080"
-            anchorX="center"
-            anchorY="top"
-          >
-            Updated {formatLastUpdate(flight.lastUpdate)}
-          </Text>
-        </group>
+        {/* Status */}
+        <Text
+          position={[-baseWidth / 2 + 0.05, baseHeight / 2 - 0.87, 0.01]}
+          fontSize={0.035}
+          color="#a0a0a0"
+          anchorX="left"
+          anchorY="top"
+        >
+          Status:
+        </Text>
+        <Text
+          position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.87, 0.01]}
+          fontSize={0.035}
+          color={flight.onGround ? "#808080" : "#ffffff"}
+          anchorX="right"
+          anchorY="top"
+        >
+          {flight.onGround ? "On Ground" : "In Flight"}
+        </Text>
+
+        {/* Last Update */}
+        <Text
+          position={[0, -baseHeight / 2 + 0.1, 0.01]}
+          fontSize={0.03}
+          color="#808080"
+          anchorX="center"
+          anchorY="top"
+        >
+          Updated {formatLastUpdate(flight.lastUpdate)}
+        </Text>
+      </group>
     </group>
   );
 }
@@ -351,7 +360,7 @@ function VRFlightInfoPanel({
 // Component to extend raycast distance for VR interactions
 function ExtendedRaycastManager() {
   const { raycaster } = useThree();
-  
+
   useEffect(() => {
     // Extend raycaster far distance to 250km for selecting distant planes
     // The InteractionManager in @react-three/xr uses this raycaster, so extending it
@@ -361,61 +370,77 @@ function ExtendedRaycastManager() {
       raycaster.near = 0.1;
     }
   }, [raycaster]);
-  
+
   // Keep updating in case it gets reset
   useFrame(() => {
     if (raycaster && raycaster.far < 250000) {
       raycaster.far = 250000;
     }
   });
-  
+
   return null;
 }
 
 // Visible raycast line from VR controller (for a single controller)
-function SingleControllerRaycast({ controller, flights }: { controller: any; flights: ProcessedFlight[] }) {
+function SingleControllerRaycast({
+  controller,
+  flights,
+}: {
+  controller: any;
+  flights: ProcessedFlight[];
+}) {
   const geometryRef = useRef(new BufferGeometry());
-  const materialRef = useRef(new LineBasicMaterial({ 
-    color: 0xffffff, 
-    transparent: true, 
-    opacity: 0.8,
-    linewidth: 2 
-  }));
+  const materialRef = useRef(
+    new LineBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.8,
+      linewidth: 2,
+    })
+  );
   const lineRef = useRef(new Line(geometryRef.current, materialRef.current));
   const raycaster = useRef(new Raycaster());
-  
+
   useFrame(() => {
-    if (!lineRef.current || !geometryRef.current || !materialRef.current || !controller) {
+    if (
+      !lineRef.current ||
+      !geometryRef.current ||
+      !materialRef.current ||
+      !controller
+    ) {
       if (lineRef.current) {
         lineRef.current.visible = false;
       }
       return;
     }
-    
+
     const controllerPosition = controller.controller.position.clone();
     const controllerDirection = new Vector3(0, 0, -1);
     controllerDirection.applyMatrix4(controller.controller.matrixWorld);
     controllerDirection.sub(controllerPosition).normalize();
-    
+
     // Set up raycaster
     raycaster.current.set(controllerPosition, controllerDirection);
     raycaster.current.far = 250000; // 250km
-    
+
     // Check for intersections with waypoint collision meshes
     const waypointMeshes: any[] = [];
     flights.forEach((flight) => {
       // Calculate collision sphere size (matching ARWaypoint calculation)
       const distanceFromUser = Math.sqrt(
-        flight.position.x * flight.position.x + 
-        flight.position.y * flight.position.y + 
-        flight.position.z * flight.position.z
+        flight.position.x * flight.position.x +
+          flight.position.y * flight.position.y +
+          flight.position.z * flight.position.z
       );
       const distanceKm = distanceFromUser / 1000;
       const baseSize = 50;
       const distanceMultiplier = Math.max(1, Math.sqrt(distanceKm / 5));
-      const altitudeMultiplier = Math.max(1, Math.sqrt(Math.abs(flight.position.y) / 2000));
+      const altitudeMultiplier = Math.max(
+        1,
+        Math.sqrt(Math.abs(flight.position.y) / 2000)
+      );
       const sphereSize = baseSize * distanceMultiplier * altitudeMultiplier;
-      
+
       // Check if ray passes close enough to the waypoint (within collision sphere radius * 3)
       const waypointPos = new Vector3(
         flight.position.x,
@@ -423,78 +448,106 @@ function SingleControllerRaycast({ controller, flights }: { controller: any; fli
         flight.position.z
       );
       const waypointToController = controllerPosition.clone().sub(waypointPos);
-      const t = -waypointToController.dot(controllerDirection) / controllerDirection.dot(controllerDirection);
-      
+      const t =
+        -waypointToController.dot(controllerDirection) /
+        controllerDirection.dot(controllerDirection);
+
       if (t > 0 && t <= 250000) {
-        const closestPoint = controllerPosition.clone().add(controllerDirection.clone().multiplyScalar(t));
+        const closestPoint = controllerPosition
+          .clone()
+          .add(controllerDirection.clone().multiplyScalar(t));
         const distanceToWaypoint = closestPoint.distanceTo(waypointPos);
-        
+
         if (distanceToWaypoint <= sphereSize * 3) {
           waypointMeshes.push({ flight, distance: t });
         }
       }
     });
-    
+
     // Find closest intersection
-    const closestIntersection = waypointMeshes.sort((a, b) => a.distance - b.distance)[0];
+    const closestIntersection = waypointMeshes.sort(
+      (a, b) => a.distance - b.distance
+    )[0];
     const hasHit = !!closestIntersection;
-    
+
     // Calculate line end point
     const maxDistance = 250000; // 250km
-    const hitDistance = closestIntersection ? closestIntersection.distance : maxDistance;
-    const endPoint = controllerPosition.clone().add(controllerDirection.clone().multiplyScalar(hitDistance));
-    
+    const hitDistance = closestIntersection
+      ? closestIntersection.distance
+      : maxDistance;
+    const endPoint = controllerPosition
+      .clone()
+      .add(controllerDirection.clone().multiplyScalar(hitDistance));
+
     // Update line geometry
     const positions = new Float32Array([
-      controllerPosition.x, controllerPosition.y, controllerPosition.z,
-      endPoint.x, endPoint.y, endPoint.z
+      controllerPosition.x,
+      controllerPosition.y,
+      controllerPosition.z,
+      endPoint.x,
+      endPoint.y,
+      endPoint.z,
     ]);
-    geometryRef.current.setAttribute('position', new BufferAttribute(positions, 3));
+    geometryRef.current.setAttribute(
+      "position",
+      new BufferAttribute(positions, 3)
+    );
     geometryRef.current.setDrawRange(0, 2);
-    
+
     // Update line visibility and color
     lineRef.current.visible = true;
     const color = hasHit ? 0x00ff00 : 0xffffff;
     materialRef.current.color.setHex(color);
   });
-  
+
   return <primitive ref={lineRef} object={lineRef.current} />;
 }
 
 // Visible raycast line from all VR controllers
 function VRRaycastLine({ flights }: { flights: ProcessedFlight[] }) {
   const { controllers } = useXR();
-  
+
   if (controllers.length === 0) {
     return null;
   }
-  
+
   return (
     <>
       {controllers.map((controller, index) => (
-        <SingleControllerRaycast key={index} controller={controller} flights={flights} />
+        <SingleControllerRaycast
+          key={index}
+          controller={controller}
+          flights={flights}
+        />
       ))}
     </>
   );
 }
 
 function SceneContent({
+  userLocation,
   flights,
   selectedFlight,
   onFlightSelect,
   config,
 }: Omit<VRSceneProps, "isVRActive">) {
   const { isPresenting } = useXR();
+  const [sceneRotation, setSceneRotation] = useState(0);
 
   const filteredFlights = flights.filter(
     (flight) => flight.distance <= config.maxDistance
   );
 
+  const handleCompassRotation = (rotationDelta: number) => {
+    // Accumulate rotation delta into scene rotation
+    setSceneRotation((prev) => prev + rotationDelta);
+  };
+
   return (
     <>
       {/* Extend raycast distance for VR interactions */}
       <ExtendedRaycastManager />
-      
+
       {/* Enhanced lighting for AR - brighter and more visible */}
       <ambientLight intensity={1.2} />
       <directionalLight position={[100, 100, 50]} intensity={1.5} castShadow />
@@ -503,7 +556,16 @@ function SceneContent({
 
       {/* VR Controllers - visible in AR/VR mode */}
       {isPresenting && <DefaultXRControllers />}
-      
+
+      {/* VR Compass - attached to left controller, controls scene rotation */}
+      {isPresenting && (
+        <VRCompass
+          onRotationChange={handleCompassRotation}
+          selectedFlight={selectedFlight}
+          sceneRotation={sceneRotation}
+        />
+      )}
+
       {/* Visible raycast line from controller */}
       {isPresenting && <VRRaycastLine flights={filteredFlights} />}
 
@@ -515,38 +577,52 @@ function SceneContent({
         </mesh>
       )}
 
-      {/* Flight objects - make them interactive in VR and desktop */}
-      {filteredFlights.map((flight) => {
-        const handleSelect = () => {
-          console.log("Flight selected:", flight.callsign);
-          // Toggle selection - click same flight to deselect
-          if (selectedFlight?.id === flight.id) {
-            onFlightSelect(null);
-          } else {
-            onFlightSelect(flight);
-          }
-        };
+      {/* Scene rotation wrapper - rotates all flight content based on compass rotation */}
+      <group rotation={[0, sceneRotation, 0]}>
+        {/* Flight trajectory - show for selected flight */}
+        {selectedFlight && (
+          <FlightTrajectory
+            flight={selectedFlight}
+            userLocation={userLocation}
+          />
+        )}
 
-        return (
-          <React.Fragment key={flight.id}>
-            {/* Render waypoint - Interactive wraps individual meshes in VR mode */}
-            <ARWaypoint
-              flight={flight}
-              isSelected={selectedFlight?.id === flight.id}
-              onClick={handleSelect}
-              isVR={isPresenting}
-            />
-            {/* Trajectories disabled - they often disconnect from planes */}
-            {/* {config.enableTrajectories && <FlightTrajectory flight={flight} />} */}
-          </React.Fragment>
-        );
-      })}
+        {/* Compass heading tracker - updates the compass display */}
+        <CompassHeading />
 
-      {/* VR Info Panel - 3D panel visible in VR mode */}
+        {/* Flight objects - make them interactive in VR and desktop */}
+        {filteredFlights.map((flight) => {
+          const handleSelect = () => {
+            console.log("Flight selected:", flight.callsign);
+            // Toggle selection - click same flight to deselect
+            if (selectedFlight?.id === flight.id) {
+              onFlightSelect(null);
+            } else {
+              onFlightSelect(flight);
+            }
+          };
+
+          return (
+            <React.Fragment key={flight.id}>
+              {/* Render waypoint - Interactive wraps individual meshes in VR mode */}
+              <ARWaypoint
+                flight={flight}
+                isSelected={selectedFlight?.id === flight.id}
+                onClick={handleSelect}
+                isVR={isPresenting}
+              />
+              {/* Trajectories disabled - they often disconnect from planes */}
+              {/* {config.enableTrajectories && <FlightTrajectory flight={flight} />} */}
+            </React.Fragment>
+          );
+        })}
+      </group>
+
+      {/* VR Info Panel - 3D panel visible in VR mode (not rotated with scene) */}
       {isPresenting && selectedFlight && (
-        <VRFlightInfoPanel 
-          flight={selectedFlight} 
-          onClose={() => onFlightSelect(null)} 
+        <VRFlightInfoPanel
+          flight={selectedFlight}
+          onClose={() => onFlightSelect(null)}
         />
       )}
 
@@ -589,7 +665,8 @@ export function VRScene({
           top: "16px",
           left: "50%",
           transform: "translateX(-50%)",
-          background: "linear-gradient(to right, rgba(147, 51, 234, 1), rgba(219, 39, 119, 1))",
+          background:
+            "linear-gradient(to right, rgba(147, 51, 234, 1), rgba(219, 39, 119, 1))",
           color: "white",
           border: "none",
           borderRadius: "8px",
@@ -647,4 +724,37 @@ export function VRScene({
       </div>
     </>
   );
+}
+
+// Compass component that reads camera direction from SceneContent
+function CompassHeading() {
+  const { camera } = useThree();
+
+  useFrame(() => {
+    // Get camera's forward direction in world space
+    const forward = new Vector3(0, 0, -1);
+    forward.applyQuaternion(camera.quaternion);
+
+    // Project forward vector onto horizontal plane (ignore Y component)
+    const forwardHorizontal = new Vector3(forward.x, 0, forward.z).normalize();
+
+    // Calculate heading angle from North
+    // In our coordinate system after swap: X = North-South, Z = East-West
+    // X+ = North (cos gives North), Z+ = East (sin gives East)
+    const angle = Math.atan2(forwardHorizontal.z, forwardHorizontal.x);
+    const degrees = (angle * (180 / Math.PI) + 360) % 360;
+
+    // Convert to compass direction
+    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const index = Math.round(degrees / 45) % 8;
+    const direction = directions[index];
+
+    // Update the compass display element
+    const compassEl = document.getElementById("compass-display");
+    if (compassEl) {
+      compassEl.textContent = direction;
+    }
+  });
+
+  return null;
 }

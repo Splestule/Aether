@@ -128,6 +128,57 @@ export function setupRoutes(app: Express, services: Services) {
     }
   })
 
+  // Flight trajectory (historical positions) - must come before /api/flights/:icao to match first
+  app.get('/api/flights/:icao/trajectory', async (req, res) => {
+    try {
+      const { icao } = req.params
+      const { lat, lon, alt } = req.query
+      
+      if (!icao || icao.length !== 6) {
+        return res.status(400).json({ 
+          error: 'Invalid ICAO code' 
+        })
+      }
+
+      if (!lat || !lon) {
+        return res.status(400).json({ 
+          error: 'Missing required parameters: lat, lon' 
+        })
+      }
+
+      const latitude = parseFloat(lat as string)
+      const longitude = parseFloat(lon as string)
+      const altitude = alt ? parseFloat(alt as string) : 0
+
+      if (isNaN(latitude) || isNaN(longitude)) {
+        return res.status(400).json({ 
+          error: 'Invalid parameters: lat, lon must be numbers' 
+        })
+      }
+
+      const userLocation = {
+        latitude,
+        longitude,
+        altitude,
+      }
+
+      const trajectory = await flightService.getFlightTrajectory(icao, userLocation)
+
+      res.json({
+        success: true,
+        data: trajectory,
+        count: trajectory.length,
+        timestamp: Date.now(),
+      })
+    } catch (error) {
+      console.error('Error fetching flight trajectory:', error)
+      res.status(500).json({ 
+        error: 'Failed to fetch flight trajectory',
+        message: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+  })
+
   // Flight details by ICAO
   app.get('/api/flights/:icao', async (req, res) => {
     try {
@@ -160,4 +211,5 @@ export function setupRoutes(app: Express, services: Services) {
       })
     }
   })
+
 }

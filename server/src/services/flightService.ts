@@ -6,6 +6,7 @@ import { DemoService } from './demoService.js'
 
 export class FlightService {
   private readonly OPENSKY_API_URL = 'https://opensky-network.org/api/states/all'
+  private readonly OPENSKY_TRACKS_API_URL = 'https://opensky-network.org/api/tracks'
   private readonly REQUEST_TIMEOUT = 10000 // 10 seconds
   private readonly MAX_RETRIES = 3
   private demoService: DemoService
@@ -59,7 +60,7 @@ export class FlightService {
           altitude: flight.geo_altitude
         });
         
-        const processed = processFlightData(flight, userLocation)
+        const processed = processFlightData(flight, userLocation, radiusKm)
         if (!processed) {
           console.log(`Flight ${flight.icao24} was filtered out during processing because:`, {
             hasValidCoordinates: flight.latitude != null && flight.longitude != null,
@@ -133,7 +134,7 @@ export class FlightService {
         altitude: 0,
       }
 
-      const processedFlight = processFlightData(flight, userLocation)
+      const processedFlight = processFlightData(flight, userLocation, 1000) // Use 1000km for individual flight lookup
       
       if (processedFlight) {
         // Cache for 30 seconds
@@ -218,7 +219,110 @@ export class FlightService {
     }
 
     return []; // Fallback return if loop completes without success
-}
+  }
+
+  /**
+   * Get historical trajectory data for a specific flight
+   * Fetches track data from OpenSky Network API for the past 30 minutes
+   */
+  async getFlightTrajectory(
+    icao24: string,
+    userLocation: UserLocation
+  ): Promise<Array<{
+    timestamp: number;
+    position: { x: number; y: number; z: number };
+    gps: { latitude: number; longitude: number; altitude: number };
+  }>> {
+    const cacheKey = `trajectory_${icao24}_${Date.now() - (30 * 60 * 1000)}`
+    
+    // Check cache first (cache for 1 minute)
+    const cached = this.cacheService.get<Array<{
+      timestamp: number;
+      position: { x: number; y: number; z: number };
+      gps: { latitude: number; longitude: number; altitude: number };
+    }>>(cacheKey)
+    if (cached) {
+      console.log('Returning cached trajectory data')
+      return cached
+    }
+
+    try {
+      // Get current timestamp (Unix timestamp in seconds)
+      const currentTime = Math.floor(Date.now() / 1000)
+      
+      // Fetch track data from OpenSky API
+      const response = await axios.get(`${this.OPENSKY_TRACKS_API_URL}`, {
+        params: {
+          icao24: icao24,
+          time: currentTime, // Current time in seconds
+        },
+        timeout: this.REQUEST_TIMEOUT,
+        headers: {
+          'User-Agent': 'VR-Flight-Tracker/1.0',
+        },
+      })
+
+      if (!response.data || !response.data.path) {
+        console.warn('No trajectory data received from OpenSky API')
+        return []
+      }
+
+      // OpenSky tracks API returns path as array of [timestamp, latitude, longitude, altitude, ...]
+      const path = response.data.path
+      const thirtyMinutesAgo = Date.now() - (30 * 60 * 1000)
+
+      // Import gpsToVRCoordinates
+      const { gpsToVRCoordinates } = await import('@vr-flight-tracker/shared')
+
+      // Convert track data to our format
+      const trajectory: Array<{
+        timestamp: number;
+        position: { x: number; y: number; z: number };
+        gps: { latitude: number; longitude: number; altitude: number };
+      }> = []
+
+      path.forEach((point: any[]) => {
+        if (point.length >= 4) {
+          const timestamp = point[0] * 1000 // Convert to milliseconds
+          const latitude = point[1]
+          const longitude = point[2]
+          const altitude = point[3] || 0
+
+          // Only include points from the past 30 minutes
+          if (timestamp >= thirtyMinutesAgo && latitude && longitude) {
+            const vrPosition = gpsToVRCoordinates(
+              userLocation,
+              latitude,
+              longitude,
+              altitude
+            )
+
+            trajectory.push({
+              timestamp,
+              position: vrPosition,
+              gps: {
+                latitude,
+                longitude,
+                altitude,
+              },
+            })
+          }
+        }
+      })
+
+      // Sort by timestamp (oldest first)
+      trajectory.sort((a, b) => a.timestamp - b.timestamp)
+
+      // Cache for 1 minute
+      this.cacheService.set(cacheKey, trajectory, 60)
+
+      return trajectory
+    } catch (error) {
+      console.error('Error fetching flight trajectory from OpenSky API:', error)
+      return []
+    }
+  }
+
   /**
    * Calculate bounding box for a given center point and radius
    */

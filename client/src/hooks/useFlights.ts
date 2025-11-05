@@ -43,6 +43,7 @@ export function useFlights() {
       const updatedFlights = new Map(prev)
       
       // Update existing flights and add new ones
+      // Note: Position history is now fetched from API, not stored locally
       newFlights.forEach(flight => {
         updatedFlights.set(flight.id, flight)
       })

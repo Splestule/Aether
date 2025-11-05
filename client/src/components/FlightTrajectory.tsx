@@ -1,47 +1,84 @@
-import { useMemo } from "react";
-import { ProcessedFlight } from "@shared/src/types.js";
+import { useState, useEffect, useMemo } from "react";
+import { ProcessedFlight, UserLocation } from "@shared/src/types.js";
+import { config } from "../config";
 
 interface FlightTrajectoryProps {
   flight: ProcessedFlight;
+  userLocation: UserLocation;
 }
 
-export function FlightTrajectory({ flight }: FlightTrajectoryProps) {
-  // Generate a simple trajectory line based on current position and heading
-  // Stop at a reasonable distance, not infinity
+interface TrajectoryPoint {
+  timestamp: number;
+  position: { x: number; y: number; z: number };
+  gps: { latitude: number; longitude: number; altitude: number };
+}
+
+export function FlightTrajectory({ flight, userLocation }: FlightTrajectoryProps) {
+  const [trajectoryData, setTrajectoryData] = useState<TrajectoryPoint[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch trajectory data from API when flight changes
+  useEffect(() => {
+    const fetchTrajectory = async () => {
+      setIsLoading(true);
+      try {
+        const response = await fetch(
+          `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${userLocation.latitude}&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setTrajectoryData(data.data);
+          } else {
+            setTrajectoryData([]);
+          }
+        } else {
+          console.warn('Failed to fetch trajectory data:', response.status);
+          setTrajectoryData([]);
+        }
+      } catch (error) {
+        console.error('Error fetching trajectory:', error);
+        setTrajectoryData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTrajectory();
+  }, [flight.icao24, userLocation.latitude, userLocation.longitude, userLocation.altitude]);
+
+  // Convert trajectory data to points array
   const trajectoryPoints = useMemo(() => {
-    const points = [];
-    const segmentLength = 500; // 500 meters per segment
-    const numSegments = 15; // Reduced from 20 to make it shorter
-    const maxDistance = 5000; // Stop at 5km
-
-    // Start from current position
-    let currentX = flight.position.x;
-    let currentY = flight.position.y;
-    let currentZ = flight.position.z;
-
-    points.push(currentX, currentY, currentZ);
-
-    // Extrapolate trajectory based on heading and velocity
-    const headingRad = (flight.heading * Math.PI) / 180;
-    let totalDistance = 0;
-
-    for (let i = 1; i <= numSegments; i++) {
-      // Stop if we've gone too far
-      if (totalDistance >= maxDistance) break;
-      
-      // Calculate next position based on heading
-      currentX += segmentLength * Math.sin(headingRad);
-      currentZ += segmentLength * Math.cos(headingRad);
-
-      // Keep altitude constant (planes fly at level altitude)
-      currentY = flight.position.y;
-
-      totalDistance += segmentLength;
-      points.push(currentX, currentY, currentZ);
+    if (trajectoryData.length === 0) {
+      return new Float32Array(0);
     }
 
+    const points: number[] = [];
+
+    // Add all trajectory points in order
+    trajectoryData.forEach(point => {
+      points.push(
+        point.position.x,
+        point.position.y,
+        point.position.z
+      );
+    });
+
+    // Add current position last (most recent)
+    points.push(
+      flight.position.x,
+      flight.position.y,
+      flight.position.z
+    );
+
     return new Float32Array(points);
-  }, [flight.position, flight.heading, flight.velocity]);
+  }, [trajectoryData, flight.position]);
+
+  // Don't render if there's no trajectory data or still loading
+  if (trajectoryPoints.length === 0 || isLoading) {
+    return null;
+  }
 
   return (
     <line>
@@ -56,8 +93,8 @@ export function FlightTrajectory({ flight }: FlightTrajectoryProps) {
       <lineBasicMaterial
         color="#ffffff"
         transparent
-        opacity={0.5}
-        linewidth={3}
+        opacity={0.6}
+        linewidth={2}
       />
     </line>
   );
