@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VR Flight Tracker - Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .status-card {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            flex: 1;
+            min-width: 200px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .status-card h3 {
+            margin-bottom: 10px;
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.running {
+            background: #4ade80;
+        }
+
+        .status-indicator.stopped {
+            background: #ef4444;
+            animation: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .logs-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .log-panel {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+
+        .log-panel h2 {
+            margin-bottom: 15px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .log-content {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .log-line {
+            margin-bottom: 4px;
+            word-wrap: break-word;
+        }
+
+        .log-line.error {
+            color: #f87171;
+        }
+
+        .log-line.warn {
+            color: #fbbf24;
+        }
+
+        .log-line.info {
+            color: #60a5fa;
+        }
+
+        .stats-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-item {
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+        }
+
+        .refresh-info {
+            text-align: center;
+            margin-top: 20px;
+            opacity: 0.7;
+            font-size: 0.9em;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 VR Flight Tracker Dashboard</h1>
+            <p>Real-time monitoring and logs</p>
+        </header>
+
+        <div class="status-bar">
+            <div class="status-card">
+                <h3>Backend Server</h3>
+                <div>
+                    <span class="status-indicator" id="server-status"></span>
+                    <span id="server-text">Checking...</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                    Port: <span id="server-port">8080</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>Frontend Client</h3>
+                <div>
+                    <span class="status-indicator" id="client-status"></span>
+                    <span id="client-text">Checking...</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                    Port: <span id="client-port">-</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>Dashboard</h3>
+                <div>
+                    <span class="status-indicator running"></span>
+                    <span>Running</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                    Port: 8081
+                </div>
+            </div>
+        </div>
+
+        <div class="logs-container">
+            <div class="log-panel">
+                <h2>📡 Server Logs</h2>
+                <div class="log-content" id="server-logs">
+                    <div class="log-line">Waiting for logs...</div>
+                </div>
+            </div>
+
+            <div class="log-panel">
+                <h2>💻 Client Logs</h2>
+                <div class="log-content" id="client-logs">
+                    <div class="log-line">Waiting for logs...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="stats-panel">
+            <h2>📊 Cache Statistics</h2>
+            <div class="stats-grid" id="cache-stats">
+                <div class="stat-item">
+                    <div class="stat-label">Cache Size</div>
+                    <div class="stat-value" id="cache-size">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cache Hits</div>
+                    <div class="stat-value" id="cache-hits">-</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-label">Cache Misses</div>
+                    <div class="stat-value" id="cache-misses">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="refresh-info">
+            Auto-refreshing every 2 seconds • Last updated: <span id="last-update">-</span>
+        </div>
+    </div>
+
+    <script>
+        function updateStatus(stats) {
+            // Server status
+            const serverStatus = document.getElementById('server-status');
+            const serverText = document.getElementById('server-text');
+            const serverPort = document.getElementById('server-port');
+            
+            if (stats.server.running) {
+                serverStatus.className = 'status-indicator running';
+                serverText.textContent = 'Running';
+                serverPort.textContent = stats.server.port;
+            } else {
+                serverStatus.className = 'status-indicator stopped';
+                serverText.textContent = 'Stopped';
+                serverPort.textContent = stats.server.port;
+            }
+
+            // Client status
+            const clientStatus = document.getElementById('client-status');
+            const clientText = document.getElementById('client-text');
+            const clientPort = document.getElementById('client-port');
+            
+            if (stats.client.running) {
+                clientStatus.className = 'status-indicator running';
+                clientText.textContent = 'Running';
+                clientPort.textContent = stats.client.port || '-';
+            } else {
+                clientStatus.className = 'status-indicator stopped';
+                clientText.textContent = 'Stopped';
+                clientPort.textContent = '-';
+            }
+
+            // Cache stats
+            if (stats.server.cache) {
+                document.getElementById('cache-size').textContent = stats.server.cache.size || 0;
+                document.getElementById('cache-hits').textContent = stats.server.cache.hits || 0;
+                document.getElementById('cache-misses').textContent = stats.server.cache.misses || 0;
+            } else {
+                document.getElementById('cache-size').textContent = '-';
+                document.getElementById('cache-hits').textContent = '-';
+                document.getElementById('cache-misses').textContent = '-';
+            }
+
+            document.getElementById('last-update').textContent = new Date().toLocaleTimeString();
+        }
+
+        function updateLogs(type, lines) {
+            const logElement = document.getElementById(`${type}-logs`);
+            if (!lines || lines.length === 0) {
+                logElement.innerHTML = '<div class="log-line">No logs available</div>';
+                return;
+            }
+
+            const html = lines.slice(-50).map(line => {
+                let className = 'log-line';
+                if (line.toLowerCase().includes('error')) className += ' error';
+                else if (line.toLowerCase().includes('warn')) className += ' warn';
+                else if (line.toLowerCase().includes('info')) className += ' info';
+                
+                return `<div class="${className}">${escapeHtml(line)}</div>`;
+            }).join('');
+
+            logElement.innerHTML = html;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        async function fetchStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                updateStatus(stats);
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+
+        async function fetchLogs(type) {
+            try {
+                const response = await fetch(`/api/logs/${type}`);
+                const data = await response.json();
+                if (data.lines) {
+                    updateLogs(type, data.lines);
+                }
+            } catch (error) {
+                console.error(`Error fetching ${type} logs:`, error);
+            }
+        }
+
+        // Initial load
+        fetchStats();
+        fetchLogs('server');
+        fetchLogs('client');
+
+        // Auto-refresh
+        setInterval(() => {
+            fetchStats();
+            fetchLogs('server');
+            fetchLogs('client');
+        }, 2000);
+    </script>
+</body>
+</html>
+

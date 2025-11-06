@@ -20,7 +20,8 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "@vr-flight-tracker/shared": "workspace:*"
+    "@vr-flight-tracker/shared": "workspace:*",
+    "express": "^4.18.2"
   },
   "engines": {
     "node": ">=18.0.0"
