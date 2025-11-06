@@ -1,9 +1,8 @@
-import { Plane, Eye, EyeOff } from 'lucide-react'
-import { clsx } from 'clsx'
+import { Plane } from 'lucide-react'
 
 interface VRControlsProps {
   isVRActive: boolean
-  onVRToggle: () => void
+  onVRToggle: () => void // Kept for compatibility but not used
   isConnected?: boolean // Optional, not currently displayed
   flightCount: number
   isLoading: boolean
@@ -12,8 +11,8 @@ interface VRControlsProps {
 }
 
 export function VRControls({
-  isVRActive,
-  onVRToggle,
+  isVRActive: _isVRActive, // Unused but kept for compatibility
+  onVRToggle: _onVRToggle, // Unused but kept for compatibility
   isConnected: _isConnected, // Unused but kept for future use
   flightCount,
   isLoading,
@@ -44,28 +43,6 @@ export function VRControls({
             {flightCount} flights
           </span>
         </div>
-      </div>
-
-      {/* VR Toggle */}
-      <div className="vr-panel p-3">
-        <button
-          onClick={onVRToggle}
-          className={clsx(
-            'flex items-center space-x-2 px-3 py-2 rounded-lg transition-colors',
-            isVRActive
-              ? 'bg-white text-black hover:bg-gray-200'
-              : 'bg-gray-700 text-white hover:bg-gray-600'
-          )}
-        >
-          {isVRActive ? (
-            <EyeOff className="w-4 h-4" />
-          ) : (
-            <Eye className="w-4 h-4" />
-          )}
-          <span className="text-sm font-medium">
-            {isVRActive ? 'Exit VR' : 'Enter VR'}
-          </span>
-        </button>
       </div>
 
       {/* Refresh Flights Button */}
