@@ -56,35 +56,68 @@ fi
 # Create log directory if it doesn't exist
 mkdir -p logs
 
+# Create PID file for tracking
+PID_FILE="$SCRIPT_DIR/.vr-flight-tracker.pids"
+
 # Function to cleanup on exit
 cleanup() {
     echo ""
     echo "🛑 Stopping servers..."
-    kill $SERVER_PID $CLIENT_PID $DASHBOARD_PID 2>/dev/null
-    pkill -f "tsx watch src/index.ts" 2>/dev/null
-    pkill -f "vite" 2>/dev/null
-    pkill -f "monitor.sh" 2>/dev/null
-    pkill -f "dashboard-server.js" 2>/dev/null
+    
+    # Kill processes from PID file if it exists
+    if [ -f "$PID_FILE" ]; then
+        source "$PID_FILE" 2>/dev/null
+        [ ! -z "$SERVER_PID" ] && kill -9 $SERVER_PID 2>/dev/null && pkill -P $SERVER_PID 2>/dev/null
+        [ ! -z "$CLIENT_PID" ] && kill -9 $CLIENT_PID 2>/dev/null && pkill -P $CLIENT_PID 2>/dev/null
+        [ ! -z "$DASHBOARD_PID" ] && kill -9 $DASHBOARD_PID 2>/dev/null && pkill -P $DASHBOARD_PID 2>/dev/null
+    fi
+    
+    # Fallback: kill by port
+    lsof -ti:8080 | xargs kill -9 2>/dev/null
+    lsof -ti:3000 | xargs kill -9 2>/dev/null
+    lsof -ti:5173 | xargs kill -9 2>/dev/null
+    lsof -ti:8081 | xargs kill -9 2>/dev/null
+    
+    # Kill by process name
+    pkill -9 -f "tsx watch src/index.ts" 2>/dev/null
+    pkill -9 -f "vite" 2>/dev/null
+    pkill -9 -f "monitor.sh" 2>/dev/null
+    pkill -9 -f "dashboard-server.js" 2>/dev/null
+    
+    # Clean up PID file
+    rm -f "$PID_FILE" 2>/dev/null
+    
     echo "✅ Servers stopped."
     exit 0
 }
 
 trap cleanup INT TERM
 
+# Create PID file for tracking
+PID_FILE="$SCRIPT_DIR/.vr-flight-tracker.pids"
+echo "" > "$PID_FILE"
+
 # Start server in background
 echo "🚀 Starting backend server..."
 cd "$SCRIPT_DIR/server" && npm run dev > "$SCRIPT_DIR/logs/server.log" 2>&1 &
 SERVER_PID=$!
+echo "SERVER_PID=$SERVER_PID" >> "$PID_FILE"
+echo "SERVER_PPID=$$" >> "$PID_FILE"
 
 # Start client in background
 echo "🚀 Starting frontend client..."
 cd "$SCRIPT_DIR/client" && npm run dev > "$SCRIPT_DIR/logs/client.log" 2>&1 &
 CLIENT_PID=$!
+echo "CLIENT_PID=$CLIENT_PID" >> "$PID_FILE"
+echo "CLIENT_PPID=$$" >> "$PID_FILE"
 
 # Start dashboard server in background
 echo "🚀 Starting dashboard server..."
 cd "$SCRIPT_DIR" && node dashboard-server.js > "$SCRIPT_DIR/logs/dashboard.log" 2>&1 &
 DASHBOARD_PID=$!
+echo "DASHBOARD_PID=$DASHBOARD_PID" >> "$PID_FILE"
+echo "DASHBOARD_PPID=$$" >> "$PID_FILE"
+echo "MAIN_PID=$$" >> "$PID_FILE"
 
 # Wait a moment for servers to start
 sleep 3

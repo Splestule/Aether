@@ -13,7 +13,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #0f0f0f 0%, #1d1d1d 100%);
             color: #fff;
             padding: 20px;
             min-height: 100vh;
@@ -27,12 +27,133 @@
         header {
             text-align: center;
             margin-bottom: 30px;
+            position: relative;
         }
 
         h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .stop-button {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background: rgba(239, 68, 68, 0.15);
+            color: #fca5a5;
+            border: 1.5px solid rgba(239, 68, 68, 0.4);
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 8px rgba(239, 68, 68, 0.1);
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stop-button:hover {
+            background: rgba(239, 68, 68, 0.25);
+            border-color: rgba(239, 68, 68, 0.6);
+            color: #f87171;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+        }
+
+        .stop-button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 6px rgba(239, 68, 68, 0.15);
+        }
+
+        .stop-button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+            pointer-events: none;
+        }
+
+        .stop-button-icon {
+            font-size: 1.1em;
+            display: inline-block;
+            transition: transform 0.3s ease;
+        }
+
+        .stop-button:hover .stop-button-icon {
+            transform: scale(1.1);
+        }
+
+        .stop-confirmation {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(239, 68, 68, 0.5);
+            border-radius: 15px;
+            padding: 30px;
+            z-index: 1000;
+            text-align: center;
+            min-width: 300px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .stop-confirmation h3 {
+            margin-bottom: 15px;
+            color: #ef4444;
+        }
+
+        .stop-confirmation p {
+            margin-bottom: 20px;
+            opacity: 0.9;
+        }
+
+        .stop-confirmation-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .stop-confirmation-button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .stop-confirmation-button.confirm {
+            background: #ef4444;
+            color: white;
+        }
+
+        .stop-confirmation-button.confirm:hover {
+            background: #dc2626;
+        }
+
+        .stop-confirmation-button.cancel {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .stop-confirmation-button.cancel:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 999;
         }
 
         .status-bar {
@@ -194,8 +315,12 @@
 <body>
     <div class="container">
         <header>
-            <h1>🚀 VR Flight Tracker Dashboard</h1>
+            <h1>VR Flight Tracker Dashboard</h1>
             <p>Real-time monitoring and logs</p>
+            <button class="stop-button" id="stop-button" onclick="showStopConfirmation()">
+                <span class="stop-button-icon">⏹</span>
+                <span>Stop Servers</span>
+            </button>
         </header>
 
         <div class="status-bar">
@@ -235,14 +360,14 @@
 
         <div class="logs-container">
             <div class="log-panel">
-                <h2>📡 Server Logs</h2>
+                <h2>📡  Server Logs</h2>
                 <div class="log-content" id="server-logs">
                     <div class="log-line">Waiting for logs...</div>
                 </div>
             </div>
 
             <div class="log-panel">
-                <h2>💻 Client Logs</h2>
+                <h2>💻  Client Logs</h2>
                 <div class="log-content" id="client-logs">
                     <div class="log-line">Waiting for logs...</div>
                 </div>
@@ -250,7 +375,7 @@
         </div>
 
         <div class="stats-panel">
-            <h2>📊 Cache Statistics</h2>
+            <h2>📊  Cache Statistics</h2>
             <div class="stats-grid" id="cache-stats">
                 <div class="stat-item">
                     <div class="stat-label">Cache Size</div>
@@ -372,11 +497,126 @@
         fetchLogs('client');
 
         // Auto-refresh
-        setInterval(() => {
+        let refreshInterval = setInterval(() => {
             fetchStats();
             fetchLogs('server');
             fetchLogs('client');
         }, 2000);
+
+        function showStopConfirmation() {
+            const overlay = document.createElement('div');
+            overlay.className = 'overlay';
+            overlay.id = 'stop-overlay';
+            
+            const confirmation = document.createElement('div');
+            confirmation.className = 'stop-confirmation';
+            confirmation.innerHTML = `
+                <h3>⚠️ Stop All Servers?</h3>
+                <p>This will stop the backend server, frontend client, and dashboard.</p>
+                <p style="font-size: 0.9em; opacity: 0.7;">This action cannot be undone.</p>
+                <div class="stop-confirmation-buttons">
+                    <button class="stop-confirmation-button confirm" onclick="stopServers()">Yes, Stop All</button>
+                    <button class="stop-confirmation-button cancel" onclick="hideStopConfirmation()">Cancel</button>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+            document.body.appendChild(confirmation);
+        }
+
+        function hideStopConfirmation() {
+            const overlay = document.getElementById('stop-overlay');
+            const confirmation = document.querySelector('.stop-confirmation');
+            if (overlay) overlay.remove();
+            if (confirmation) confirmation.remove();
+        }
+
+        async function stopServers() {
+            const stopButton = document.getElementById('stop-button');
+            stopButton.disabled = true;
+            stopButton.innerHTML = '<span class="stop-button-icon">⏳</span><span>Stopping...</span>';
+            
+            try {
+                const response = await fetch('/api/stop', { 
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Stop auto-refresh
+                    if (refreshInterval) {
+                        clearInterval(refreshInterval);
+                    }
+                    
+                    // Update UI to show stopped status
+                    document.getElementById('server-status').className = 'status-indicator stopped';
+                    document.getElementById('server-text').textContent = 'Stopped';
+                    document.getElementById('client-status').className = 'status-indicator stopped';
+                    document.getElementById('client-text').textContent = 'Stopped';
+                    
+                    // Show success message
+                    hideStopConfirmation();
+                    const overlay = document.createElement('div');
+                    overlay.className = 'overlay';
+                    overlay.id = 'success-overlay';
+                    
+                    const success = document.createElement('div');
+                    success.className = 'stop-confirmation';
+                    success.innerHTML = `
+                        <h3 style="color: #4ade80;">✅ Servers Stopped</h3>
+                        <p>${data.message || 'All servers have been stopped successfully.'}</p>
+                        <p style="font-size: 0.9em; opacity: 0.7;">This page will close in 3 seconds...</p>
+                    `;
+                    
+                    document.body.appendChild(overlay);
+                    document.body.appendChild(success);
+                    
+                    // Close page after 3 seconds
+                    setTimeout(() => {
+                        window.close();
+                    }, 3000);
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                console.error('Error stopping servers:', error);
+                
+                // Show error in a more elegant way
+                hideStopConfirmation();
+                const overlay = document.createElement('div');
+                overlay.className = 'overlay';
+                overlay.id = 'error-overlay';
+                overlay.onclick = () => {
+                    overlay.remove();
+                    const errorDiv = document.querySelector('.error-confirmation');
+                    if (errorDiv) errorDiv.remove();
+                    stopButton.disabled = false;
+                    stopButton.innerHTML = '<span class="stop-button-icon">⏹</span><span>Stop Servers</span>';
+                };
+                
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'stop-confirmation error-confirmation';
+                errorDiv.innerHTML = `
+                    <h3 style="color: #ef4444;">❌ Error Stopping Servers</h3>
+                    <p>${error.message || 'An error occurred while stopping the servers.'}</p>
+                    <p style="font-size: 0.85em; opacity: 0.7; margin-top: 10px;">Check the console for more details.</p>
+                    <div class="stop-confirmation-buttons" style="margin-top: 20px;">
+                        <button class="stop-confirmation-button cancel" onclick="document.getElementById('error-overlay').click()">Close</button>
+                    </div>
+                `;
+                
+                document.body.appendChild(overlay);
+                document.body.appendChild(errorDiv);
+            }
+        }
     </script>
 </body>
 </html>
