@@ -138,6 +138,12 @@ PORT=8080
 NODE_ENV=development
 CACHE_TTL=300
 RATE_LIMIT_MAX_REQUESTS=100
+
+# OpenSky OAuth2 (recommended for higher rate limits)
+OPENSKY_CLIENT_ID=your_client_id
+OPENSKY_CLIENT_SECRET=your_client_secret
+# Optional override (defaults to official OpenSky endpoint)
+OPENSKY_AUTH_URL=https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token
 ```
 
 ### VR Configuration

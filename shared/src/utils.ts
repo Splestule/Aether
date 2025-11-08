@@ -220,6 +220,98 @@ function getAirlineFromCallsign(callsign: string): string {
 }
 
 /**
+ * Extrapolate a flight's position based on its velocity and heading.
+ */
+export function extrapolatePosition(
+  flight: ProcessedFlight,
+  userLocation: UserLocation,
+  secondsAhead: number
+): {
+  gps: { latitude: number; longitude: number; altitude: number };
+  position: { x: number; y: number; z: number };
+  distance: number;
+  elevation: number;
+  azimuth: number;
+} | null {
+  if (
+    !userLocation ||
+    !flight ||
+    flight.onGround ||
+    !isFinite(flight.velocity) ||
+    flight.velocity <= 0
+  ) {
+    return null;
+  }
+
+  const METERS_PER_DEGREE_LAT = 111320;
+  const distanceTraveled = flight.velocity * secondsAhead;
+  const headingRad = (flight.heading * Math.PI) / 180;
+
+  const latChange =
+    (distanceTraveled * Math.cos(headingRad)) / METERS_PER_DEGREE_LAT;
+  const latRad = (flight.gps.latitude * Math.PI) / 180;
+  const cosLat = Math.cos(latRad);
+  const lonChange =
+    (distanceTraveled * Math.sin(headingRad)) /
+    (METERS_PER_DEGREE_LAT * (Math.abs(cosLat) < 1e-6 ? 1e-6 : cosLat));
+
+  const newLat = flight.gps.latitude + latChange;
+  const newLon = flight.gps.longitude + lonChange;
+  const altitude = flight.gps.altitude;
+
+  const position = gpsToVRCoordinates(
+    userLocation,
+    newLat,
+    newLon,
+    altitude
+  );
+
+  const distance = calculateDistance(
+    userLocation.latitude,
+    userLocation.longitude,
+    newLat,
+    newLon
+  );
+
+  const elevation = calculateElevation(
+    userLocation,
+    newLat,
+    newLon,
+    altitude
+  );
+
+  const azimuth = calculateBearing(
+    userLocation.latitude,
+    userLocation.longitude,
+    newLat,
+    newLon
+  );
+
+  return {
+    gps: {
+      latitude: newLat,
+      longitude: newLon,
+      altitude,
+    },
+    position,
+    distance,
+    elevation,
+    azimuth,
+  };
+}
+
+export function isTrajectoryRefreshDue(
+  flight: ProcessedFlight,
+  intervalMs: number
+): boolean {
+  if (!flight.lastTrajectoryRefresh) {
+    return true;
+  }
+
+  return Date.now() - flight.lastTrajectoryRefresh >= intervalMs;
+}
+
+/**
  * Format speed for display
  */
 export function formatSpeed(velocity: number): string {

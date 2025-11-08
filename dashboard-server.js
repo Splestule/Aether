@@ -58,6 +58,10 @@ app.get('/api/stats', async (req, res) => {
   try {
     // Check if main server is running
     let cacheStats = null;
+    let openskyStatus = {
+      mode: 'unknown',
+      details: null,
+    };
     try {
       const http = require('http');
       const response = await new Promise((resolve, reject) => {
@@ -67,7 +71,8 @@ app.get('/api/stats', async (req, res) => {
           res.on('end', () => {
             try {
               resolve(JSON.parse(data));
-            } catch {
+            } catch (err) {
+              console.warn('Failed to parse cache stats response', err);
               resolve(null);
             }
           });
@@ -75,7 +80,17 @@ app.get('/api/stats', async (req, res) => {
         req.on('error', () => resolve(null));
         req.setTimeout(1000, () => { req.destroy(); resolve(null); });
       });
-      cacheStats = response;
+      if (response && response.data) {
+        cacheStats = response.data.cache || null;
+        if (response.data.flight) {
+          openskyStatus = {
+            mode: response.data.flight.openskyAuthentication || 'unknown',
+            details: response.data.flight.openskyAuthDetails || null,
+          };
+        }
+      } else {
+        cacheStats = response;
+      }
     } catch {
       cacheStats = null;
     }
@@ -100,6 +115,7 @@ app.get('/api/stats', async (req, res) => {
         running: checkPort(3000) || checkPort(5173),
         port: checkPort(3000) ? 3000 : (checkPort(5173) ? 5173 : null),
       },
+      opensky: openskyStatus,
       dashboard: {
         running: true,
         port: DASHBOARD_PORT,

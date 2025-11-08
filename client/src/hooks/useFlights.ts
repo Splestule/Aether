@@ -1,11 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { ProcessedFlight, UserLocation } from '@shared/src/types.js'
-import {
-  gpsToVRCoordinates,
-  calculateDistance,
-  calculateElevation,
-  calculateBearing,
-} from '@shared/src/utils.js'
+import { extrapolatePosition } from '@shared/src/utils.js'
 
 export function useFlights() {
   const [flights, setFlights] = useState<Map<string, ProcessedFlight>>(new Map())
@@ -51,7 +46,12 @@ export function useFlights() {
       // Update existing flights and add new ones
       // Note: Position history is now fetched from API, not stored locally
       newFlights.forEach(flight => {
-        updatedFlights.set(flight.id, flight)
+        const previous = updatedFlights.get(flight.id)
+        updatedFlights.set(flight.id, {
+          ...flight,
+          lastTrajectoryRefresh: previous?.lastTrajectoryRefresh,
+          positionHistory: previous?.positionHistory,
+        })
       })
 
       // Remove flights that are no longer present (older than 30 seconds)
@@ -89,76 +89,21 @@ export function useFlights() {
 
     setFlights(prev => {
       const updatedFlights = new Map(prev)
-      
-      // Constants for coordinate conversion
-      const METERS_PER_DEGREE_LAT = 111320 // meters per degree of latitude
-      
+
       updatedFlights.forEach((flight, id) => {
-        // Skip flights on ground or with no velocity
-        if (flight.onGround || flight.velocity <= 0) {
+        const extrapolated = extrapolatePosition(flight, userLocation, timeDelta)
+
+        if (!extrapolated) {
           return
         }
 
-        // Calculate distance traveled in meters
-        const distanceTraveled = flight.velocity * timeDelta // m/s * seconds = meters
-
-        // Convert heading from degrees to radians
-        // Heading: 0° = North, 90° = East, 180° = South, 270° = West
-        const headingRad = (flight.heading * Math.PI) / 180
-
-        // Calculate new GPS coordinates
-        // North component: cos(heading) gives North-South movement
-        // East component: sin(heading) gives East-West movement
-        const latChange = (distanceTraveled * Math.cos(headingRad)) / METERS_PER_DEGREE_LAT
-        const latRad = (flight.gps.latitude * Math.PI) / 180
-        const lonChange = (distanceTraveled * Math.sin(headingRad)) / (METERS_PER_DEGREE_LAT * Math.cos(latRad))
-
-        // Update GPS coordinates (keep altitude unchanged)
-        const newLat = flight.gps.latitude + latChange
-        const newLon = flight.gps.longitude + lonChange
-        const altitude = flight.gps.altitude // Keep altitude unchanged
-
-        // Recalculate derived values
-        const distance = calculateDistance(
-          userLocation.latitude,
-          userLocation.longitude,
-          newLat,
-          newLon
-        )
-
-        const vrPosition = gpsToVRCoordinates(
-          userLocation,
-          newLat,
-          newLon,
-          altitude
-        )
-
-        const elevation = calculateElevation(
-          userLocation,
-          newLat,
-          newLon,
-          altitude
-        )
-
-        const azimuth = calculateBearing(
-          userLocation.latitude,
-          userLocation.longitude,
-          newLat,
-          newLon
-        )
-
-        // Create updated flight object
         const updatedFlight: ProcessedFlight = {
           ...flight,
-          gps: {
-            latitude: newLat,
-            longitude: newLon,
-            altitude: altitude,
-          },
-          position: vrPosition,
-          distance,
-          elevation,
-          azimuth,
+          gps: extrapolated.gps,
+          position: extrapolated.position,
+          distance: extrapolated.distance,
+          elevation: extrapolated.elevation,
+          azimuth: extrapolated.azimuth,
           // Don't update lastUpdate timestamp - keep original API timestamp
         }
 

@@ -65,6 +65,7 @@ export interface ProcessedFlight {
   azimuth: number; // degrees from north
   onGround: boolean;
   lastUpdate: number;
+  lastTrajectoryRefresh?: number;
   positionHistory?: Array<{
     timestamp: number;
     position: {

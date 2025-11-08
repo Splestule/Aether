@@ -197,6 +197,11 @@
             animation: none;
         }
 
+        .status-indicator.warning {
+            background: #facc15;
+            animation: none;
+        }
+
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.5; }
@@ -356,6 +361,18 @@
                     Port: 8081
                 </div>
             </div>
+
+            <div class="status-card">
+                <h3>OpenSky API</h3>
+                <div>
+                    <span class="status-indicator" id="opensky-status"></span>
+                    <span id="opensky-text">Checking...</span>
+                </div>
+                <div style="margin-top: 10px; font-size: 0.9em; opacity: 0.8;">
+                    Mode: <span id="opensky-mode">-</span>
+                </div>
+                <div style="margin-top: 6px; font-size: 0.85em; opacity: 0.7;" id="opensky-info"></div>
+            </div>
         </div>
 
         <div class="logs-container">
@@ -438,6 +455,51 @@
                 document.getElementById('cache-size').textContent = '-';
                 document.getElementById('cache-hits').textContent = '-';
                 document.getElementById('cache-misses').textContent = '-';
+            }
+
+            // OpenSky authentication status
+            const openskyStatus = document.getElementById('opensky-status');
+            const openskyText = document.getElementById('opensky-text');
+            const openskyMode = document.getElementById('opensky-mode');
+            const openskyInfo = document.getElementById('opensky-info');
+
+            if (stats.opensky) {
+                const mode = (stats.opensky.mode || 'unknown').toLowerCase();
+                let indicatorClass = 'status-indicator warning';
+                let text = 'Anonymous';
+
+                if (mode === 'authenticated') {
+                    indicatorClass = 'status-indicator running';
+                    text = 'Authenticated';
+                } else if (mode === 'anonymous') {
+                    indicatorClass = 'status-indicator warning';
+                    text = 'Anonymous';
+                } else {
+                    indicatorClass = 'status-indicator stopped';
+                    text = 'Unknown';
+                }
+
+                openskyStatus.className = indicatorClass;
+                openskyText.textContent = text;
+                openskyMode.textContent = text;
+
+                if (stats.opensky.details && stats.opensky.details.lastAuthSuccessAt) {
+                    const lastSuccess = new Date(stats.opensky.details.lastAuthSuccessAt);
+                    openskyInfo.textContent = `Last token refresh: ${lastSuccess.toLocaleTimeString()}`;
+                } else {
+                    openskyInfo.textContent = mode === 'authenticated'
+                        ? 'Token status: active'
+                        : 'Using anonymous access (rate-limited)';
+                }
+
+                if (stats.opensky.details && stats.opensky.details.lastAuthErrorMessage) {
+                    openskyInfo.textContent += ` | Last error: ${stats.opensky.details.lastAuthErrorMessage}`;
+                }
+            } else {
+                openskyStatus.className = 'status-indicator stopped';
+                openskyText.textContent = 'Unknown';
+                openskyMode.textContent = '-';
+                openskyInfo.textContent = '';
             }
 
             document.getElementById('last-update').textContent = new Date().toLocaleTimeString();

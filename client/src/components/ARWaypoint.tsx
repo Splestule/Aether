@@ -1,5 +1,5 @@
 import { ProcessedFlight } from "@shared/src/types.js";
-import { forwardRef } from "react";
+import { forwardRef, useMemo } from "react";
 import * as THREE from "three";
 import { Interactive } from "@react-three/xr";
 
@@ -45,13 +45,39 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
     const lineHeight = altitude;
     const lineCenterY = flight.position.y / 2;
 
+    const fadeStartKm = 50;
+    const fadeEndKm = 200;
+
+    const baseOpacity = useMemo(() => {
+      if (isSelected) return 1;
+      if (distanceKm <= fadeStartKm) return 0.8;
+      const clamped =
+        (Math.min(distanceKm, fadeEndKm) - fadeStartKm) /
+        (fadeEndKm - fadeStartKm);
+      return Math.max(0.2, 0.8 - clamped * 0.6);
+    }, [distanceKm, isSelected]);
+
+    const ringOpacity = useMemo(() => {
+      if (isSelected) return 0.6;
+      return Math.max(0.1, baseOpacity * 0.6);
+    }, [baseOpacity, isSelected]);
+
+    const lineOpacity = useMemo(() => {
+      if (isSelected) return 0.9;
+      return Math.max(0.15, baseOpacity * 0.75);
+    }, [baseOpacity, isSelected]);
+
     return (
       <group ref={ref} position={[flight.position.x, 0, flight.position.z]}>
         {/* Altitude line from ground to plane - visible vertical line */}
         {lineHeight > 0 && (
           <mesh position={[0, lineCenterY, 0]}>
             <cylinderGeometry args={[lineRadius, lineRadius, lineHeight, 16]} />
-            <meshBasicMaterial color="#ffffff" transparent opacity={0.7} />
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent
+              opacity={lineOpacity}
+            />
           </mesh>
         )}
 
@@ -69,7 +95,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
                 <meshBasicMaterial
                   color={isSelected ? "#60a5fa" : "#ffffff"}
                   transparent
-                  opacity={isSelected ? 1.0 : 0.8}
+                  opacity={baseOpacity}
                 />
               </mesh>
             </group>
@@ -90,7 +116,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
             <meshBasicMaterial
               color={isSelected ? "#60a5fa" : "#ffffff"}
               transparent
-              opacity={isSelected ? 1.0 : 0.8}
+              opacity={baseOpacity}
             />
           </mesh>
         )}
@@ -110,7 +136,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
                   <meshBasicMaterial
                     color="#ffffff"
                     transparent
-                    opacity={0.5}
+                    opacity={ringOpacity}
                   />
                 </mesh>
               </group>
@@ -128,7 +154,11 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
               }}
             >
               <ringGeometry args={[ringInnerRadius, ringOuterRadius, 32]} />
-              <meshBasicMaterial color="#ffffff" transparent opacity={0.5} />
+              <meshBasicMaterial
+                color="#ffffff"
+                transparent
+                opacity={ringOpacity}
+              />
             </mesh>
           ))}
       </group>

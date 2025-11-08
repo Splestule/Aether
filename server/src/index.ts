@@ -12,6 +12,7 @@ import { setupWebSocket } from './services/websocket.js'
 import { FlightService } from './services/flightService.js'
 import { ElevationService } from './services/elevationService.js'
 import { CacheService } from './services/cacheService.js'
+import { OpenSkyAuthService } from './services/openSkyAuthService.js'
 
 // Load environment variables
 dotenv.config()
@@ -26,7 +27,12 @@ const HOST = '0.0.0.0'
 // Initialize services
 const cacheService = new CacheService()
 const elevationService = new ElevationService()
-const flightService = new FlightService(cacheService)
+const openSkyAuthService = new OpenSkyAuthService(
+  process.env.OPENSKY_CLIENT_ID,
+  process.env.OPENSKY_CLIENT_SECRET,
+  process.env.OPENSKY_AUTH_URL
+)
+const flightService = new FlightService(cacheService, openSkyAuthService)
 
 // Middleware
 app.use(helmet({

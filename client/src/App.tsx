@@ -19,7 +19,13 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
 
   // Flight data management
-  const { flights, clearFlights, updateFlights, extrapolatePositions } = useFlights();
+  const {
+    flights,
+    flightsMap,
+    clearFlights,
+    updateFlights,
+    extrapolatePositions,
+  } = useFlights();
 
   // Refresh flights for current location
   const refreshFlights = async () => {
@@ -152,6 +158,16 @@ function App() {
   const handleFlightSelect = (flight: ProcessedFlight | null) => {
     setSelectedFlight(flight);
   };
+
+  // Keep selected flight in sync with live flight updates (extrapolated or fetched)
+  useEffect(() => {
+    if (!selectedFlight) return;
+
+    const updatedFlight = flightsMap.get(selectedFlight.id);
+    if (updatedFlight && updatedFlight !== selectedFlight) {
+      setSelectedFlight(updatedFlight);
+    }
+  }, [flights, flightsMap, selectedFlight?.id]);
 
   // Handle VR mode toggle
   const handleVRToggle = () => {

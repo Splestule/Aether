@@ -95,10 +95,15 @@ export function setupRoutes(app: Express, services: Services) {
   // Cache statistics
   app.get('/api/cache/stats', (req, res) => {
     try {
-      const stats = cacheService.getStats()
+      const cacheStats = cacheService.getStats()
+      const flightStats = flightService.getStats()
+
       res.json({
         success: true,
-        data: stats,
+        data: {
+          cache: cacheStats,
+          flight: flightStats,
+        },
         timestamp: Date.now(),
       })
     } catch (error) {

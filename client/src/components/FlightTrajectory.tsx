@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ProcessedFlight, UserLocation } from "@shared/src/types.js";
 import { config } from "../config";
+import { CatmullRomCurve3, Vector3, Quaternion, MathUtils } from "three";
 
 interface FlightTrajectoryProps {
   flight: ProcessedFlight;
@@ -13,89 +14,207 @@ interface TrajectoryPoint {
   gps: { latitude: number; longitude: number; altitude: number };
 }
 
+const HISTORY_LIMIT = 5; // five historical points
+const REFRESH_CHECK_INTERVAL_MS = 30_000;
+const MIDPOINT_MAX_AGE_MS = 6 * 60 * 1000;
+
+function sortPoints(points: TrajectoryPoint[]): TrajectoryPoint[] {
+  return [...points].sort((a, b) => a.timestamp - b.timestamp);
+}
+
+function trimHistory(points: TrajectoryPoint[]): TrajectoryPoint[] {
+  const sorted = sortPoints(points);
+  return sorted.slice(-HISTORY_LIMIT);
+}
+
 export function FlightTrajectory({ flight, userLocation }: FlightTrajectoryProps) {
-  const [trajectoryData, setTrajectoryData] = useState<TrajectoryPoint[]>([]);
+  const [history, setHistory] = useState<TrajectoryPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const lastRefreshRef = useRef<number | null>(null);
+  const pendingPointRef = useRef<TrajectoryPoint | null>(null);
 
-  // Fetch trajectory data from API when flight changes
-  useEffect(() => {
-    const fetchTrajectory = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetch(
-          `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${userLocation.latitude}&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`
-        );
+  const fetchTrajectory = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch(
+        `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${userLocation.latitude}&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`
+      );
 
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data) {
-            setTrajectoryData(data.data);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && Array.isArray(data.data)) {
+          const sorted = sortPoints(data.data);
+          const limited = sorted.slice(-(
+            HISTORY_LIMIT + 1
+          ));
+
+          if (limited.length > HISTORY_LIMIT) {
+            // keep newest API sample pending, older ones in history
+            const pending = limited[limited.length - 1];
+            const baseHistory = limited.slice(0, limited.length - 1);
+            setHistory(trimHistory(baseHistory));
+            pendingPointRef.current = pending;
           } else {
-            setTrajectoryData([]);
+            setHistory(trimHistory(limited));
+            pendingPointRef.current = null;
           }
         } else {
-          console.warn('Failed to fetch trajectory data:', response.status);
-          setTrajectoryData([]);
+          setHistory([]);
+          pendingPointRef.current = null;
         }
-      } catch (error) {
-        console.error('Error fetching trajectory:', error);
-        setTrajectoryData([]);
-      } finally {
-        setIsLoading(false);
+      } else {
+        console.warn("Failed to fetch trajectory data:", response.status);
+        setHistory([]);
+        pendingPointRef.current = null;
       }
-    };
-
-    fetchTrajectory();
+    } catch (error) {
+      console.error("Error fetching trajectory:", error);
+      setHistory([]);
+      pendingPointRef.current = null;
+    } finally {
+      lastRefreshRef.current = Date.now();
+      setIsLoading(false);
+    }
   }, [flight.icao24, userLocation.latitude, userLocation.longitude, userLocation.altitude]);
 
-  // Convert trajectory data to points array
-  const trajectoryPoints = useMemo(() => {
-    if (trajectoryData.length === 0) {
-      return new Float32Array(0);
+  useEffect(() => {
+    fetchTrajectory();
+  }, [fetchTrajectory]);
+
+  // Append buffered API samples when a newer update arrives
+  useEffect(() => {
+    if (!flight.lastUpdate) {
+      return;
     }
 
-    const points: number[] = [];
+    const pending = pendingPointRef.current;
+    if (pending && pending.timestamp < flight.lastUpdate) {
+      setHistory((prev) => trimHistory([...prev, pending]));
+      pendingPointRef.current = null;
+    }
 
-    // Add all trajectory points in order
-    trajectoryData.forEach(point => {
-      points.push(
-        point.position.x,
-        point.position.y,
-        point.position.z
-      );
-    });
+    // Store the current API update as pending for the next cycle
+    if (!pendingPointRef.current || pendingPointRef.current.timestamp !== flight.lastUpdate) {
+      pendingPointRef.current = {
+        timestamp: flight.lastUpdate,
+        position: { ...flight.position },
+        gps: { ...flight.gps },
+      };
+    }
+  }, [flight.lastUpdate, flight.position, flight.gps]);
 
-    // Add current position last (most recent)
-    points.push(
+  // Periodically refresh to keep midpoint fresh
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isLoading) return;
+
+      const now = Date.now();
+      const lastRefresh = lastRefreshRef.current;
+      const midpointIndex = Math.max(history.length - 2, 0);
+      const midpoint = history[midpointIndex];
+
+      const midpointTooOld =
+        midpoint && now - midpoint.timestamp >= MIDPOINT_MAX_AGE_MS;
+
+      if (midpointTooOld || !lastRefresh || now - lastRefresh >= MIDPOINT_MAX_AGE_MS) {
+        fetchTrajectory();
+      }
+    }, REFRESH_CHECK_INTERVAL_MS);
+
+    return () => clearInterval(interval);
+  }, [fetchTrajectory, history, isLoading]);
+
+  const segments = useMemo(() => {
+    if (history.length === 0) {
+      return [];
+    }
+
+    const basePoints = history.map(
+      (point) => new Vector3(point.position.x, point.position.y, point.position.z)
+    );
+
+    const currentPosition = new Vector3(
       flight.position.x,
       flight.position.y,
       flight.position.z
     );
 
-    return new Float32Array(points);
-  }, [trajectoryData, flight.position]);
+    basePoints.push(currentPosition);
 
-  // Don't render if there's no trajectory data or still loading
-  if (trajectoryPoints.length === 0 || isLoading) {
+    if (basePoints.length < 2) {
+      return [];
+    }
+
+    const curve = new CatmullRomCurve3(basePoints, false, "centripetal");
+    const sampleCount = Math.max(basePoints.length * 40, 80);
+    const sampledPoints = curve.getPoints(sampleCount);
+
+    const segmentsData = [];
+    const segmentCount = sampledPoints.length - 1;
+
+    for (let i = 0; i < segmentCount; i++) {
+      const start = sampledPoints[i];
+      const end = sampledPoints[i + 1];
+      const direction = end.clone().sub(start);
+      const length = direction.length();
+
+      if (length < 1) continue;
+
+      const midpoint = start.clone().add(end).multiplyScalar(0.5);
+      const quaternion = new Quaternion().setFromUnitVectors(
+        new Vector3(0, 1, 0),
+        direction.clone().normalize()
+      );
+
+      const startProgress = i / segmentCount;
+      const endProgress = (i + 1) / segmentCount;
+
+      const radiusStart = MathUtils.lerp(8, 25, startProgress);
+      const radiusEnd = MathUtils.lerp(8, 25, endProgress);
+      const opacity = MathUtils.lerp(0.15, 1, endProgress);
+
+      segmentsData.push({
+        key: i,
+        position: midpoint.toArray() as [number, number, number],
+        quaternion: [quaternion.x, quaternion.y, quaternion.z, quaternion.w] as [
+          number,
+          number,
+          number,
+          number
+        ],
+        length,
+        radiusStart,
+        radiusEnd,
+        opacity,
+      });
+    }
+
+    return segmentsData;
+  }, [history, flight.position.x, flight.position.y, flight.position.z]);
+
+  if (isLoading || segments.length === 0) {
     return null;
   }
 
   return (
-    <line>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={trajectoryPoints.length / 3}
-          array={trajectoryPoints}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial
-        color="#ffffff"
-        transparent
-        opacity={0.6}
-        linewidth={2}
-      />
-    </line>
+    <group>
+      {segments.map((segment) => (
+        <mesh
+          key={segment.key}
+          position={segment.position}
+          quaternion={segment.quaternion}
+        >
+          <cylinderGeometry
+            args={[segment.radiusStart, segment.radiusEnd, segment.length, 12, 1, false]}
+          />
+          <meshBasicMaterial
+            color="#60a5fa"
+            transparent
+            opacity={segment.opacity}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
+    </group>
   );
 }
