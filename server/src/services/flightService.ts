@@ -12,6 +12,7 @@ export class FlightService {
     process.env.OPENSKY_TRACKS_API_URL || 'https://opensky-network.org/api/tracks/all'
   private readonly REQUEST_TIMEOUT = 10000 // 10 seconds
   private readonly MAX_RETRIES = 3
+  private readonly AUTH_RETRY_LIMIT = 2
   private demoService: DemoService
   private useDemoData = false
 
@@ -176,66 +177,78 @@ export class FlightService {
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
         console.log(`Fetching from OpenSky API (attempt ${attempt}/${this.MAX_RETRIES})`)
-        
-        const headers: Record<string, string> = {
-          'User-Agent': 'VR-Flight-Tracker/1.0',
-        }
 
-        try {
-          const authHeader = await this.authService?.getAuthorizationHeader()
-          if (authHeader) {
-            Object.assign(headers, authHeader)
-          }
-        } catch (authError) {
-          console.warn('Failed to obtain OpenSky OAuth token, continuing without auth:', authError)
-        }
+        let authAttempt = 0
+        while (authAttempt < this.AUTH_RETRY_LIMIT) {
+          try {
+            const headers: Record<string, string> = {
+              'User-Agent': 'VR-Flight-Tracker/1.0',
+            }
+            const authHeader = await this.authService?.getAuthorizationHeader({ forceRefresh: authAttempt > 0 })
+            if (authHeader) {
+              Object.assign(headers, authHeader)
+            }
 
-        const response = await axios.get<OpenSkyResponse>(this.OPENSKY_API_URL, {
-          params,
-          timeout: this.REQUEST_TIMEOUT,
-          headers,
-        });
+            const response = await axios.get<OpenSkyResponse>(this.OPENSKY_API_URL, {
+              params,
+              timeout: this.REQUEST_TIMEOUT,
+              headers,
+            })
 
-        if (!response.data?.states) {
-          console.warn('No flight data received from OpenSky API');
-          return [];
-        }
+            if (!response.data?.states) {
+              console.warn('No flight data received from OpenSky API');
+              return [];
+            }
 
-        const flights: FlightData[] = response.data.states.map((state): FlightData => ({
-          icao24: String(state[0] || ''),
-          callsign: String(state[1] || '').trim(),
-          origin_country: String(state[2] || ''),
-          time_position: Number(state[3] || 0),
-          last_contact: Number(state[4] || 0),
-          longitude: Number(state[5] || 0),
-          latitude: Number(state[6] || 0),
-          geo_altitude: Number(state[7] || 0),
-          on_ground: Boolean(state[8]),
-          velocity: Number(state[9] || 0),
-          true_track: Number(state[10] || 0),
-          vertical_rate: Number(state[11] || 0),
-          sensors: Array.isArray(state[12]) ? state[12] : [],
-          baro_altitude: Number(state[13] || 0),
-          squawk: String(state[14] || ''),
-          spi: Boolean(state[15]),
-          position_source: Number(state[16] || 0),
-        }));
+            const flights: FlightData[] = response.data.states.map((state): FlightData => ({
+              icao24: String(state[0] || ''),
+              callsign: String(state[1] || '').trim(),
+              origin_country: String(state[2] || ''),
+              time_position: Number(state[3] || 0),
+              last_contact: Number(state[4] || 0),
+              longitude: Number(state[5] || 0),
+              latitude: Number(state[6] || 0),
+              geo_altitude: Number(state[7] || 0),
+              on_ground: Boolean(state[8]),
+              velocity: Number(state[9] || 0),
+              true_track: Number(state[10] || 0),
+              vertical_rate: Number(state[11] || 0),
+              sensors: Array.isArray(state[12]) ? state[12] : [],
+              baro_altitude: Number(state[13] || 0),
+              squawk: String(state[14] || ''),
+              spi: Boolean(state[15]),
+              position_source: Number(state[16] || 0),
+            }));
   
-        return flights;
-
+            return flights;
+          } catch (error) {
+            if (
+              axios.isAxiosError(error) &&
+              error.response?.status === 401 &&
+              this.authService?.hasCredentials() &&
+              authAttempt < this.AUTH_RETRY_LIMIT - 1
+            ) {
+              console.warn('OpenSky authentication failed (401), retrying with fresh token');
+              this.authService?.invalidateToken();
+              authAttempt++;
+              continue;
+            }
+            throw error
+          }
+        }
       } catch (error) {
-        lastError = error as Error;
-        console.error(`Attempt ${attempt} failed:`, error);
+        lastError = error as Error
+        console.error(`Attempt ${attempt} failed:`, error)
         
         if (attempt === this.MAX_RETRIES) {
-          throw new Error(`Failed to fetch flight data after ${this.MAX_RETRIES} attempts: ${lastError.message}`);
+          throw new Error(`Failed to fetch flight data after ${this.MAX_RETRIES} attempts: ${lastError.message}`)
         }
         // Add delay between retries
-        await new Promise(resolve => setTimeout(resolve, 1000 * attempt));
+        await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
       }
     }
 
-    return []; // Fallback return if loop completes without success
+    return [] // Fallback return if loop completes without success
   }
 
   /**
@@ -268,145 +281,161 @@ export class FlightService {
     try {
       // Get current timestamp (Unix timestamp in seconds)
       const currentTime = Math.floor(Date.now() / 1000)
-      const headers: Record<string, string> = {
-        'User-Agent': 'VR-Flight-Tracker/1.0',
+
+      const params = {
+        icao24: icao24,
+        time: currentTime,
       }
 
-      try {
-        const authHeader = await this.authService?.getAuthorizationHeader()
-        if (authHeader) {
-          Object.assign(headers, authHeader)
-        }
-      } catch (authError) {
-        console.warn(
-          'Failed to obtain OpenSky OAuth token for tracks API, continuing without auth:',
-          authError
-        )
-      }
+      let lastError: Error | null = null
 
-      const response = await axios.get(`${this.OPENSKY_TRACKS_API_URL}`, {
-        params: {
-          icao24: icao24,
-          time: currentTime, // Current time in seconds
-        },
-        timeout: this.REQUEST_TIMEOUT,
-        headers,
-      })
-
-      if (!response.data || !Array.isArray(response.data.path)) {
-        console.warn('No trajectory data received from OpenSky API')
-        return []
-      }
-
-      // OpenSky tracks API returns path as array of [timestamp, latitude, longitude, altitude, ...]
-      const rawPath = response.data.path as Array<any[]>
-      const oneHourAgoMs = (currentTime - 3600) * 1000 // last hour
-
-      const pathPoints = rawPath
-        .filter((point) => Array.isArray(point) && point.length >= 4)
-        .map((point) => ({
-          timestamp: point[0] * 1000, // convert to milliseconds
-          latitude: point[1],
-          longitude: point[2],
-          altitude: point[3] || 0,
-        }))
-        .filter(
-          (point) =>
-            point.timestamp >= oneHourAgoMs &&
-            point.latitude != null &&
-            point.longitude != null
-        )
-        .sort((a, b) => a.timestamp - b.timestamp)
-
-      if (pathPoints.length === 0) {
-        return []
-      }
-
-      const latestTimestamp = pathPoints[pathPoints.length - 1].timestamp
-    const sampleCount = 6
-      const intervalMs = 3 * 60 * 1000 // 3 minutes
-      const maxLookbackMs = intervalMs * (sampleCount - 1)
-      const earliestDesiredTimestamp = latestTimestamp - maxLookbackMs
-
-      const targetTimestamps: number[] = []
-      for (let i = 0; i < sampleCount; i++) {
-        const target =
-          latestTimestamp - intervalMs * (sampleCount - 1 - i)
-        targetTimestamps.push(target)
-      }
-
-      // Helper to find nearest path point to a target timestamp
-      const findNearestPoint = (target: number) => {
-        let closest = pathPoints[0]
-        let minDiff = Math.abs(closest.timestamp - target)
-
-        for (const point of pathPoints) {
-          if (point.timestamp < earliestDesiredTimestamp) {
-            continue
+      for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
+        try {
+          const headers: Record<string, string> = {
+            'User-Agent': 'VR-Flight-Tracker/1.0',
           }
 
-          const diff = Math.abs(point.timestamp - target)
-          if (diff < minDiff) {
-            closest = point
-            minDiff = diff
+          let authAttempt = 0
+          while (authAttempt < this.AUTH_RETRY_LIMIT) {
+            try {
+              const authHeader = await this.authService?.getAuthorizationHeader({ forceRefresh: authAttempt > 0 })
+              if (authHeader) {
+                Object.assign(headers, authHeader)
+              }
+
+              const response = await axios.get(`${this.OPENSKY_TRACKS_API_URL}`, {
+                params,
+                timeout: this.REQUEST_TIMEOUT,
+                headers,
+              })
+
+              if (!response.data || !Array.isArray(response.data.path)) {
+                console.warn('No trajectory data received from OpenSky API')
+                return []
+              }
+
+              const rawPath = response.data.path as Array<any[]>
+              const oneHourAgoMs = (currentTime - 3600) * 1000
+
+              const pathPoints = rawPath
+                .filter((point) => Array.isArray(point) && point.length >= 4)
+                .map((point) => ({
+                  timestamp: point[0] * 1000,
+                  latitude: point[1],
+                  longitude: point[2],
+                  altitude: point[3] || 0,
+                }))
+                .filter(
+                  (point) =>
+                    point.timestamp >= oneHourAgoMs &&
+                    point.latitude != null &&
+                    point.longitude != null
+                )
+                .sort((a, b) => a.timestamp - b.timestamp)
+
+              if (pathPoints.length === 0) {
+                return []
+              }
+
+              const latestTimestamp = pathPoints[pathPoints.length - 1].timestamp
+              const sampleCount = 6
+              const intervalMs = 3 * 60 * 1000
+              const maxLookbackMs = intervalMs * (sampleCount - 1)
+              const earliestDesiredTimestamp = latestTimestamp - maxLookbackMs
+
+              const targetTimestamps: number[] = []
+              for (let i = 0; i < sampleCount; i++) {
+                const target = latestTimestamp - intervalMs * (sampleCount - 1 - i)
+                targetTimestamps.push(target)
+              }
+
+              const findNearestPoint = (target: number) => {
+                let closest = pathPoints[0]
+                let minDiff = Math.abs(closest.timestamp - target)
+
+                for (const point of pathPoints) {
+                  if (point.timestamp < earliestDesiredTimestamp) {
+                    continue
+                  }
+
+                  const diff = Math.abs(point.timestamp - target)
+                  if (diff < minDiff) {
+                    closest = point
+                    minDiff = diff
+                  }
+                }
+
+                return closest
+              }
+
+              let sampledPoints = targetTimestamps
+                .map((target) => findNearestPoint(target))
+                .filter((point) => {
+                  if (!point) return false
+                  if (point.timestamp < earliestDesiredTimestamp) return false
+                  return true
+                })
+                .sort((a, b) => a.timestamp - b.timestamp)
+
+              if (
+                sampledPoints[sampledPoints.length - 1].timestamp !== latestTimestamp &&
+                pathPoints[pathPoints.length - 1].timestamp === latestTimestamp
+              ) {
+                sampledPoints = sampledPoints.concat(pathPoints[pathPoints.length - 1])
+              }
+
+              const { gpsToVRCoordinates } = await import('@vr-flight-tracker/shared')
+
+              const trajectory = sampledPoints.map((point) => {
+                const vrPosition = gpsToVRCoordinates(
+                  userLocation,
+                  point.latitude,
+                  point.longitude,
+                  point.altitude
+                )
+
+                return {
+                  timestamp: point.timestamp,
+                  position: vrPosition,
+                  gps: {
+                    latitude: point.latitude,
+                    longitude: point.longitude,
+                    altitude: point.altitude,
+                  },
+                }
+              })
+
+              this.cacheService.set(cacheKey, trajectory, 60)
+
+              return trajectory
+            } catch (error) {
+              if (
+                axios.isAxiosError(error) &&
+                error.response?.status === 401 &&
+                this.authService?.hasCredentials() &&
+                authAttempt < this.AUTH_RETRY_LIMIT - 1
+              ) {
+                console.warn('OpenSky authentication failed (401) for tracks API, retrying with fresh token')
+                this.authService?.invalidateToken()
+                authAttempt++
+                continue
+              }
+              throw error
+            }
           }
-        }
+        } catch (error) {
+          lastError = error as Error
+          console.error(`Trajectory attempt ${attempt} failed:`, error)
 
-        return closest
-      }
+          if (attempt === this.MAX_RETRIES) {
+            throw new Error(`Failed to fetch flight trajectory after ${this.MAX_RETRIES} attempts: ${lastError.message}`)
+          }
 
-      const uniqueTimestamps = new Set<number>()
-      let sampledPoints = targetTimestamps
-        .map((target) => findNearestPoint(target))
-        .filter((point) => {
-          if (!point) return false
-          if (point.timestamp < earliestDesiredTimestamp) return false
-          if (uniqueTimestamps.has(point.timestamp)) return false
-          uniqueTimestamps.add(point.timestamp)
-          return true
-        })
-        .sort((a, b) => a.timestamp - b.timestamp)
-
-      // Ensure we have the most recent point (timestamp ~latestTimestamp)
-      if (
-        sampledPoints[sampledPoints.length - 1].timestamp !== latestTimestamp &&
-        pathPoints[pathPoints.length - 1].timestamp === latestTimestamp
-      ) {
-        const latestPoint = pathPoints[pathPoints.length - 1]
-        if (!uniqueTimestamps.has(latestPoint.timestamp)) {
-          sampledPoints = sampledPoints.concat(latestPoint)
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempt))
         }
       }
 
-      if (sampledPoints.length === 0) {
-        return []
-      }
-
-      const { gpsToVRCoordinates } = await import('@vr-flight-tracker/shared')
-
-      const trajectory = sampledPoints.map((point) => {
-        const vrPosition = gpsToVRCoordinates(
-          userLocation,
-          point.latitude,
-          point.longitude,
-          point.altitude
-        )
-
-        return {
-          timestamp: point.timestamp,
-          position: vrPosition,
-          gps: {
-            latitude: point.latitude,
-            longitude: point.longitude,
-            altitude: point.altitude,
-          },
-        }
-      })
-
-      // Cache for 1 minute
-      this.cacheService.set(cacheKey, trajectory, 60)
-
-      return trajectory
+      return []
     } catch (error) {
       console.error('Error fetching flight trajectory from OpenSky API:', error)
       return []

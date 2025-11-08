@@ -2,15 +2,17 @@ import { Express } from 'express'
 import { FlightService } from '../services/flightService'
 import { ElevationService } from '../services/elevationService'
 import { CacheService } from '../services/cacheService'
+import { OpenSkyAuthService } from '../services/openSkyAuthService'
 
 interface Services {
   flightService: FlightService
   elevationService: ElevationService
   cacheService: CacheService
+  openSkyAuthService?: OpenSkyAuthService
 }
 
 export function setupRoutes(app: Express, services: Services) {
-  const { flightService, elevationService, cacheService } = services
+  const { flightService, elevationService, cacheService, openSkyAuthService } = services
 
   // Flights API
   app.get('/api/flights', async (req, res) => {
@@ -213,6 +215,36 @@ export function setupRoutes(app: Express, services: Services) {
       res.status(500).json({ 
         error: 'Failed to fetch flight details',
         message: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+  })
+
+  app.post('/api/opensky/reconnect', async (req, res) => {
+    if (!openSkyAuthService || !openSkyAuthService.hasCredentials()) {
+      return res.status(400).json({
+        success: false,
+        message: 'OpenSky OAuth credentials are not configured.',
+      })
+    }
+
+    try {
+      const header = await openSkyAuthService.getAuthorizationHeader({ forceRefresh: true })
+      if (header) {
+        return res.json({
+          success: true,
+          message: 'Successfully refreshed OpenSky token.',
+        })
+      }
+
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to obtain OpenSky token after forcing refresh.',
+      })
+    } catch (error) {
+      console.error('OpenSky reconnect failed:', error)
+      return res.status(500).json({
+        success: false,
+        message: error instanceof Error ? error.message : 'Unknown error',
       })
     }
   })

@@ -63,10 +63,22 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 600, // allow up to 600 requests per window
+  standardHeaders: true,
+  legacyHeaders: false,
   message: 'Too many requests from this IP, please try again later.',
+  skip: (req) => {
+    const path = req.path || ''
+    // Allow frequent internal polling endpoints (e.g. dashboard health checks)
+    if (path === '/cache/stats' || path === '/cache/stats/') {
+      return true
+    }
+    // Allow local loopback traffic (dashboard + client) more leniency
+    const ip = req.ip || ''
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
+  },
 })
-app.use('/api/', limiter)
+app.use('/api', limiter)
 
 // Health check
 app.get('/health', (req, res) => {
@@ -78,7 +90,7 @@ app.get('/health', (req, res) => {
 })
 
 // Setup routes
-setupRoutes(app, { flightService, elevationService, cacheService })
+setupRoutes(app, { flightService, elevationService, cacheService, openSkyAuthService })
 
 // Setup WebSocket
 setupWebSocket(wss, { flightService, cacheService })

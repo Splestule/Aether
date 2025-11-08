@@ -41,12 +41,21 @@ export class OpenSkyAuthService {
     }
   }
 
+  invalidateToken() {
+    this.accessToken = null
+    this.tokenExpiresAt = 0
+  }
+
   /**
    * Returns an authorization header object if credentials are configured.
    * When client credentials are not provided, returns null so callers can proceed
    * without authentication (useful for legacy accounts or demo mode).
    */
-  async getAuthorizationHeader(): Promise<Record<string, string> | null> {
+  async getAuthorizationHeader(options?: { forceRefresh?: boolean }): Promise<Record<string, string> | null> {
+    if (options?.forceRefresh) {
+      this.invalidateToken()
+    }
+
     const token = await this.getAccessToken()
     if (!token) {
       return null
