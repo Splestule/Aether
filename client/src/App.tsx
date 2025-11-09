@@ -230,7 +230,6 @@ function App() {
               <h1 className="compass-title text-3xl tracking-[0.45em] text-center">
                 VR Flight Tracker
               </h1>
-              <p className="compass-subtle text-center">Pick a spot to begin.</p>
               <LocationSelector onLocationSelect={handleLocationSelect} />
             </div>
           </div>

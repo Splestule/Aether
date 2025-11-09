@@ -1,4 +1,12 @@
-import { X, Plane, MapPin, Gauge, Navigation, Clock } from "lucide-react";
+import {
+  Plane,
+  MapPin,
+  Gauge,
+  Navigation,
+  Clock,
+  ArrowUp,
+  X,
+} from "lucide-react";
 import { ProcessedFlight } from "@shared/src/types.js";
 import {
   formatSpeed,
@@ -37,12 +45,19 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
         top: "16px",
         right: "16px",
         zIndex: 10000, // Ensure it appears above VR canvas
+        minWidth: "360px",
+        padding: "24px 28px",
       }}
     >
       <div className="flex items-center justify-between mb-6">
         <h3 className="compass-title text-xl">Flight Details</h3>
-        <button onClick={onClose} className="vr-icon-button">
-          <X className="w-4 h-4" />
+        <button
+          onClick={onClose}
+          className="group relative -mt-1 -mr-2 inline-flex h-10 w-10 items-center justify-center rounded-full bg-transparent text-white/70 transition-colors duration-300 hover:text-blue-200 focus:outline-none"
+          style={{ marginLeft: "auto" }}
+        >
+          <span className="sr-only">Close panel</span>
+          <X className="w-5 h-5" />
         </button>
       </div>
 
@@ -82,7 +97,7 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
 
         {/* Altitude */}
         <div className="flex items-center gap-3">
-          <Navigation className="w-5 h-5 text-white/60" />
+          <ArrowUp className="w-5 h-5 text-white/60" />
           <div className="text-sm">
             <div className="compass-subtle">Altitude</div>
             <div className="font-semibold tracking-[0.18em] uppercase">

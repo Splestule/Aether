@@ -49,7 +49,11 @@ function dedupeClosePoints(points: TrajectoryPoint[]): TrajectoryPoint[] {
   return filtered;
 }
 
-export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightTrajectoryProps) {
+export function FlightTrajectory({
+  flight,
+  userLocation,
+  isVR = false,
+}: FlightTrajectoryProps) {
   const [history, setHistory] = useState<TrajectoryPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const lastRefreshRef = useRef<number | null>(null);
@@ -59,16 +63,16 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${userLocation.latitude}&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`
+        `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${
+          userLocation.latitude
+        }&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`
       );
 
       if (response.ok) {
         const data = await response.json();
         if (data.success && Array.isArray(data.data)) {
           const sorted = sortPoints(data.data);
-          const limited = sorted.slice(-(
-            HISTORY_LIMIT + 1
-          ));
+          const limited = sorted.slice(-(HISTORY_LIMIT + 1));
 
           if (limited.length > HISTORY_LIMIT) {
             // keep newest API sample pending, older ones in history
@@ -97,7 +101,12 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
       lastRefreshRef.current = Date.now();
       setIsLoading(false);
     }
-  }, [flight.icao24, userLocation.latitude, userLocation.longitude, userLocation.altitude]);
+  }, [
+    flight.icao24,
+    userLocation.latitude,
+    userLocation.longitude,
+    userLocation.altitude,
+  ]);
 
   useEffect(() => {
     fetchTrajectory();
@@ -111,14 +120,15 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
 
     const pending = pendingPointRef.current;
     if (pending && pending.timestamp < flight.lastUpdate) {
-      setHistory((prev) =>
-        trimHistory(dedupeClosePoints([...prev, pending]))
-      );
+      setHistory((prev) => trimHistory(dedupeClosePoints([...prev, pending])));
       pendingPointRef.current = null;
     }
 
     // Store the current API update as pending for the next cycle
-    if (!pendingPointRef.current || pendingPointRef.current.timestamp !== flight.lastUpdate) {
+    if (
+      !pendingPointRef.current ||
+      pendingPointRef.current.timestamp !== flight.lastUpdate
+    ) {
       const candidate: TrajectoryPoint = {
         timestamp: flight.lastUpdate,
         position: { ...flight.position },
@@ -131,7 +141,8 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
 
       if (
         !lastHistorical ||
-        candidate.timestamp - lastHistorical.timestamp >= MIN_POINT_SEPARATION_MS
+        candidate.timestamp - lastHistorical.timestamp >=
+          MIN_POINT_SEPARATION_MS
       ) {
         pendingPointRef.current = candidate;
       }
@@ -151,7 +162,11 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
       const midpointTooOld =
         midpoint && now - midpoint.timestamp >= MIDPOINT_MAX_AGE_MS;
 
-      if (midpointTooOld || !lastRefresh || now - lastRefresh >= MIDPOINT_MAX_AGE_MS) {
+      if (
+        midpointTooOld ||
+        !lastRefresh ||
+        now - lastRefresh >= MIDPOINT_MAX_AGE_MS
+      ) {
         fetchTrajectory();
       }
     }, REFRESH_CHECK_INTERVAL_MS);
@@ -165,7 +180,8 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
     }
 
     const basePoints = history.map(
-      (point) => new Vector3(point.position.x, point.position.y, point.position.z)
+      (point) =>
+        new Vector3(point.position.x, point.position.y, point.position.z)
     );
 
     const currentPosition = new Vector3(
@@ -204,20 +220,21 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
       const startProgress = i / segmentCount;
       const endProgress = (i + 1) / segmentCount;
 
-      const thicknessFactor = isVR ? 1.8 : 1;
-      const radiusStart = MathUtils.lerp(8, 25, startProgress) * thicknessFactor;
-      const radiusEnd = MathUtils.lerp(8, 25, endProgress) * thicknessFactor;
+      const thicknessFactor = isVR ? 2 : 1;
+      const radiusStart =
+        MathUtils.lerp(8, 28, startProgress) * thicknessFactor;
+      const radiusEnd = MathUtils.lerp(8, 28, endProgress) * thicknessFactor;
       const opacity = MathUtils.lerp(0.15, 1, endProgress);
 
       segmentsData.push({
         key: i,
         position: midpoint.toArray() as [number, number, number],
-        quaternion: [quaternion.x, quaternion.y, quaternion.z, quaternion.w] as [
-          number,
-          number,
-          number,
-          number
-        ],
+        quaternion: [
+          quaternion.x,
+          quaternion.y,
+          quaternion.z,
+          quaternion.w,
+        ] as [number, number, number, number],
         length,
         radiusStart,
         radiusEnd,
@@ -241,7 +258,14 @@ export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightT
           quaternion={segment.quaternion}
         >
           <cylinderGeometry
-            args={[segment.radiusStart, segment.radiusEnd, segment.length, 12, 1, false]}
+            args={[
+              segment.radiusStart,
+              segment.radiusEnd,
+              segment.length,
+              12,
+              1,
+              false,
+            ]}
           />
           <meshBasicMaterial
             color="#60a5fa"

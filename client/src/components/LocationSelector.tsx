@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -8,7 +8,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import { UserLocation } from "@shared/src/types.js";
-import { MapPin, Navigation } from "lucide-react";
+import { MapPin } from "lucide-react";
 import { config } from "../config";
 
 // Fix for default markers in react-leaflet
@@ -27,20 +27,29 @@ interface LocationSelectorProps {
 }
 
 interface MapClickHandlerProps {
-  onLocationSelect: (location: UserLocation) => void;
+  selectedPosition: [number, number] | null;
+  elevation: number | null;
+  isLoading: boolean;
+  setSelectedPosition: Dispatch<SetStateAction<[number, number] | null>>;
+  setElevation: Dispatch<SetStateAction<number | null>>;
+  setIsLoading: Dispatch<SetStateAction<boolean>>;
+  onConfirm: () => void;
 }
 
-function MapClickHandler({ onLocationSelect }: MapClickHandlerProps) {
-  const [selectedPosition, setSelectedPosition] = useState<
-    [number, number] | null
-  >(null);
-  const [elevation, setElevation] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-
+function MapClickHandler({
+  selectedPosition,
+  elevation,
+  isLoading,
+  setSelectedPosition,
+  setElevation,
+  setIsLoading,
+  onConfirm,
+}: MapClickHandlerProps) {
   useMapEvents({
     click: async (e) => {
       const { lat, lng } = e.latlng;
       setSelectedPosition([lat, lng]);
+      setElevation(null);
       setIsLoading(true);
 
       try {
@@ -59,32 +68,20 @@ function MapClickHandler({ onLocationSelect }: MapClickHandlerProps) {
     },
   });
 
-  const handleConfirmLocation = () => {
-    if (selectedPosition && elevation !== null) {
-      onLocationSelect({
-        latitude: selectedPosition[0],
-        longitude: selectedPosition[1],
-        altitude: elevation,
-        name: `Location ${selectedPosition[0].toFixed(
-          4
-        )}, ${selectedPosition[1].toFixed(4)}`,
-      });
-    }
-  };
-
   return (
     <>
       {selectedPosition && (
         <Marker position={selectedPosition}>
-          <Popup>
-            <div className="p-3 space-y-3 text-white bg-[rgba(15,15,15,0.9)] rounded-lg border border-white/30 backdrop-blur">
+          <Popup
+            autoPanPadding={[0, 0]}
+            className="!m-0 !p-0 !border-none !bg-transparent"
+          >
+            <div className="p-4 space-y-3 text-white bg-[rgba(15,15,15,0.95)] rounded-xl border border-white/20 backdrop-blur-lg shadow-[0_18px_45px_rgba(15,23,42,0.55)] min-w-[220px]">
               <div className="compass-subtle">Selected Location</div>
               <div className="text-[0.7rem] tracking-[0.16em] text-white/80 space-y-1">
                 Lat: {selectedPosition[0].toFixed(6)}
                 <div>Lon: {selectedPosition[1].toFixed(6)}</div>
-                {elevation !== null && (
-                  <div>Alt: {elevation.toFixed(0)}m</div>
-                )}
+                {elevation !== null && <div>Alt: {elevation.toFixed(0)}m</div>}
               </div>
               {isLoading ? (
                 <div className="compass-subtle text-white/50">
@@ -92,7 +89,7 @@ function MapClickHandler({ onLocationSelect }: MapClickHandlerProps) {
                 </div>
               ) : (
                 <button
-                  onClick={handleConfirmLocation}
+                  onClick={onConfirm}
                   className="vr-button w-full justify-center text-[0.55rem] tracking-[0.3em]"
                 >
                   Select This Location
@@ -110,6 +107,13 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
   const [currentLocation, setCurrentLocation] = useState<
     [number, number] | null
   >(null);
+  const [selectedPosition, setSelectedPosition] = useState<
+    [number, number] | null
+  >(null);
+  const [selectedElevation, setSelectedElevation] = useState<number | null>(
+    null
+  );
+  const [isSelectionLoading, setIsSelectionLoading] = useState(false);
 
   useEffect(() => {
     let timeoutId: NodeJS.Timeout;
@@ -173,15 +177,23 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
     );
   }
 
+  const handleConfirmLocation = () => {
+    if (!selectedPosition || selectedElevation === null || isSelectionLoading) {
+      return;
+    }
+
+    onLocationSelect({
+      latitude: selectedPosition[0],
+      longitude: selectedPosition[1],
+      altitude: selectedElevation ?? 0,
+      name: `Location ${selectedPosition[0].toFixed(
+        4
+      )}, ${selectedPosition[1].toFixed(4)}`,
+    });
+  };
+
   return (
     <div className="space-y-6 text-white">
-      <div className="flex items-center gap-3">
-        <MapPin className="w-5 h-5 text-blue-300/80" />
-        <span className="compass-title tracking-[0.26em] text-sm">
-          Select Your Location
-        </span>
-      </div>
-
       <div className="h-96 rounded-2xl overflow-hidden border border-white/40 shadow-[0_24px_55px_rgba(15,23,42,0.55)]">
         <MapContainer
           center={currentLocation}
@@ -197,15 +209,31 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
             maxZoom={19}
             maxNativeZoom={19}
           />
-          <MapClickHandler onLocationSelect={onLocationSelect} />
+          <MapClickHandler
+            selectedPosition={selectedPosition}
+            elevation={selectedElevation}
+            isLoading={isSelectionLoading}
+            setSelectedPosition={setSelectedPosition}
+            setElevation={setSelectedElevation}
+            setIsLoading={setIsSelectionLoading}
+            onConfirm={handleConfirmLocation}
+          />
         </MapContainer>
       </div>
 
-      <div className="flex items-center gap-3">
-        <Navigation className="w-4 h-4 text-white/50" />
-        <span className="compass-subtle tracking-[0.24em]">
-          This will be your VR viewing position
-        </span>
+      <div className="flex justify-center">
+        <button
+          type="button"
+          onClick={handleConfirmLocation}
+          disabled={
+            !selectedPosition ||
+            isSelectionLoading ||
+            selectedElevation === null
+          }
+          className="vr-button justify-center"
+        >
+          Select This Location
+        </button>
       </div>
     </div>
   );

@@ -1,13 +1,13 @@
-import { Plane } from 'lucide-react'
+import { Plane } from "lucide-react";
 
 interface VRControlsProps {
-  isVRActive: boolean
-  onVRToggle: () => void // Kept for compatibility but not used
-  isConnected?: boolean // Optional, not currently displayed
-  flightCount: number
-  isLoading: boolean
-  onBackToLocation?: () => void
-  onRefreshFlights?: () => void
+  isVRActive: boolean;
+  onVRToggle: () => void; // Kept for compatibility but not used
+  isConnected?: boolean; // Optional, not currently displayed
+  flightCount: number;
+  isLoading: boolean;
+  onBackToLocation?: () => void;
+  onRefreshFlights?: () => void;
 }
 
 export function VRControls({
@@ -20,7 +20,7 @@ export function VRControls({
   onRefreshFlights,
 }: VRControlsProps) {
   return (
-    <div className="absolute top-6 left-6 space-y-4 max-w-xs text-white">
+    <div className="absolute top-6 left-6 flex flex-col gap-4 text-white">
       {/* Connection Status - removed */}
       {/* <div className="vr-panel p-3">
         <div className="flex items-center space-x-2">
@@ -36,41 +36,30 @@ export function VRControls({
       </div> */}
 
       {/* Flight Count */}
-      <div className="vr-panel px-5 py-4 space-y-3">
-        <span className="compass-subtle">Active Tracks</span>
-        <div className="flex items-center justify-between">
-          <span className="text-2xl font-semibold uppercase tracking-[0.35em]">
-            {flightCount}
-          </span>
-          <Plane className="w-6 h-6 text-blue-300/80" />
-        </div>
-      </div>
+      <button className="vr-button justify-center cursor-default hover:bg-[rgba(26,26,26,0.92)] hover:border-white/60 hover:text-white">
+        <span className="compass-subtle tracking-[0.24em]">Active Tracks</span>
+        <span
+          className="text-base font-semibold uppercase tracking-[0.24em]"
+          style={{ marginLeft: "0.5rem", marginRight: "-0.3rem" }}
+        >
+          {flightCount}
+        </span>
+        <Plane className="w-4 h-4 text-blue-300/80" />
+      </button>
 
       {/* Refresh Flights Button */}
       {onRefreshFlights && (
-        <div className="vr-panel px-5 py-4 space-y-3">
-          <span className="compass-subtle">Data</span>
-          <button
-            onClick={onRefreshFlights}
-            className="vr-button w-full justify-center"
-          >
-            <Plane className="w-4 h-4" />
-            <span>Refresh Flights</span>
-          </button>
-        </div>
+        <button onClick={onRefreshFlights} className="vr-button justify-center">
+          <Plane className="w-4 h-4" />
+          <span>Refresh Flights</span>
+        </button>
       )}
 
       {/* Back to Location Button */}
       {onBackToLocation && (
-        <div className="vr-panel px-5 py-4 space-y-3">
-          <span className="compass-subtle">Navigate</span>
-          <button
-            onClick={onBackToLocation}
-            className="vr-button w-full justify-center"
-          >
-            <span>← Back to Map</span>
-          </button>
-        </div>
+        <button onClick={onBackToLocation} className="vr-button justify-center">
+          <span>← Back to Map</span>
+        </button>
       )}
 
       {/* Loading Indicator */}
@@ -85,5 +74,5 @@ export function VRControls({
         </div>
       )}
     </div>
-  )
+  );
 }

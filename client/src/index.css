@@ -61,6 +61,24 @@
   width: 100%;
 }
 
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: transparent;
+  box-shadow: none;
+  border: none;
+  padding: 0;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  width: auto !important;
+  padding: 0 !important;
+}
+
+.leaflet-popup-close-button {
+  display: none;
+}
+
 /* VR-specific styles */
 .vr-canvas {
   position: absolute;
