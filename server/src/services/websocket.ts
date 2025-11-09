@@ -3,6 +3,7 @@ import { IncomingMessage } from 'http'
 import { FlightService } from './flightService.js'
 import { CacheService } from './cacheService.js'
 import { WSMessage, FlightUpdateMessage, FlightAddMessage, FlightRemoveMessage } from '@vr-flight-tracker/shared'
+import { logger } from '../logger.js'
 
 interface Services {
   flightService: FlightService
@@ -26,7 +27,7 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
   const PING_TIMEOUT = 10000 // 10 seconds
 
   wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
-    console.log('New WebSocket connection from:', request.socket.remoteAddress)
+    logger.debug('WebSocket connection from', request.socket.remoteAddress)
 
     const clientId = `client_${++clientIdCounter}`
     const client: ClientConnection = {
@@ -37,7 +38,7 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
     }
 
     clients.set(clientId, client)
-    console.log(`WebSocket client connected: ${clientId}`)
+    logger.debug('WebSocket client connected', clientId)
 
     // Send welcome message
     sendToClient(client, {
@@ -51,7 +52,7 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
         const message: WSMessage = JSON.parse(data.toString())
         await handleMessage(client, message)
       } catch (error) {
-        console.error('Error handling WebSocket message:', error)
+        logger.error('E-WS-001', 'Failed to handle WebSocket message', error)
         sendToClient(client, {
           type: 'error',
           data: { message: 'Invalid message format' },
@@ -65,12 +66,12 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
     })
 
     ws.on('close', () => {
-      console.log(`WebSocket client disconnected: ${clientId}`)
+      logger.debug('WebSocket client disconnected', clientId)
       clients.delete(clientId)
     })
 
     ws.on('error', (error) => {
-      console.error(`WebSocket error for client ${clientId}:`, error)
+      logger.error('E-WS-005', `WebSocket error for client ${clientId}`, error)
       clients.delete(clientId)
     })
   })
@@ -109,7 +110,7 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
         break
 
       default:
-        console.warn(`Unknown message type: ${message.type}`)
+        logger.debug('WebSocket unknown message type', message.type)
         sendToClient(client, {
           type: 'error',
           data: { message: `Unknown message type: ${message.type}` },
@@ -148,7 +149,7 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
       broadcastToSubscribers('flights', updateMessage)
 
     } catch (error) {
-      console.error('Error handling flight request:', error)
+      logger.error('E-WS-002', 'Failed to handle flight request', error)
       sendToClient(client, {
         type: 'error',
         data: { message: 'Failed to fetch flights' },
@@ -163,7 +164,7 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
       try {
         client.ws.send(JSON.stringify(message))
       } catch (error) {
-        console.error('Error sending message to client:', error)
+      logger.error('E-WS-003', 'Failed to send WebSocket message', error)
         clients.delete(client.id)
       }
     }
@@ -183,7 +184,7 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
     const now = Date.now()
     clients.forEach((client, clientId) => {
       if (now - client.lastPing > PING_TIMEOUT) {
-        console.log(`Removing inactive client: ${clientId}`)
+        logger.debug('Removing inactive WebSocket client', clientId)
         client.ws.terminate()
         clients.delete(clientId)
         return
@@ -219,9 +220,9 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
 
       broadcastToSubscribers('flights', updateMessage)
     } catch (error) {
-      console.error('Error in periodic flight update:', error)
+      logger.error('E-WS-004', 'Periodic flight update failed', error)
     }
   }, 15000) // Update every 15 seconds
 
-  console.log('WebSocket server setup complete')
+  logger.action('WebSocket setup', 'WebSocket server setup complete')
 }

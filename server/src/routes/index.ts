@@ -3,6 +3,7 @@ import { FlightService } from '../services/flightService'
 import { ElevationService } from '../services/elevationService'
 import { CacheService } from '../services/cacheService'
 import { OpenSkyAuthService } from '../services/openSkyAuthService'
+import { logger } from '../logger.js'
 
 interface Services {
   flightService: FlightService
@@ -48,7 +49,7 @@ export function setupRoutes(app: Express, services: Services) {
         timestamp: Date.now(),
       })
     } catch (error) {
-      console.error('Error fetching flights:', error)
+      logger.error('E-API-001', 'Failed to fetch flights', error)
       res.status(500).json({ 
         error: 'Failed to fetch flights',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -86,7 +87,7 @@ export function setupRoutes(app: Express, services: Services) {
         timestamp: Date.now(),
       })
     } catch (error) {
-      console.error('Error fetching elevation:', error)
+      logger.error('E-API-002', 'Failed to fetch elevation', error)
       res.status(500).json({ 
         error: 'Failed to fetch elevation',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -109,7 +110,7 @@ export function setupRoutes(app: Express, services: Services) {
         timestamp: Date.now(),
       })
     } catch (error) {
-      console.error('Error fetching cache stats:', error)
+      logger.error('E-API-003', 'Failed to fetch cache statistics', error)
       res.status(500).json({ 
         error: 'Failed to fetch cache statistics',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -127,7 +128,7 @@ export function setupRoutes(app: Express, services: Services) {
         timestamp: Date.now(),
       })
     } catch (error) {
-      console.error('Error clearing cache:', error)
+      logger.error('E-API-004', 'Failed to clear cache', error)
       res.status(500).json({ 
         error: 'Failed to clear cache',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -178,7 +179,7 @@ export function setupRoutes(app: Express, services: Services) {
         timestamp: Date.now(),
       })
     } catch (error) {
-      console.error('Error fetching flight trajectory:', error)
+      logger.error('E-API-005', 'Failed to fetch flight trajectory', error)
       res.status(500).json({ 
         error: 'Failed to fetch flight trajectory',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -211,7 +212,7 @@ export function setupRoutes(app: Express, services: Services) {
         timestamp: Date.now(),
       })
     } catch (error) {
-      console.error('Error fetching flight details:', error)
+      logger.error('E-API-006', 'Failed to fetch flight details', error)
       res.status(500).json({ 
         error: 'Failed to fetch flight details',
         message: error instanceof Error ? error.message : 'Unknown error'
@@ -241,7 +242,7 @@ export function setupRoutes(app: Express, services: Services) {
         message: 'Failed to obtain OpenSky token after forcing refresh.',
       })
     } catch (error) {
-      console.error('OpenSky reconnect failed:', error)
+      logger.error('E-API-007', 'OpenSky reconnect failed', error)
       return res.status(500).json({
         success: false,
         message: error instanceof Error ? error.message : 'Unknown error',

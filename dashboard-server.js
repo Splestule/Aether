@@ -30,6 +30,43 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(scriptDir, 'dashboard')));
 
+const BACKEND_URL = 'http://localhost:8080'
+
+// Proxy debug mode state
+app.get('/api/debug', async (_req, res) => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/debug`)
+    if (!response.ok) {
+      throw new Error(`Backend responded with ${response.status}`)
+    }
+    const data = await response.json()
+    res.json(data)
+  } catch (error) {
+    console.error('Debug state fetch failed:', error)
+    res.status(502).json({ success: false, error: 'Unable to reach backend debug endpoint' })
+  }
+})
+
+app.post('/api/debug', async (req, res) => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/debug`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req.body || {}),
+    })
+
+    if (!response.ok) {
+      throw new Error(`Backend responded with ${response.status}`)
+    }
+
+    const data = await response.json()
+    res.json(data)
+  } catch (error) {
+    console.error('Debug mode toggle failed:', error)
+    res.status(502).json({ success: false, error: 'Unable to toggle debug mode on backend' })
+  }
+})
+
 // Serve log files
 app.get('/api/logs/server', (req, res) => {
   const logPath = path.join(scriptDir, 'logs', 'server.log');

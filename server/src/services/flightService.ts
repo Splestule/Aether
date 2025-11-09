@@ -4,6 +4,7 @@ import { processFlightData } from '@vr-flight-tracker/shared'
 import { CacheService } from './cacheService.js'
 import { DemoService } from './demoService.js'
 import { OpenSkyAuthService } from './openSkyAuthService.js'
+import { logger } from '../logger.js'
 
 export class FlightService {
   private readonly OPENSKY_API_URL =
@@ -36,12 +37,12 @@ export class FlightService {
     // Check cache first
     const cached = this.cacheService.get<ProcessedFlight[]>(cacheKey)
     if (cached) {
-      console.log('Returning cached flights data')
+      logger.action('Flights cache hit', 'Returning cached flights data')
       return cached
     }
 
     // Try real data first, fallback to demo if needed
-    console.log('Attempting to fetch real flight data from OpenSky API...')
+    logger.action('Fetch flights from OpenSky', 'Attempting to fetch real flight data from OpenSky API...')
 
     try {
       // Calculate bounding box
@@ -57,56 +58,63 @@ export class FlightService {
         altitude: 0, // Will be updated by elevation service
       }
 
+      logger.debug('Processing raw flight dataset')
+
       const processedFlights = rawFlights
       .map(flight => {
-        console.log('Processing raw flight:', {
+        logger.debug('Processing raw flight:', {
           icao24: flight.icao24,
           callsign: flight.callsign,
           latitude: flight.latitude,
           longitude: flight.longitude,
           altitude: flight.geo_altitude
-        });
+        })
         
         const processed = processFlightData(flight, userLocation, radiusKm)
         if (!processed) {
-          console.log(`Flight ${flight.icao24} was filtered out during processing because:`, {
+          logger.debug(`Flight ${flight.icao24} filtered out during processing`, {
             hasValidCoordinates: flight.latitude != null && flight.longitude != null,
             hasValidAltitude: flight.geo_altitude != null,
             hasValidSpeed: flight.velocity != null,
             hasValidHeading: flight.true_track != null
-          });
+          })
         }
-        return processed;
+        return processed
       })
       .filter((flight): flight is ProcessedFlight => {
-        const valid = flight !== null;
+        const valid = flight !== null
         if (!valid) {
-          console.log('Flight filtered out by null check');
+          logger.debug('Flight filtered out by null check')
         }
-        return valid;
+        return valid
       })
       .filter(flight => {
-        const inRange = flight.distance <= radiusKm;
-        console.log(`Flight ${flight.icao24} distance check:`, {
+        const inRange = flight.distance <= radiusKm
+        logger.debug(`Flight ${flight.icao24} distance check`, {
           distance: flight.distance,
           radiusKm,
           inRange
-        });
-        return inRange;
-      });
+        })
+        return inRange
+      })
+
+      logger.debug('Applied distance filter to processed flights')
 
       // Cache the results for 15 seconds
       this.cacheService.set(cacheKey, processedFlights, 15)
 
-      console.log(`Fetched ${processedFlights.length} flights for area ${latitude}, ${longitude}`)
+      logger.action(
+        'Flights processed',
+        `Fetched ${processedFlights.length} flights for area ${latitude}, ${longitude}`
+      )
       return processedFlights
 
     } catch (error) {
-      console.error('Error fetching real flights, falling back to demo data:', error)
+      logger.error('E-FLT-001', 'Failed to fetch flights from OpenSky, using demo data', error)
       // Fallback to demo data
       const demoFlights = this.demoService.getFlightsInArea(latitude, longitude, radiusKm)
       this.cacheService.set(cacheKey, demoFlights, 15)
-      console.log(`Using ${demoFlights.length} demo flights as fallback`)
+      logger.action('Flights demo fallback', `Using ${demoFlights.length} demo flights as fallback`)
       return demoFlights
     }
   }
@@ -151,7 +159,7 @@ export class FlightService {
       return processedFlight
 
     } catch (error) {
-      console.error('Error fetching flight by ICAO:', error)
+      logger.error('E-FLT-002', 'Failed to fetch flight by ICAO', error)
       return null
     }
   }
@@ -176,7 +184,10 @@ export class FlightService {
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        console.log(`Fetching from OpenSky API (attempt ${attempt}/${this.MAX_RETRIES})`)
+        logger.action(
+          'OpenSky request',
+          `Fetching from OpenSky API (attempt ${attempt}/${this.MAX_RETRIES})`
+        )
 
         let authAttempt = 0
         while (authAttempt < this.AUTH_RETRY_LIMIT) {
@@ -196,8 +207,12 @@ export class FlightService {
             })
 
             if (!response.data?.states) {
-              console.warn('No flight data received from OpenSky API');
-              return [];
+              logger.action(
+                'OpenSky empty response',
+                'No flight data received from OpenSky API',
+                response.data
+              )
+              return []
             }
 
             const flights: FlightData[] = response.data.states.map((state): FlightData => ({
@@ -228,17 +243,20 @@ export class FlightService {
               this.authService?.hasCredentials() &&
               authAttempt < this.AUTH_RETRY_LIMIT - 1
             ) {
-              console.warn('OpenSky authentication failed (401), retrying with fresh token');
-              this.authService?.invalidateToken();
-              authAttempt++;
-              continue;
+              logger.action(
+                'OpenSky auth retry',
+                'OpenSky authentication failed (401), retrying with fresh token'
+              )
+              this.authService?.invalidateToken()
+              authAttempt++
+              continue
             }
             throw error
           }
         }
       } catch (error) {
         lastError = error as Error
-        console.error(`Attempt ${attempt} failed:`, error)
+        logger.error('E-FLT-003', `OpenSky request attempt ${attempt} failed`, error)
         
         if (attempt === this.MAX_RETRIES) {
           throw new Error(`Failed to fetch flight data after ${this.MAX_RETRIES} attempts: ${lastError.message}`)
@@ -274,7 +292,7 @@ export class FlightService {
       gps: { latitude: number; longitude: number; altitude: number };
     }>>(cacheKey)
     if (cached) {
-      console.log('Returning cached trajectory data')
+      logger.action('Trajectory cache hit', 'Returning cached trajectory data')
       return cached
     }
 
@@ -310,7 +328,7 @@ export class FlightService {
               })
 
               if (!response.data || !Array.isArray(response.data.path)) {
-                console.warn('No trajectory data received from OpenSky API')
+                logger.action('OpenSky trajectory empty', 'No trajectory data received from OpenSky API')
                 return []
               }
 
@@ -415,7 +433,10 @@ export class FlightService {
                 this.authService?.hasCredentials() &&
                 authAttempt < this.AUTH_RETRY_LIMIT - 1
               ) {
-                console.warn('OpenSky authentication failed (401) for tracks API, retrying with fresh token')
+                logger.action(
+                  'OpenSky auth retry',
+                  'OpenSky authentication failed (401) for tracks API, retrying with fresh token'
+                )
                 this.authService?.invalidateToken()
                 authAttempt++
                 continue
@@ -425,7 +446,7 @@ export class FlightService {
           }
         } catch (error) {
           lastError = error as Error
-          console.error(`Trajectory attempt ${attempt} failed:`, error)
+          logger.error('E-FLT-004', `Trajectory attempt ${attempt} failed`, error)
 
           if (attempt === this.MAX_RETRIES) {
             throw new Error(`Failed to fetch flight trajectory after ${this.MAX_RETRIES} attempts: ${lastError.message}`)
@@ -437,7 +458,7 @@ export class FlightService {
 
       return []
     } catch (error) {
-      console.error('Error fetching flight trajectory from OpenSky API:', error)
+      logger.error('E-FLT-005', 'Failed to fetch flight trajectory from OpenSky API', error)
       return []
     }
   }

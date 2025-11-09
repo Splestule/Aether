@@ -18,6 +18,12 @@ function App() {
   const [isVRActive, setIsVRActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    if (!userLocation && selectedFlight) {
+      setSelectedFlight(null);
+    }
+  }, [userLocation, selectedFlight]);
+
   // Flight data management
   const {
     flights,
@@ -174,57 +180,6 @@ function App() {
     setIsVRActive(!isVRActive);
   };
 
-  // Load demo flights for testing
-  const loadDemoFlights = async () => {
-    setIsLoading(true);
-    try {
-      // Set demo location (Prague)
-      const demoLocation: UserLocation = {
-        latitude: 50.0755,
-        longitude: 14.4378,
-        altitude: 200,
-        name: "Prague, Czech Republic",
-      };
-      setUserLocation(demoLocation);
-
-      // First try WebSocket if connected
-      if (isConnected) {
-        console.log("Requesting flights via WebSocket");
-        sendMessage({
-          type: "subscribe_flights",
-          data: {},
-          timestamp: Date.now(),
-        });
-
-        sendMessage({
-          type: "request_flights",
-          data: {
-            latitude: demoLocation.latitude,
-            longitude: demoLocation.longitude,
-            radius: config.vr.maxDistance,
-          },
-          timestamp: Date.now(),
-        });
-      }
-
-      // Fallback to REST API
-      const response = await fetch(
-        `${config.apiUrl}/api/flights?lat=50.0755&lon=14.4378&radius=50`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success && data.data) {
-          updateFlights(data.data);
-          console.log(`Loaded ${data.data.length} demo flights`);
-        }
-      }
-    } catch (error) {
-      console.error("Failed to load demo flights:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
     <div className="h-screen w-screen relative">
       {/* VR Scene */}
@@ -271,28 +226,12 @@ function App() {
         {/* Location Selector */}
         {!userLocation && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-            <div className="vr-panel p-6 max-w-2xl w-full mx-4">
-              <h1 className="text-3xl font-bold text-center mb-6 text-white">
+            <div className="vr-panel p-8 max-w-2xl w-full mx-4 space-y-8">
+              <h1 className="compass-title text-3xl tracking-[0.45em] text-center">
                 VR Flight Tracker
               </h1>
-              <p className="text-center text-gray-400 mb-6">
-                Select a location on the map to start tracking flights in VR
-                space
-              </p>
+              <p className="compass-subtle text-center">Pick a spot to begin.</p>
               <LocationSelector onLocationSelect={handleLocationSelect} />
-
-              {/* Demo Button */}
-              <div className="mt-6 text-center">
-                <button
-                  onClick={loadDemoFlights}
-                  className="bg-white text-black px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-                >
-                  Load Demo Flights (Prague)
-                </button>
-                <p className="text-sm text-gray-400 mt-2">
-                  Click this to see demo flights around Prague for testing
-                </p>
-              </div>
             </div>
           </div>
         )}
@@ -308,6 +247,7 @@ function App() {
             onBackToLocation={() => {
               setUserLocation(null);
               clearFlights();
+              setSelectedFlight(null);
             }}
             onRefreshFlights={refreshFlights}
           />

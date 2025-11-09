@@ -77,27 +77,23 @@ function MapClickHandler({ onLocationSelect }: MapClickHandlerProps) {
       {selectedPosition && (
         <Marker position={selectedPosition}>
           <Popup>
-            <div className="p-2">
-              <div className="text-sm font-medium mb-2 text-gray-900">Selected Location</div>
-              <div className="text-xs text-gray-700 mb-2">
+            <div className="p-3 space-y-3 text-white bg-[rgba(15,15,15,0.9)] rounded-lg border border-white/30 backdrop-blur">
+              <div className="compass-subtle">Selected Location</div>
+              <div className="text-[0.7rem] tracking-[0.16em] text-white/80 space-y-1">
                 Lat: {selectedPosition[0].toFixed(6)}
-                <br />
-                Lon: {selectedPosition[1].toFixed(6)}
+                <div>Lon: {selectedPosition[1].toFixed(6)}</div>
                 {elevation !== null && (
-                  <>
-                    <br />
-                    Alt: {elevation.toFixed(0)}m
-                  </>
+                  <div>Alt: {elevation.toFixed(0)}m</div>
                 )}
               </div>
               {isLoading ? (
-                <div className="text-xs text-gray-600">
-                  Loading elevation...
+                <div className="compass-subtle text-white/50">
+                  Loading elevation…
                 </div>
               ) : (
                 <button
                   onClick={handleConfirmLocation}
-                  className="w-full mt-2 px-3 py-1 bg-black text-white text-xs rounded hover:bg-gray-800 transition-colors"
+                  className="vr-button w-full justify-center text-[0.55rem] tracking-[0.3em]"
                 >
                   Select This Location
                 </button>
@@ -170,19 +166,23 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="loading-spinner"></div>
-        <span className="ml-2 text-gray-600">Loading map...</span>
+        <span className="ml-4 compass-subtle tracking-[0.24em]">
+          Loading map…
+        </span>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center space-x-2 text-sm text-gray-300">
-        <MapPin className="w-4 h-4" />
-        <span>Click on the map to select your location</span>
+    <div className="space-y-6 text-white">
+      <div className="flex items-center gap-3">
+        <MapPin className="w-5 h-5 text-blue-300/80" />
+        <span className="compass-title tracking-[0.26em] text-sm">
+          Select Your Location
+        </span>
       </div>
 
-      <div className="h-96 rounded-lg overflow-hidden border border-gray-300">
+      <div className="h-96 rounded-2xl overflow-hidden border border-white/40 shadow-[0_24px_55px_rgba(15,23,42,0.55)]">
         <MapContainer
           center={currentLocation}
           zoom={10}
@@ -201,9 +201,11 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
         </MapContainer>
       </div>
 
-      <div className="flex items-center space-x-2 text-xs text-gray-400">
-        <Navigation className="w-3 h-3" />
-        <span>This will be your VR viewing position</span>
+      <div className="flex items-center gap-3">
+        <Navigation className="w-4 h-4 text-white/50" />
+        <span className="compass-subtle tracking-[0.24em]">
+          This will be your VR viewing position
+        </span>
       </div>
     </div>
   );

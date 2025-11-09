@@ -20,7 +20,7 @@ export function VRControls({
   onRefreshFlights,
 }: VRControlsProps) {
   return (
-    <div className="absolute top-4 left-4 space-y-2">
+    <div className="absolute top-6 left-6 space-y-4 max-w-xs text-white">
       {/* Connection Status - removed */}
       {/* <div className="vr-panel p-3">
         <div className="flex items-center space-x-2">
@@ -36,46 +36,51 @@ export function VRControls({
       </div> */}
 
       {/* Flight Count */}
-      <div className="vr-panel p-3">
-        <div className="flex items-center space-x-2">
-          <Plane className="w-4 h-4 text-white" />
-          <span className="text-sm font-medium text-white">
-            {flightCount} flights
+      <div className="vr-panel px-5 py-4 space-y-3">
+        <span className="compass-subtle">Active Tracks</span>
+        <div className="flex items-center justify-between">
+          <span className="text-2xl font-semibold uppercase tracking-[0.35em]">
+            {flightCount}
           </span>
+          <Plane className="w-6 h-6 text-blue-300/80" />
         </div>
       </div>
 
       {/* Refresh Flights Button */}
       {onRefreshFlights && (
-        <div className="vr-panel p-3">
+        <div className="vr-panel px-5 py-4 space-y-3">
+          <span className="compass-subtle">Data</span>
           <button
             onClick={onRefreshFlights}
-            className="flex items-center space-x-2 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            className="vr-button w-full justify-center"
           >
             <Plane className="w-4 h-4" />
-            <span className="text-sm font-medium">Refresh Flights</span>
+            <span>Refresh Flights</span>
           </button>
         </div>
       )}
 
       {/* Back to Location Button */}
       {onBackToLocation && (
-        <div className="vr-panel p-3">
+        <div className="vr-panel px-5 py-4 space-y-3">
+          <span className="compass-subtle">Navigate</span>
           <button
             onClick={onBackToLocation}
-            className="flex items-center space-x-2 px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 transition-colors"
+            className="vr-button w-full justify-center"
           >
-            <span className="text-sm font-medium">← Back to Map</span>
+            <span>← Back to Map</span>
           </button>
         </div>
       )}
 
       {/* Loading Indicator */}
       {isLoading && (
-        <div className="vr-panel p-3">
-          <div className="flex items-center space-x-2">
-            <div className="loading-spinner w-4 h-4"></div>
-            <span className="text-sm text-gray-300">Loading...</span>
+        <div className="vr-panel px-5 py-4">
+          <div className="flex items-center gap-3">
+            <div className="loading-spinner w-6 h-6"></div>
+            <span className="compass-subtle tracking-[0.26em]">
+              Syncing Data
+            </span>
           </div>
         </div>
       )}

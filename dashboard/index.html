@@ -36,10 +36,16 @@
             text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
         }
 
-        .stop-button {
+        .header-actions {
             position: absolute;
             top: 0;
             right: 0;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .stop-button {
             background: rgba(239, 68, 68, 0.15);
             color: #fca5a5;
             border: 1.5px solid rgba(239, 68, 68, 0.4);
@@ -84,6 +90,76 @@
 
         .stop-button:hover .stop-button-icon {
             transform: scale(1.1);
+        }
+
+        .debug-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(148, 163, 184, 0.14);
+            border: 1.5px solid rgba(148, 163, 184, 0.3);
+            color: #cbd5f5;
+            padding: 8px 14px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            font-weight: 500;
+            box-shadow: 0 2px 8px rgba(45, 51, 75, 0.25);
+            backdrop-filter: blur(12px);
+        }
+
+        .debug-toggle span.label {
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-size: 0.75em;
+            opacity: 0.85;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 46px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(96, 165, 250, 0.25);
+            transition: 0.3s ease;
+            border-radius: 9999px;
+            border: 1px solid rgba(96, 165, 250, 0.35);
+        }
+
+        .toggle-slider::before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            top: 2px;
+            background-color: #e2e8f0;
+            border-radius: 50%;
+            transition: 0.3s ease;
+            box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(96, 165, 250, 0.55);
+            border-color: rgba(96, 165, 250, 0.85);
+        }
+
+        .toggle-switch input:checked + .toggle-slider::before {
+            transform: translateX(22px);
+            background-color: #0f172a;
         }
 
         .retry-button {
@@ -346,10 +422,19 @@
         <header>
             <h1>VR Flight Tracker Dashboard</h1>
             <p>Real-time monitoring and logs</p>
-            <button class="stop-button" id="stop-button" onclick="showStopConfirmation()">
-                <span class="stop-button-icon">⏹</span>
-                <span>Stop Servers</span>
-            </button>
+            <div class="header-actions">
+                <div class="debug-toggle">
+                    <span class="label">Debug mode</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="debug-toggle" onchange="toggleDebugMode(this)">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <button class="stop-button" id="stop-button" onclick="showStopConfirmation()">
+                    <span class="stop-button-icon">⏹</span>
+                    <span>Stop Servers</span>
+                </button>
+            </div>
         </header>
 
         <div class="status-bar">
@@ -596,6 +681,50 @@
             }
         }
 
+        async function updateDebugToggleState() {
+            try {
+                const response = await fetch('/api/debug');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                const data = await response.json();
+                setDebugToggle(data.debug === true);
+            } catch (error) {
+                console.error('Error fetching debug mode state:', error);
+            }
+        }
+
+        function setDebugToggle(enabled) {
+            const toggle = document.getElementById('debug-toggle');
+            if (!toggle) return;
+            toggle.checked = enabled;
+            toggle.setAttribute('aria-checked', String(enabled));
+        }
+
+        async function toggleDebugMode(checkbox) {
+            const enabled = checkbox.checked;
+            try {
+                const response = await fetch('/api/debug', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ debug: enabled })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                setDebugToggle(data.debug === true);
+            } catch (error) {
+                console.error('Error toggling debug mode:', error);
+                checkbox.checked = !enabled;
+                checkbox.setAttribute('aria-checked', String(checkbox.checked));
+            }
+        }
+
         async function attemptOpenSkyReconnect() {
             const retryButton = document.getElementById('opensky-retry');
             if (!retryButton) return;
@@ -626,6 +755,7 @@
         fetchStats();
         fetchLogs('server');
         fetchLogs('client');
+        updateDebugToggleState();
 
         // Auto-refresh
         let refreshInterval = setInterval(() => {

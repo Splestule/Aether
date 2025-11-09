@@ -13,6 +13,7 @@ import { FlightService } from './services/flightService.js'
 import { ElevationService } from './services/elevationService.js'
 import { CacheService } from './services/cacheService.js'
 import { OpenSkyAuthService } from './services/openSkyAuthService.js'
+import { logger } from './logger.js'
 
 // Load environment variables
 dotenv.config()
@@ -54,7 +55,7 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
-}));
+}))
 
 app.use(compression())
 app.use(express.json({ limit: '10mb' }))
@@ -80,10 +81,34 @@ const limiter = rateLimit({
 })
 app.use('/api', limiter)
 
+// Logging middleware for API requests
+app.use((req, _res, next) => {
+  if (req.path.startsWith('/api') && logger.isDebugMode()) {
+    const debugDetails = {
+      path: req.originalUrl || req.path,
+      query: req.query,
+      method: req.method,
+    }
+    logger.api(req.method || 'GET', req.path, `API ${req.method} ${req.originalUrl}`, debugDetails)
+  }
+  next()
+})
+
+app.get('/api/debug', (_req, res) => {
+  res.json({ debug: logger.isDebugMode() })
+})
+
+app.post('/api/debug', (req, res) => {
+  const { debug } = req.body || {}
+  const enabled = Boolean(debug)
+  logger.setDebugMode(enabled)
+  res.json({ success: true, debug: logger.isDebugMode() })
+})
+
 // Health check
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   })
@@ -97,8 +122,8 @@ setupWebSocket(wss, { flightService, cacheService })
 
 // Error handling middleware
 app.use((err: Error, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error('Error:', err)
-  res.status(500).json({ 
+  logger.error('E-500-000', `Request failed for ${req.method} ${req.originalUrl || req.path}`, err)
+  res.status(500).json({
     error: 'Internal server error',
     message: process.env.NODE_ENV === 'development' ? err.message : 'Something went wrong'
   })
@@ -109,32 +134,32 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Route not found' })
 })
 
-console.log(`Starting server on ${HOST}:${PORT}...`)
+logger.action('Server starting', `Starting server on ${HOST}:${PORT}...`)
 
 server.listen(PORT, HOST, () => {
-  console.log(`🚀 VR Flight Tracker Server running on http://${process.env.LOCAL_IP}:${PORT}`)
-  console.log(`📡 WebSocket server ready for connections`)
-  console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
-  console.log(`🚀 Server listening on:`)
-  console.log(`   - Local:   http://localhost:${PORT}`)
-  console.log(`   - Network: http://${process.env.LOCAL_IP}:${PORT}`)
-  console.log(`   - WS:      ws://${process.env.LOCAL_IP}:${PORT}`)
+  logger.action('Server ready', `🚀 VR Flight Tracker Server running on http://${process.env.LOCAL_IP}:${PORT}`)
+  logger.action('WebSocket ready', `📡 WebSocket server ready for connections`)
+  logger.action('Environment ready', `🌍 Environment: ${process.env.NODE_ENV || 'development'}`)
+  logger.action('Server listening', `🚀 Server listening on:
+   - Local:   http://localhost:${PORT}
+   - Network: http://${process.env.LOCAL_IP}:${PORT}
+   - WS:      ws://${process.env.LOCAL_IP}:${PORT}`)
 })
 
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully')
+  logger.action('SIGTERM received', 'SIGTERM received, shutting down gracefully')
   server.close(() => {
-    console.log('Server closed')
+    logger.action('Server closed', 'Server closed')
     process.exit(0)
   })
 })
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully')
+  logger.action('SIGINT received', 'SIGINT received, shutting down gracefully')
   server.close(() => {
-    console.log('Server closed')
+    logger.action('Server closed', 'Server closed')
     process.exit(0)
   })
 })

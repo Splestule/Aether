@@ -1,6 +1,7 @@
 import axios from 'axios'
 import { ElevationResponse } from '@vr-flight-tracker/shared'
 import { CacheService } from './cacheService.js'
+import { logger } from '../logger.js'
 
 export class ElevationService {
   private readonly ELEVATION_API_URL = 'https://api.open-elevation.com/api/v1/lookup'
@@ -19,7 +20,7 @@ export class ElevationService {
     if (this.cacheService) {
       const cached = this.cacheService.get<number>(cacheKey)
       if (cached !== undefined) {
-        console.log('Returning cached elevation data')
+        logger.action('Elevation cache hit', 'Returning cached elevation data')
         return cached
       }
     }
@@ -32,11 +33,14 @@ export class ElevationService {
         this.cacheService.set(cacheKey, elevation, 3600)
       }
 
-      console.log(`Fetched elevation ${elevation}m for ${latitude}, ${longitude}`)
+      logger.action(
+        'Elevation fetched',
+        `Fetched elevation ${elevation}m for ${latitude}, ${longitude}`
+      )
       return elevation
 
     } catch (error) {
-      console.error('Error fetching elevation:', error)
+      logger.error('E-ELV-001', 'Failed to fetch elevation', error)
       // Return 0 as fallback (sea level)
       return 0
     }
@@ -87,7 +91,7 @@ export class ElevationService {
           }
         }
       } catch (error) {
-        console.error('Error fetching elevations:', error)
+        logger.error('E-ELV-002', 'Failed to fetch elevations batch', error)
         // Fill with 0 for failed requests
         for (const { index } of uncachedCoordinates) {
           results[index] = 0
@@ -110,7 +114,10 @@ export class ElevationService {
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        console.log(`Fetching elevation from API (attempt ${attempt}/${this.MAX_RETRIES})`)
+        logger.action(
+          'Elevation API request',
+          `Fetching elevation from API (attempt ${attempt}/${this.MAX_RETRIES})`
+        )
         
         const response = await axios.post<{ results: ElevationResponse[] }>(
           this.ELEVATION_API_URL,
@@ -132,7 +139,10 @@ export class ElevationService {
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error')
-        console.warn(`Elevation API attempt ${attempt} failed:`, lastError.message)
+        logger.action(
+          'Elevation API retry',
+          `Elevation API attempt ${attempt} failed: ${lastError.message}`
+        )
         
         if (attempt < this.MAX_RETRIES) {
           // Short delay before retry
@@ -156,7 +166,10 @@ export class ElevationService {
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
-        console.log(`Fetching ${coordinates.length} elevations from API (attempt ${attempt}/${this.MAX_RETRIES})`)
+        logger.action(
+          'Elevation batch request',
+          `Fetching ${coordinates.length} elevations from API (attempt ${attempt}/${this.MAX_RETRIES})`
+        )
         
         const response = await axios.post<{ results: ElevationResponse[] }>(
           this.ELEVATION_API_URL,
@@ -178,7 +191,10 @@ export class ElevationService {
 
       } catch (error) {
         lastError = error instanceof Error ? error : new Error('Unknown error')
-        console.warn(`Elevation API attempt ${attempt} failed:`, lastError.message)
+        logger.action(
+          'Elevation API retry',
+          `Elevation API attempt ${attempt} failed: ${lastError.message}`
+        )
         
         if (attempt < this.MAX_RETRIES) {
           // Short delay before retry
