@@ -413,13 +413,25 @@ function SingleControllerRaycast({
       return;
     }
 
-    const controllerPosition = controller.controller.position.clone();
-    const controllerDirection = new Vector3(0, 0, -1);
-    controllerDirection.applyMatrix4(controller.controller.matrixWorld);
-    controllerDirection.sub(controllerPosition).normalize();
+    const controllerObject = controller.controller;
+    if (!controllerObject) {
+      lineRef.current.visible = false;
+      return;
+    }
+
+    const controllerPosition = new Vector3();
+    const controllerDirection = new Vector3();
+
+    controllerObject.getWorldPosition(controllerPosition);
+    controllerObject.getWorldDirection(controllerDirection);
+    controllerDirection.normalize();
+    controllerDirection.multiplyScalar(-1);
+
+    // Offset start point slightly forward to avoid intersecting controller-attached UI (compass, etc.)
+    const rayOrigin = controllerPosition.clone().add(controllerDirection.clone().multiplyScalar(0.02));
 
     // Set up raycaster
-    raycaster.current.set(controllerPosition, controllerDirection);
+    raycaster.current.set(rayOrigin, controllerDirection);
     raycaster.current.far = 250000; // 250km
 
     // Check for intersections with waypoint collision meshes
@@ -446,13 +458,13 @@ function SingleControllerRaycast({
         flight.position.y,
         flight.position.z
       );
-      const waypointToController = controllerPosition.clone().sub(waypointPos);
+      const waypointToController = rayOrigin.clone().sub(waypointPos);
       const t =
         -waypointToController.dot(controllerDirection) /
         controllerDirection.dot(controllerDirection);
 
       if (t > 0 && t <= 250000) {
-        const closestPoint = controllerPosition
+        const closestPoint = rayOrigin
           .clone()
           .add(controllerDirection.clone().multiplyScalar(t));
         const distanceToWaypoint = closestPoint.distanceTo(waypointPos);
@@ -474,15 +486,15 @@ function SingleControllerRaycast({
     const hitDistance = closestIntersection
       ? closestIntersection.distance
       : maxDistance;
-    const endPoint = controllerPosition
+    const endPoint = rayOrigin
       .clone()
       .add(controllerDirection.clone().multiplyScalar(hitDistance));
 
     // Update line geometry
     const positions = new Float32Array([
-      controllerPosition.x,
-      controllerPosition.y,
-      controllerPosition.z,
+      rayOrigin.x,
+      rayOrigin.y,
+      rayOrigin.z,
       endPoint.x,
       endPoint.y,
       endPoint.z,
@@ -583,6 +595,7 @@ function SceneContent({
           <FlightTrajectory
             flight={selectedFlight}
             userLocation={userLocation}
+            isVR={isPresenting}
           />
         )}
 

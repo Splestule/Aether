@@ -6,6 +6,7 @@ import { CatmullRomCurve3, Vector3, Quaternion, MathUtils } from "three";
 interface FlightTrajectoryProps {
   flight: ProcessedFlight;
   userLocation: UserLocation;
+  isVR?: boolean;
 }
 
 interface TrajectoryPoint {
@@ -27,7 +28,28 @@ function trimHistory(points: TrajectoryPoint[]): TrajectoryPoint[] {
   return sorted.slice(-HISTORY_LIMIT);
 }
 
-export function FlightTrajectory({ flight, userLocation }: FlightTrajectoryProps) {
+const MIN_POINT_SEPARATION_MS = 20_000; // 20 seconds
+
+function dedupeClosePoints(points: TrajectoryPoint[]): TrajectoryPoint[] {
+  if (points.length === 0) {
+    return points;
+  }
+
+  const sorted = sortPoints(points);
+  const filtered: TrajectoryPoint[] = [sorted[0]];
+
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = filtered[filtered.length - 1];
+    const current = sorted[i];
+    if (current.timestamp - prev.timestamp >= MIN_POINT_SEPARATION_MS) {
+      filtered.push(current);
+    }
+  }
+
+  return filtered;
+}
+
+export function FlightTrajectory({ flight, userLocation, isVR = false }: FlightTrajectoryProps) {
   const [history, setHistory] = useState<TrajectoryPoint[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const lastRefreshRef = useRef<number | null>(null);
@@ -52,10 +74,10 @@ export function FlightTrajectory({ flight, userLocation }: FlightTrajectoryProps
             // keep newest API sample pending, older ones in history
             const pending = limited[limited.length - 1];
             const baseHistory = limited.slice(0, limited.length - 1);
-            setHistory(trimHistory(baseHistory));
+            setHistory(trimHistory(dedupeClosePoints(baseHistory)));
             pendingPointRef.current = pending;
           } else {
-            setHistory(trimHistory(limited));
+            setHistory(trimHistory(dedupeClosePoints(limited)));
             pendingPointRef.current = null;
           }
         } else {
@@ -89,19 +111,32 @@ export function FlightTrajectory({ flight, userLocation }: FlightTrajectoryProps
 
     const pending = pendingPointRef.current;
     if (pending && pending.timestamp < flight.lastUpdate) {
-      setHistory((prev) => trimHistory([...prev, pending]));
+      setHistory((prev) =>
+        trimHistory(dedupeClosePoints([...prev, pending]))
+      );
       pendingPointRef.current = null;
     }
 
     // Store the current API update as pending for the next cycle
     if (!pendingPointRef.current || pendingPointRef.current.timestamp !== flight.lastUpdate) {
-      pendingPointRef.current = {
+      const candidate: TrajectoryPoint = {
         timestamp: flight.lastUpdate,
         position: { ...flight.position },
         gps: { ...flight.gps },
       };
+
+      const lastHistorical = history.length
+        ? history[history.length - 1]
+        : null;
+
+      if (
+        !lastHistorical ||
+        candidate.timestamp - lastHistorical.timestamp >= MIN_POINT_SEPARATION_MS
+      ) {
+        pendingPointRef.current = candidate;
+      }
     }
-  }, [flight.lastUpdate, flight.position, flight.gps]);
+  }, [flight.lastUpdate, flight.position, flight.gps, history]);
 
   // Periodically refresh to keep midpoint fresh
   useEffect(() => {
@@ -169,8 +204,9 @@ export function FlightTrajectory({ flight, userLocation }: FlightTrajectoryProps
       const startProgress = i / segmentCount;
       const endProgress = (i + 1) / segmentCount;
 
-      const radiusStart = MathUtils.lerp(8, 25, startProgress);
-      const radiusEnd = MathUtils.lerp(8, 25, endProgress);
+      const thicknessFactor = isVR ? 1.8 : 1;
+      const radiusStart = MathUtils.lerp(8, 25, startProgress) * thicknessFactor;
+      const radiusEnd = MathUtils.lerp(8, 25, endProgress) * thicknessFactor;
       const opacity = MathUtils.lerp(0.15, 1, endProgress);
 
       segmentsData.push({
@@ -190,7 +226,7 @@ export function FlightTrajectory({ flight, userLocation }: FlightTrajectoryProps
     }
 
     return segmentsData;
-  }, [history, flight.position.x, flight.position.y, flight.position.z]);
+  }, [history, flight.position.x, flight.position.y, flight.position.z, isVR]);
 
   if (isLoading || segments.length === 0) {
     return null;
