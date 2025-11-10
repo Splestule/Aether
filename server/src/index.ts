@@ -13,6 +13,7 @@ import { FlightService } from './services/flightService.js'
 import { ElevationService } from './services/elevationService.js'
 import { CacheService } from './services/cacheService.js'
 import { OpenSkyAuthService } from './services/openSkyAuthService.js'
+import { AviationStackService } from './services/aviationStackService.js'
 import { logger } from './logger.js'
 
 // Load environment variables
@@ -34,6 +35,7 @@ const openSkyAuthService = new OpenSkyAuthService(
   process.env.OPENSKY_AUTH_URL
 )
 const flightService = new FlightService(cacheService, openSkyAuthService)
+const aviationStackService = new AviationStackService(cacheService)
 
 // Middleware
 app.use(helmet({
@@ -115,7 +117,7 @@ app.get('/health', (req, res) => {
 })
 
 // Setup routes
-setupRoutes(app, { flightService, elevationService, cacheService, openSkyAuthService })
+setupRoutes(app, { flightService, elevationService, cacheService, openSkyAuthService, aviationStackService })
 
 // Setup WebSocket
 setupWebSocket(wss, { flightService, cacheService })

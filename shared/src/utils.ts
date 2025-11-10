@@ -164,11 +164,13 @@ export function processFlightData(
     flight.longitude
   );
 
+  const sanitizedCallsign = sanitizeCallsign(flight.callsign);
+
   return {
     id: flight.icao24,
-    callsign: flight.callsign?.trim() || 'UNKNOWN',
+    callsign: sanitizedCallsign || 'UNKNOWN',
     icao24: flight.icao24,
-    airline: getAirlineFromCallsign(flight.callsign),
+    airline: getAirlineFromCallsign(sanitizedCallsign),
     position: vrPosition,
     gps: {
       latitude: flight.latitude,
@@ -217,6 +219,17 @@ function getAirlineFromCallsign(callsign: string): string {
 
   const prefix = callsign.substring(0, 2);
   return airlinePrefixes[prefix] || 'Unknown';
+}
+
+/**
+ * Normalize callsign values by trimming, removing internal whitespace and uppercasing.
+ */
+export function sanitizeCallsign(value?: string | null): string {
+  if (!value) {
+    return '';
+  }
+
+  return value.replace(/\s+/g, '').toUpperCase();
 }
 
 /**

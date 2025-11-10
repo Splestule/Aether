@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useController } from "@react-three/xr";
 import { useFrame } from "@react-three/fiber";
 import { Text } from "@react-three/drei";
@@ -17,11 +17,10 @@ export function VRCompass({
 }: VRCompassProps) {
   const leftController = useController("left");
   const compassRef = useRef<Group>(null);
-  const [isGrabbed, setIsGrabbed] = useState(false);
   const initialControllerRotationRef = useRef<number | null>(null);
   const initialAccumulatedRotationRef = useRef<number>(0);
 
-  useFrame((state) => {
+  useFrame(() => {
     // Hide compass when a flight is selected or no controller
     if (
       selectedFlight ||
@@ -72,7 +71,6 @@ export function VRCompass({
           // First frame of grab - store initial controller rotation and current scene rotation
           initialControllerRotationRef.current = controllerYRotation;
           initialAccumulatedRotationRef.current = safeSceneRotation;
-          setIsGrabbed(true);
         } else {
           // Calculate rotation delta from initial grab position
           let rotationDelta =
@@ -103,7 +101,6 @@ export function VRCompass({
         // Reset tracking when not grabbed (but keep accumulated rotation)
         if (initialControllerRotationRef.current !== null) {
           initialControllerRotationRef.current = null;
-          setIsGrabbed(false);
         }
       }
     } catch (error) {

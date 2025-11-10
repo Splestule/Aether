@@ -3,6 +3,7 @@ import { FlightService } from '../services/flightService'
 import { ElevationService } from '../services/elevationService'
 import { CacheService } from '../services/cacheService'
 import { OpenSkyAuthService } from '../services/openSkyAuthService'
+import { AviationStackService } from '../services/aviationStackService.js'
 import { logger } from '../logger.js'
 
 interface Services {
@@ -10,10 +11,17 @@ interface Services {
   elevationService: ElevationService
   cacheService: CacheService
   openSkyAuthService?: OpenSkyAuthService
+  aviationStackService?: AviationStackService
 }
 
 export function setupRoutes(app: Express, services: Services) {
-  const { flightService, elevationService, cacheService, openSkyAuthService } = services
+  const {
+    flightService,
+    elevationService,
+    cacheService,
+    openSkyAuthService,
+    aviationStackService,
+  } = services
 
   // Flights API
   app.get('/api/flights', async (req, res) => {
@@ -53,6 +61,44 @@ export function setupRoutes(app: Express, services: Services) {
       res.status(500).json({ 
         error: 'Failed to fetch flights',
         message: error instanceof Error ? error.message : 'Unknown error'
+      })
+    }
+  })
+
+  app.get('/api/flights/route', async (req, res) => {
+    try {
+      const { callsign } = req.query
+
+      if (!callsign || typeof callsign !== 'string') {
+        return res.status(400).json({
+          error: 'Missing or invalid parameter: callsign',
+        })
+      }
+
+      if (!aviationStackService) {
+        return res.status(503).json({
+          error: 'AviationStack integration is not configured',
+        })
+      }
+
+      const routeInfo = await aviationStackService.getRouteByCallsign(callsign)
+
+      if (!routeInfo) {
+        return res.status(404).json({
+          error: 'Route not found for provided callsign',
+        })
+      }
+
+      res.json({
+        success: true,
+        data: routeInfo,
+        timestamp: Date.now(),
+      })
+    } catch (error) {
+      logger.error('E-API-008', 'Failed to fetch flight route', error)
+      res.status(500).json({
+        error: 'Failed to fetch flight route',
+        message: error instanceof Error ? error.message : 'Unknown error',
       })
     }
   })

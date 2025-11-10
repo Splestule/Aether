@@ -119,6 +119,29 @@ export interface FlightInfo {
   eta?: string;
 }
 
+export interface FlightRouteEndpointInfo {
+  airport?: string;
+  iata?: string;
+  icao?: string;
+  gate?: string;
+  terminal?: string;
+  baggage?: string;
+  scheduled?: string;
+  estimated?: string;
+  actual?: string;
+  delayMinutes?: number;
+}
+
+export interface FlightRouteInfo {
+  callsign: string;
+  flightNumber?: string;
+  airline?: string;
+  status?: string;
+  origin: FlightRouteEndpointInfo | null;
+  destination: FlightRouteEndpointInfo | null;
+  updatedAt: number;
+}
+
 export interface ElevationResponse {
   latitude: number;
   longitude: number;

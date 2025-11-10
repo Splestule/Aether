@@ -1,23 +1,22 @@
 import { Plane } from "lucide-react";
+import { clsx } from "clsx";
 
 interface VRControlsProps {
-  isVRActive: boolean;
-  onVRToggle: () => void; // Kept for compatibility but not used
-  isConnected?: boolean; // Optional, not currently displayed
   flightCount: number;
   isLoading: boolean;
   onBackToLocation?: () => void;
   onRefreshFlights?: () => void;
+  isRouteEnabled?: boolean;
+  onToggleRoute?: () => void;
 }
 
 export function VRControls({
-  isVRActive: _isVRActive, // Unused but kept for compatibility
-  onVRToggle: _onVRToggle, // Unused but kept for compatibility
-  isConnected: _isConnected, // Unused but kept for future use
   flightCount,
   isLoading,
   onBackToLocation,
   onRefreshFlights,
+  isRouteEnabled = false,
+  onToggleRoute,
 }: VRControlsProps) {
   return (
     <div className="absolute top-6 left-6 flex flex-col gap-4 text-white">
@@ -52,6 +51,31 @@ export function VRControls({
         <button onClick={onRefreshFlights} className="vr-button justify-center">
           <Plane className="w-4 h-4" />
           <span>Refresh Flights</span>
+        </button>
+      )}
+
+      {onToggleRoute && (
+        <button
+          type="button"
+          onClick={onToggleRoute}
+          className="vr-panel px-5 py-3 flex items-center justify-between"
+        >
+          <span className="compass-subtle uppercase tracking-[0.22em]">
+            Route Info
+          </span>
+          <span
+            className={clsx(
+              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300",
+              isRouteEnabled ? "bg-white/40" : "bg-white/25"
+            )}
+          >
+            <span
+              className={clsx(
+                "absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition-transform duration-300",
+                isRouteEnabled ? "translate-x-5" : "translate-x-0"
+              )}
+            />
+          </span>
         </button>
       )}
 

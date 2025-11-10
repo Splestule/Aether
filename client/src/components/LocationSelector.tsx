@@ -8,7 +8,6 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import { UserLocation } from "@shared/src/types.js";
-import { MapPin } from "lucide-react";
 import { config } from "../config";
 
 // Fix for default markers in react-leaflet
@@ -193,8 +192,8 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
   };
 
   return (
-    <div className="space-y-6 text-white">
-      <div className="h-96 rounded-2xl overflow-hidden border border-white/40 shadow-[0_24px_55px_rgba(15,23,42,0.55)]">
+    <div className="space-y-4 text-white">
+      <div className="h-[32rem] rounded-2xl overflow-hidden border border-white/40 shadow-[0_30px_65px_rgba(15,23,42,0.55)]">
         <MapContainer
           center={currentLocation}
           zoom={10}
@@ -230,7 +229,7 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
             isSelectionLoading ||
             selectedElevation === null
           }
-          className="vr-button justify-center"
+          className="vr-button justify-center px-8 py-4 text-[0.75rem]"
         >
           Select This Location
         </button>

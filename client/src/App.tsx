@@ -7,6 +7,7 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import { useFlights } from "./hooks/useFlights";
 import { UserLocation, ProcessedFlight } from "@shared/src/types";
 import { config } from "./config";
+import { ParticleField } from "./components/ParticleField";
 
 function App() {
   console.log("App component rendering");
@@ -17,6 +18,7 @@ function App() {
   );
   const [isVRActive, setIsVRActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isRouteEnabled, setIsRouteEnabled] = useState(false);
 
   useEffect(() => {
     if (!userLocation && selectedFlight) {
@@ -182,6 +184,7 @@ function App() {
 
   return (
     <div className="h-screen w-screen relative">
+      <ParticleField />
       {/* VR Scene */}
       {userLocation && (
         <VRScene
@@ -225,11 +228,18 @@ function App() {
       <div className="vr-ui">
         {/* Location Selector */}
         {!userLocation && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80">
-            <div className="vr-panel p-8 max-w-2xl w-full mx-4 space-y-8">
-              <h1 className="compass-title text-3xl tracking-[0.45em] text-center">
-                VR Flight Tracker
-              </h1>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+            <div className="vr-panel p-5 max-w-3xl w-full mx-4 space-y-4">
+              <div className="brand-header flex justify-center">
+                <div className="flex items-center gap-2">
+                  <img
+                    src="/aether-logo.png"
+                    alt="Aether logo"
+                    className="brand-logo h-36 w-36 object-contain"
+                  />
+                  <h1 className="brand-title text-6xl">Aether</h1>
+                </div>
+              </div>
               <LocationSelector onLocationSelect={handleLocationSelect} />
             </div>
           </div>
@@ -238,9 +248,6 @@ function App() {
         {/* VR Controls */}
         {userLocation && (
           <VRControls
-            isVRActive={isVRActive}
-            onVRToggle={handleVRToggle}
-            isConnected={isConnected}
             flightCount={flights.length}
             isLoading={isLoading}
             onBackToLocation={() => {
@@ -249,6 +256,8 @@ function App() {
               setSelectedFlight(null);
             }}
             onRefreshFlights={refreshFlights}
+            isRouteEnabled={isRouteEnabled}
+            onToggleRoute={() => setIsRouteEnabled((prev) => !prev)}
           />
         )}
 
@@ -257,6 +266,7 @@ function App() {
           <FlightInfoPanel
             flight={selectedFlight}
             onClose={() => setSelectedFlight(null)}
+            showRoute={isRouteEnabled}
           />
         )}
 

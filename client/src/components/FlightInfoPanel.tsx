@@ -7,20 +7,34 @@ import {
   ArrowUp,
   X,
 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { ProcessedFlight } from "@shared/src/types.js";
+import type { FlightRouteInfo } from "@shared/src/types.js";
 import {
   formatSpeed,
   formatAltitude,
   formatDistance,
 } from "@shared/src/utils.js";
 import { clsx } from "clsx";
+import { config } from "../config";
 
 interface FlightInfoPanelProps {
   flight: ProcessedFlight;
   onClose: () => void;
+  showRoute: boolean;
 }
 
-export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
+export function FlightInfoPanel({
+  flight,
+  onClose,
+  showRoute,
+}: FlightInfoPanelProps) {
+  const [routeInfo, setRouteInfo] = useState<FlightRouteInfo | null>(null);
+  const [routeStatus, setRouteStatus] = useState<
+    "idle" | "loading" | "success" | "empty" | "error" | "disabled"
+  >("idle");
+  const routeCacheRef = useRef<Map<string, FlightRouteInfo>>(new Map());
+
   const formatHeading = (heading: number): string => {
     const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
     const index = Math.round(heading / 45) % 8;
@@ -36,6 +50,113 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
     const minutes = Math.floor(seconds / 60);
     return `${minutes}m ago`;
   };
+
+  const getEndpointCode = (endpoint: FlightRouteInfo["origin"]): string => {
+    if (!endpoint) return "UNK";
+    const code = endpoint.iata?.trim() || endpoint.icao?.trim();
+    return code?.toUpperCase() || "UNK";
+  };
+
+  useEffect(() => {
+    const callsign = flight.callsign?.replace(/\s+/g, "").toUpperCase();
+
+    if (!showRoute) {
+      setRouteInfo(null);
+      setRouteStatus("disabled");
+      return;
+    }
+
+    if (!callsign) {
+      setRouteInfo(null);
+      setRouteStatus("empty");
+      return;
+    }
+
+    const cachedRoute = routeCacheRef.current.get(callsign);
+    if (cachedRoute) {
+      setRouteInfo(cachedRoute);
+      setRouteStatus("success");
+      return;
+    }
+
+    const controller = new AbortController();
+    let isMounted = true;
+
+    const fetchRoute = async () => {
+      try {
+        setRouteStatus("loading");
+        setRouteInfo(null);
+
+        const params = new URLSearchParams({ callsign });
+        const url = `${config.apiUrl}/api/flights/route?${params.toString()}`;
+        const response = await fetch(url, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            if (isMounted) {
+              setRouteStatus("empty");
+              setRouteInfo(null);
+            }
+            return;
+          }
+
+          const errorBody = await response
+            .json()
+            .catch(() => ({ error: "Unable to retrieve flight route" }));
+
+          throw new Error(
+            errorBody?.error ||
+              errorBody?.message ||
+              "Unable to retrieve flight route"
+          );
+        }
+
+        const contentType = response.headers.get("content-type") ?? "";
+        if (!contentType.includes("application/json")) {
+          const fallback = await response.text();
+          throw new Error(
+            `Unexpected response format (${contentType || "unknown"}): ${fallback.slice(0, 120)}`
+          );
+        }
+
+        const json = await response.json();
+        const data = json?.data as FlightRouteInfo | undefined;
+
+        if (!data) {
+          if (isMounted) {
+            setRouteStatus("empty");
+            setRouteInfo(null);
+          }
+          return;
+        }
+
+        routeCacheRef.current.set(callsign, data);
+
+        if (isMounted) {
+          setRouteInfo(data);
+          setRouteStatus("success");
+        }
+      } catch (error) {
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        console.error("Failed to fetch route info", error);
+        if (isMounted) {
+          setRouteStatus("error");
+        }
+      }
+    };
+
+    fetchRoute();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
+  }, [flight.callsign, showRoute]);
 
   return (
     <div
@@ -71,6 +192,27 @@ export function FlightInfoPanel({ flight, onClose }: FlightInfoPanelProps) {
             </div>
             <div className="compass-subtle tracking-[0.22em]">
               {flight.airline}
+            </div>
+          </div>
+        </div>
+
+        {/* Route */}
+        <div className="flex items-start gap-3">
+          <Navigation className="w-5 h-5 text-blue-300/80" />
+          <div className="text-sm space-y-1">
+            <div className="compass-subtle">Route</div>
+            <div className="font-semibold tracking-[0.30em] uppercase">
+            {!showRoute && "Route unavailable"}
+            {showRoute && routeStatus === "loading" && "Loading route..."}
+            {showRoute && routeStatus === "success" &&
+                routeInfo &&
+                `${getEndpointCode(routeInfo.origin)} → ${getEndpointCode(
+                  routeInfo.destination
+              )}`}
+            {showRoute &&
+              routeStatus !== "loading" &&
+              routeStatus !== "success" &&
+              "Route unavailable"}
             </div>
           </div>
         </div>

@@ -706,6 +706,43 @@ export function VRScene({
             />
           </Suspense>
         </ARCanvas>
+        <div
+          style={{
+            position: "absolute",
+            top: "24px",
+            right: "24px",
+            pointerEvents: "none",
+            zIndex: 4,
+            width: "280px",
+          }}
+        >
+          <div className="vr-panel flex items-center gap-5 px-5 py-4">
+            <img
+              src="/aether-logo.png"
+              alt="Aether logo"
+              style={{
+                height: "58px",
+                width: "58px",
+                objectFit: "contain",
+                filter: "drop-shadow(0 18px 32px rgba(56, 189, 248, 0.32))",
+              }}
+              draggable={false}
+            />
+            <span
+              style={{
+                fontFamily: '"Unbounded", "Stack Sans Notch", "Gabarito", sans-serif',
+                fontSize: "1.75rem",
+                letterSpacing: "0.12em",
+                textTransform: "none",
+                color: "#ffffff",
+                textShadow: "0 8px 24px rgba(15, 23, 42, 0.85)",
+                lineHeight: 1,
+              }}
+            >
+              Aether
+            </span>
+          </div>
+        </div>
       </div>
     </>
   );
