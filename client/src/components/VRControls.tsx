@@ -19,7 +19,7 @@ export function VRControls({
   onToggleRoute,
 }: VRControlsProps) {
   return (
-    <div className="absolute top-6 left-6 flex flex-col gap-4 text-white">
+    <div className="absolute top-2 left-2 sm:top-6 sm:left-6 flex flex-col gap-2 sm:gap-4 text-white z-[9999]">
       {/* Connection Status - removed */}
       {/* <div className="vr-panel p-3">
         <div className="flex items-center space-x-2">
@@ -35,22 +35,22 @@ export function VRControls({
       </div> */}
 
       {/* Flight Count */}
-      <button className="vr-button justify-center cursor-default hover:bg-[rgba(26,26,26,0.92)] hover:border-white/60 hover:text-white">
-        <span className="compass-subtle tracking-[0.24em]">Active Tracks</span>
+      <button className="vr-button justify-center cursor-default hover:bg-[rgba(26,26,26,0.92)] hover:border-white/60 hover:text-white text-[10px] sm:text-[0.65rem] px-2 py-1.5 sm:px-5 sm:py-3 w-fit sm:max-w-none" style={{ maxWidth: 'fit-content' }}>
+        <span className="hidden sm:inline compass-subtle tracking-[0.24em] text-[0.6rem] whitespace-nowrap">Active Tracks</span>
+        <Plane className="w-3 h-3 sm:w-4 sm:h-4 text-[#c6a0e8]/80 flex-shrink-0" />
         <span
-          className="text-base font-semibold uppercase tracking-[0.24em]"
-          style={{ marginLeft: "0.5rem", marginRight: "-0.3rem" }}
+          className="text-[10px] sm:text-base font-semibold uppercase tracking-[0.22em] sm:tracking-[0.24em] leading-none"
         >
           {flightCount}
         </span>
-        <Plane className="w-4 h-4 text-blue-300/80" />
       </button>
 
       {/* Refresh Flights Button */}
       {onRefreshFlights && (
-        <button onClick={onRefreshFlights} className="vr-button justify-center">
-          <Plane className="w-4 h-4" />
-          <span>Refresh Flights</span>
+        <button onClick={onRefreshFlights} className="vr-button justify-center text-[10px] sm:text-[0.65rem] px-2.5 py-2 sm:px-5 sm:py-3 w-fit max-w-[140px] sm:max-w-none">
+          <Plane className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+          <span className="hidden sm:inline whitespace-nowrap">Refresh Flights</span>
+          <span className="sm:hidden whitespace-nowrap">Refresh</span>
         </button>
       )}
 
@@ -58,21 +58,21 @@ export function VRControls({
         <button
           type="button"
           onClick={onToggleRoute}
-          className="vr-panel px-5 py-3 flex items-center justify-between"
+          className="vr-panel px-2.5 py-2 sm:px-5 sm:py-3 flex items-center justify-between text-[10px] sm:text-[0.6rem] w-fit max-w-[140px] sm:max-w-none"
         >
-          <span className="compass-subtle uppercase tracking-[0.22em]">
+          <span className="compass-subtle uppercase tracking-[0.22em] text-[10px] sm:text-[0.6rem] whitespace-nowrap">
             Route Info
           </span>
           <span
             className={clsx(
-              "relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-300",
+              "relative inline-flex h-5 w-9 sm:h-6 sm:w-11 items-center rounded-full transition-colors duration-300 flex-shrink-0",
               isRouteEnabled ? "bg-white/40" : "bg-white/25"
             )}
           >
             <span
               className={clsx(
-                "absolute left-1 top-1 h-4 w-4 rounded-full bg-white shadow transition-transform duration-300",
-                isRouteEnabled ? "translate-x-5" : "translate-x-0"
+                "absolute left-0.5 top-0.5 sm:left-1 sm:top-1 h-4 w-4 rounded-full bg-white shadow transition-transform duration-300",
+                isRouteEnabled ? "translate-x-4 sm:translate-x-5" : "translate-x-0"
               )}
             />
           </span>
@@ -81,18 +81,20 @@ export function VRControls({
 
       {/* Back to Location Button */}
       {onBackToLocation && (
-        <button onClick={onBackToLocation} className="vr-button justify-center">
-          <span>← Back to Map</span>
+        <button onClick={onBackToLocation} className="vr-button justify-center text-[10px] sm:text-[0.65rem] px-2.5 py-2 sm:px-5 sm:py-3 w-fit max-w-[140px] sm:max-w-none">
+          <span className="hidden sm:inline whitespace-nowrap">← Back to Map</span>
+          <span className="sm:hidden whitespace-nowrap">← Map</span>
         </button>
       )}
 
       {/* Loading Indicator */}
       {isLoading && (
-        <div className="vr-panel px-5 py-4">
-          <div className="flex items-center gap-3">
-            <div className="loading-spinner w-6 h-6"></div>
-            <span className="compass-subtle tracking-[0.26em]">
-              Syncing Data
+        <div className="vr-panel px-2.5 py-2 sm:px-5 sm:py-4 w-fit max-w-[140px] sm:max-w-none">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="loading-spinner w-4 h-4 sm:w-6 sm:h-6 flex-shrink-0"></div>
+            <span className="compass-subtle tracking-[0.26em] text-[10px] sm:text-[0.6rem] whitespace-nowrap">
+              <span className="sm:hidden">Syncing...</span>
+              <span className="hidden sm:inline">Syncing Data</span>
             </span>
           </div>
         </div>

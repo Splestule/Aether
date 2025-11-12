@@ -1,5 +1,5 @@
 import { ProcessedFlight } from "@shared/src/types.js";
-import { forwardRef, useMemo } from "react";
+import { forwardRef, useMemo, useState, useEffect } from "react";
 import * as THREE from "three";
 import { Interactive } from "@react-three/xr";
 
@@ -10,8 +10,27 @@ interface ARWaypointProps {
   isVR?: boolean;
 }
 
+// Detect if device is mobile (touch device or small screen)
+const isMobileDevice = (): boolean => {
+  if (typeof window === 'undefined') return false;
+  return (
+    'ontouchstart' in window ||
+    navigator.maxTouchPoints > 0 ||
+    window.innerWidth < 768
+  );
+};
+
 export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
   ({ flight, isSelected, onClick, isVR = false }, ref) => {
+    const [isMobile, setIsMobile] = useState(false);
+
+    useEffect(() => {
+      setIsMobile(isMobileDevice());
+      const handleResize = () => setIsMobile(isMobileDevice());
+      window.addEventListener('resize', handleResize);
+      return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
     // Calculate distance from user (at origin) to plane in meters
     const distanceFromUser = Math.sqrt(
       flight.position.x * flight.position.x +
@@ -93,7 +112,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
               <mesh>
                 <sphereGeometry args={[sphereSize, 16, 16]} />
                 <meshBasicMaterial
-                  color={isSelected ? "#60a5fa" : "#ffffff"}
+                  color={isSelected ? "#c6a0e8" : "#ffffff"}
                   transparent
                   opacity={baseOpacity}
                 />
@@ -101,24 +120,44 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
             </group>
           </Interactive>
         ) : (
-          <mesh
-            position={[0, flight.position.y, 0]}
-            onClick={onClick}
-            onPointerOver={(e) => {
-              e.stopPropagation();
-              document.body.style.cursor = "pointer";
-            }}
-            onPointerOut={() => {
-              document.body.style.cursor = "default";
-            }}
-          >
-            <sphereGeometry args={[sphereSize, 16, 16]} />
-            <meshBasicMaterial
-              color={isSelected ? "#60a5fa" : "#ffffff"}
-              transparent
-              opacity={baseOpacity}
-            />
-          </mesh>
+          <group position={[0, flight.position.y, 0]}>
+            {/* Visible sphere */}
+            <mesh
+              onClick={isMobile ? undefined : onClick}
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                if (!isMobile) {
+                  document.body.style.cursor = "pointer";
+                }
+              }}
+              onPointerOut={() => {
+                if (!isMobile) {
+                  document.body.style.cursor = "default";
+                }
+              }}
+              raycast={isMobile ? () => null : undefined}
+            >
+              <sphereGeometry args={[sphereSize, 16, 16]} />
+              <meshBasicMaterial
+                color={isSelected ? "#c6a0e8" : "#ffffff"}
+                transparent
+                opacity={baseOpacity}
+              />
+            </mesh>
+            {/* Large invisible hitbox for mobile devices - easier touch selection (rendered last to catch events) */}
+            {isMobile && (
+              <mesh
+                visible={false}
+                onClick={onClick}
+                onPointerOver={(e) => {
+                  e.stopPropagation();
+                }}
+              >
+                <sphereGeometry args={[sphereSize * 2.5, 16, 16]} />
+                <meshBasicMaterial transparent opacity={0} />
+              </mesh>
+            )}
+          </group>
         )}
 
         {/* Small ring for better visibility when not selected */}
@@ -142,24 +181,44 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
               </group>
             </Interactive>
           ) : (
-            <mesh
-              position={[0, flight.position.y, 0]}
-              onClick={onClick}
-              onPointerOver={(e) => {
-                e.stopPropagation();
-                document.body.style.cursor = "pointer";
-              }}
-              onPointerOut={() => {
-                document.body.style.cursor = "default";
-              }}
-            >
-              <ringGeometry args={[ringInnerRadius, ringOuterRadius, 32]} />
-              <meshBasicMaterial
-                color="#ffffff"
-                transparent
-                opacity={ringOpacity}
-              />
-            </mesh>
+            <group position={[0, flight.position.y, 0]}>
+              {/* Visible ring */}
+              <mesh
+                onClick={isMobile ? undefined : onClick}
+                onPointerOver={(e) => {
+                  e.stopPropagation();
+                  if (!isMobile) {
+                    document.body.style.cursor = "pointer";
+                  }
+                }}
+                onPointerOut={() => {
+                  if (!isMobile) {
+                    document.body.style.cursor = "default";
+                  }
+                }}
+                raycast={isMobile ? () => null : undefined}
+              >
+                <ringGeometry args={[ringInnerRadius, ringOuterRadius, 32]} />
+                <meshBasicMaterial
+                  color="#ffffff"
+                  transparent
+                  opacity={ringOpacity}
+                />
+              </mesh>
+              {/* Large invisible hitbox for mobile devices on ring (rendered last to catch events) */}
+              {isMobile && (
+                <mesh
+                  visible={false}
+                  onClick={onClick}
+                  onPointerOver={(e) => {
+                    e.stopPropagation();
+                  }}
+                >
+                  <sphereGeometry args={[ringOuterRadius * 2.5, 16, 16]} />
+                  <meshBasicMaterial transparent opacity={0} />
+                </mesh>
+              )}
+            </group>
           ))}
       </group>
     );

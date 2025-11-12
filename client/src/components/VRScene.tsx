@@ -333,7 +333,7 @@ function VRFlightInfoPanel({
         <Text
           position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.87, 0.01]}
           fontSize={0.035}
-          color={flight.onGround ? "#808080" : "#ffffff"}
+          color={flight.onGround ? "#808080" : "#c6a0e8"}
           anchorX="right"
           anchorY="top"
         >
@@ -707,28 +707,20 @@ export function VRScene({
           </Suspense>
         </ARCanvas>
         <div
-          style={{
-            position: "absolute",
-            top: "24px",
-            right: "24px",
-            pointerEvents: "none",
-            zIndex: 4,
-            width: "280px",
-          }}
+          className="absolute top-2 right-4 sm:top-6 sm:right-6 pointer-events-none z-[4]"
         >
-          <div className="vr-panel flex items-center gap-5 px-5 py-4">
+          <div className="vr-panel flex items-center gap-3 sm:gap-5 px-3 py-2 sm:px-5 sm:py-4">
             <img
               src="/aether-logo.png"
               alt="Aether logo"
+              className="h-8 w-8 sm:h-[58px] sm:w-[58px] object-contain"
               style={{
-                height: "58px",
-                width: "58px",
-                objectFit: "contain",
                 filter: "drop-shadow(0 18px 32px rgba(56, 189, 248, 0.32))",
               }}
               draggable={false}
             />
             <span
+              className="hidden sm:inline-block"
               style={{
                 fontFamily: '"Unbounded", "Stack Sans Notch", "Gabarito", sans-serif',
                 fontSize: "1.75rem",

@@ -12,7 +12,7 @@
       Menlo, Monaco, Consolas, monospace;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: radial-gradient(120% 120% at 50% -10%, rgba(96, 165, 250, 0.25), transparent 60%),
+    background: radial-gradient(120% 120% at 50% -10%, rgba(198, 160, 232, 0.25), transparent 60%),
       #030712;
     color: #f8fafc;
   }
@@ -35,7 +35,7 @@
 
 @layer components {
   .vr-button {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-white/60 bg-[rgba(26,26,26,0.92)] text-white font-medium uppercase tracking-[0.22em] text-[0.65rem] transition-all duration-300 shadow-[0_0_30px_rgba(96,165,250,0.2)] hover:bg-white/10 hover:border-white hover:text-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-40 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-white/60 bg-[rgba(26,26,26,0.92)] text-white font-medium uppercase tracking-[0.22em] text-[0.65rem] transition-all duration-300 shadow-[0_0_30px_rgba(198,160,232,0.2)] hover:bg-white/10 hover:border-white hover:text-[#c6a0e8] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-40 disabled:cursor-not-allowed;
   }
   
   .vr-panel {
@@ -49,7 +49,7 @@
   }
 
   .vr-icon-button {
-    @apply flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-transparent text-white/70 transition-colors duration-300 hover:border-white hover:text-blue-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black;
+    @apply flex h-9 w-9 items-center justify-center rounded-full border border-white/40 bg-transparent text-white/70 transition-colors duration-300 hover:border-white hover:text-[#c6a0e8] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50 focus-visible:ring-offset-2 focus-visible:ring-offset-black;
   }
 
   .compass-heading {
@@ -75,7 +75,7 @@
   .brand-title {
     font-family: "Unbounded", "Stack Sans Notch", "Gabarito", "Inter", "Helvetica Neue", sans-serif;
     font-weight: 500;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.08em;
     text-transform: none;
   }
 }
@@ -84,6 +84,61 @@
 .leaflet-container {
   height: 100%;
   width: 100%;
+}
+
+/* Make map tiles greyscale with reduced saturation (70% greyscale) */
+.leaflet-container .leaflet-tile-container img {
+  filter: grayscale(70%) brightness(0.9) contrast(1.1);
+  transition: filter 0.3s ease;
+}
+
+/* Custom purple marker styling - remove all borders and backgrounds */
+/* Note: Don't override margin - Leaflet uses margin to position the anchor point */
+.leaflet-div-icon.custom-purple-marker {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  /* Don't override margin - Leaflet applies margin based on iconAnchor */
+  width: 25px !important;
+  height: 41px !important;
+  line-height: 0 !important;
+  overflow: visible !important;
+}
+
+/* Don't override margin on inner content - let Leaflet handle positioning */
+.custom-purple-marker {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  /* Don't override margin - Leaflet applies it via inline styles for anchor positioning */
+  width: 25px !important;
+  height: 41px !important;
+  line-height: 0 !important;
+}
+
+/* Ensure the inner div also has no styling */
+.custom-purple-marker > div {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  /* Don't override margin here either */
+  width: 25px !important;
+  height: 41px !important;
+}
+
+.custom-purple-marker svg {
+  display: block;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+  width: 25px;
+  height: 41px;
+  overflow: visible;
+  vertical-align: top;
 }
 
 .leaflet-popup-content-wrapper,
@@ -131,4 +186,28 @@
 /* Loading animation */
 .loading-spinner {
   @apply animate-spin rounded-full h-8 w-8 border-2 border-white/20 border-t-white;
+}
+
+/* Hide react-three/xr built-in AR button on mobile when flight is selected */
+/* The ARCanvas from react-three/xr renders its button with specific classes */
+@media (max-width: 639px) {
+  body.flight-selected button[class*="xr-button"],
+  body.flight-selected button[class*="ar-button"],
+  body.flight-selected [data-ar-button],
+  body.flight-selected button:has-text("Enter AR"),
+  body.flight-selected button:has-text("AR unsupported") {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Target common react-three/xr button patterns */
+  body.flight-selected canvas + div button,
+  body.flight-selected [style*="position: fixed"] button[style*="bottom"] {
+    display: none !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    visibility: hidden !important;
+  }
 }

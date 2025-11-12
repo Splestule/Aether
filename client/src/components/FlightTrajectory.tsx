@@ -268,7 +268,7 @@ export function FlightTrajectory({
             ]}
           />
           <meshBasicMaterial
-            color="#60a5fa"
+            color="#c6a0e8"
             transparent
             opacity={segment.opacity}
             depthWrite={false}

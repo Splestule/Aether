@@ -182,6 +182,71 @@ function App() {
     setIsVRActive(!isVRActive);
   };
 
+  // Hide react-three/xr AR button on mobile when flight is selected
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    
+    const hideARButton = () => {
+      const isMobile = window.innerWidth < 640;
+      const shouldHide = isMobile && selectedFlight;
+      
+      // Find AR button - react-three/xr renders it with "Enter AR" or "AR unsupported" text
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach((button) => {
+        const text = (button.textContent || '').trim();
+        // Match exact text or buttons that contain "AR" and are likely the AR button
+        if (text === 'Enter AR' || text === 'AR unsupported' || 
+            (text.includes('AR') && button.closest('canvas')?.nextElementSibling)) {
+          if (shouldHide) {
+            button.style.display = 'none';
+            button.style.pointerEvents = 'none';
+            button.style.visibility = 'hidden';
+          } else {
+            button.style.display = '';
+            button.style.pointerEvents = '';
+            button.style.visibility = '';
+          }
+        }
+      });
+    };
+    
+    // Run after a short delay to ensure ARCanvas has rendered
+    const timeoutId = setTimeout(() => {
+      hideARButton();
+    }, 200);
+    
+    // Use MutationObserver to catch buttons added later by react-three/xr
+    const observer = new MutationObserver(() => {
+      setTimeout(() => {
+        hideARButton();
+      }, 50);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    const resizeHandler = () => {
+      setTimeout(() => {
+        hideARButton();
+      }, 50);
+    };
+    window.addEventListener('resize', resizeHandler);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', resizeHandler);
+      observer.disconnect();
+      // Restore button visibility
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach((button) => {
+        const text = (button.textContent || '').trim();
+        if (text === 'Enter AR' || text === 'AR unsupported') {
+          button.style.display = '';
+          button.style.pointerEvents = '';
+          button.style.visibility = '';
+        }
+      });
+    };
+  }, [selectedFlight]);
+
   return (
     <div className="h-screen w-screen relative">
       <ParticleField />
@@ -229,15 +294,15 @@ function App() {
         {/* Location Selector */}
         {!userLocation && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-            <div className="vr-panel p-5 max-w-3xl w-full mx-4 space-y-4">
+            <div className="vr-panel p-4 sm:p-[0.96rem] max-w-[36.9rem] w-full mx-4 space-y-4 sm:space-y-[0.77rem]">
               <div className="brand-header flex justify-center">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 sm:gap-[0.38rem]">
                   <img
                     src="/aether-logo.png"
                     alt="Aether logo"
-                    className="brand-logo h-36 w-36 object-contain"
+                    className="brand-logo h-20 w-20 sm:h-[133px] sm:w-[133px] object-contain"
                   />
-                  <h1 className="brand-title text-6xl">Aether</h1>
+                  <h1 className="brand-title text-3xl sm:text-[46px]">Aether</h1>
                 </div>
               </div>
               <LocationSelector onLocationSelect={handleLocationSelect} />
