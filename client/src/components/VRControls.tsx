@@ -58,7 +58,8 @@ export function VRControls({
         <button
           type="button"
           onClick={onToggleRoute}
-          className="vr-panel px-2.5 py-2 sm:px-5 sm:py-3 flex items-center justify-between text-[10px] sm:text-[0.6rem] w-fit max-w-[140px] sm:max-w-none"
+          className="vr-panel px-2.5 py-2 sm:px-5 sm:py-3 flex items-center justify-between text-[10px] sm:text-[0.6rem] w-fit max-w-[140px] sm:max-w-none hidden"
+          style={{ display: 'none' }}
         >
           <span className="compass-subtle uppercase tracking-[0.22em] text-[10px] sm:text-[0.6rem] whitespace-nowrap">
             Route Info

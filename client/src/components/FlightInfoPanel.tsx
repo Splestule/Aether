@@ -192,7 +192,7 @@ export function FlightInfoPanel({
         </div>
 
         {/* Route */}
-        <div className="flex items-start gap-2 sm:gap-3">
+        <div className="flex items-start gap-2 sm:gap-3 hidden" style={{ display: 'none' }}>
           <Navigation className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-[#c6a0e8]/80 flex-shrink-0" />
           <div className="text-[10px] sm:text-sm space-y-0.5 sm:space-y-1">
             <div className="compass-subtle text-[10px] sm:text-[0.6rem]">Route</div>
