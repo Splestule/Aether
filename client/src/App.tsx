@@ -16,7 +16,6 @@ function App() {
   const [selectedFlight, setSelectedFlight] = useState<ProcessedFlight | null>(
     null
   );
-  const [isVRActive, setIsVRActive] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isRouteEnabled, setIsRouteEnabled] = useState(false);
 
@@ -177,11 +176,6 @@ function App() {
     }
   }, [flights, flightsMap, selectedFlight?.id]);
 
-  // Handle VR mode toggle
-  const handleVRToggle = () => {
-    setIsVRActive(!isVRActive);
-  };
-
   // Hide react-three/xr AR button on mobile when flight is selected
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -257,7 +251,6 @@ function App() {
           flights={flights}
           selectedFlight={selectedFlight}
           onFlightSelect={handleFlightSelect}
-          isVRActive={isVRActive}
           config={config.vr}
         />
       )}

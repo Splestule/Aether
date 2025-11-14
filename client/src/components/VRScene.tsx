@@ -35,7 +35,6 @@ interface VRSceneProps {
   flights: ProcessedFlight[];
   selectedFlight: ProcessedFlight | null;
   onFlightSelect: (flight: ProcessedFlight | null) => void;
-  isVRActive: boolean;
   config: VRConfig;
 }
 
@@ -541,7 +540,7 @@ function SceneContent({
   selectedFlight,
   onFlightSelect,
   config,
-}: Omit<VRSceneProps, "isVRActive">) {
+}: VRSceneProps) {
   const { isPresenting } = useXR();
   const [sceneRotation, setSceneRotation] = useState(0);
 

@@ -26,6 +26,29 @@ const wss = new WebSocketServer({ server })
 const PORT = parseInt(process.env.PORT || '8080', 10)
 const HOST = '0.0.0.0'
 
+const defaultDevOrigins = [
+  'http://localhost:3000',
+  'http://localhost:4173',
+  'http://localhost:8080',
+  `http://${process.env.LOCAL_IP}:3000`,
+  `http://${process.env.LOCAL_IP}:4173`,
+  `http://${process.env.LOCAL_IP}:8080`,
+  'https://recognised-examined-nicole-bras.trycloudflare.com',
+  /\.trycloudflare\.com$/,
+]
+
+const defaultProdOrigins = ['https://yourdomain.com']
+
+const extraOrigins = (process.env.CLIENT_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(Boolean)
+
+const allowedOrigins =
+  process.env.NODE_ENV === 'production'
+    ? [...defaultProdOrigins, ...extraOrigins]
+    : [...defaultDevOrigins, ...extraOrigins]
+
 // Initialize services
 const cacheService = new CacheService()
 const elevationService = new ElevationService()
@@ -44,16 +67,7 @@ app.use(helmet({
 }))
 
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? ['https://yourdomain.com']
-    : [
-        'http://localhost:3000',
-        'http://localhost:8080',
-        `http://${process.env.LOCAL_IP}:3000`,
-        `http://${process.env.LOCAL_IP}:8080`,
-        'https://recognised-examined-nicole-bras.trycloudflare.com',
-        /\.trycloudflare\.com$/, // Allow all Cloudflare tunnels
-      ],
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']

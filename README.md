@@ -177,13 +177,14 @@ npm run build
 
 ### Docker Deployment
 
-```bash
-# Build Docker image
-docker build -t vr-flight-tracker .
+The project now ships with dedicated containers for the backend and frontend plus a Compose file to run them together.
 
-# Run container
-docker run -p 8080:8080 -p 3000:3000 vr-flight-tracker
+```bash
+# Build + start both services
+docker compose up --build
 ```
+
+For more scenarios (custom hosts, standalone images, environment variables) see `docs/docker.md`.
 
 ### Environment Setup
 

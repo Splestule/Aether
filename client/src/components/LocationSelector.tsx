@@ -61,7 +61,6 @@ interface MapClickHandlerProps {
   setSelectedPosition: Dispatch<SetStateAction<[number, number] | null>>;
   setElevation: Dispatch<SetStateAction<number | null>>;
   setIsLoading: Dispatch<SetStateAction<boolean>>;
-  onConfirm: () => void;
 }
 
 function MapClickHandler({
@@ -71,7 +70,6 @@ function MapClickHandler({
   setSelectedPosition,
   setElevation,
   setIsLoading,
-  onConfirm,
 }: MapClickHandlerProps) {
   useMapEvents({
     click: async (e) => {
@@ -137,7 +135,7 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
   const [isSelectionLoading, setIsSelectionLoading] = useState(false);
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout;
+    let timeoutId: ReturnType<typeof setTimeout>;
     let isMounted = true;
 
     // Set a timeout to prevent infinite loading in VR browsers
@@ -237,7 +235,6 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
             setSelectedPosition={setSelectedPosition}
             setElevation={setSelectedElevation}
             setIsLoading={setIsSelectionLoading}
-            onConfirm={handleConfirmLocation}
           />
         </MapContainer>
       </div>

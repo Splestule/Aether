@@ -128,3 +128,4 @@ echo "   3. Drag '$APP_NAME.app' to your Dock"
 echo ""
 echo "🎯 You can now double-click the app or use it from the Dock!"
 
+

@@ -53,7 +53,7 @@ export const config = {
   apiUrl: getApiUrl(),
   wsUrl: getWsUrl(),
   vr: {
-    maxDistance: 200, // km - increased for larger fetch radius
+    maxDistance: 100, // km - limit fetch to nearby planes
     updateInterval: 15000, // ms
     maxFlights: 100, // increased to handle more flights
     enableTrajectories: true,
