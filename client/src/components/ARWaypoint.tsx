@@ -55,8 +55,6 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
       Math.min(2, Math.sqrt(Math.abs(flight.position.y) / 5000))
     );
     const sphereSize = baseSize * distanceMultiplier * altitudeMultiplier;
-    const ringInnerRadius = sphereSize * 1.4;
-    const ringOuterRadius = sphereSize * 1.6;
 
     // Calculate altitude line properties
     const altitude = Math.abs(flight.position.y);
@@ -75,11 +73,6 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
         (fadeEndKm - fadeStartKm);
       return Math.max(0.2, 0.8 - clamped * 0.6);
     }, [distanceKm, isSelected]);
-
-    const ringOpacity = useMemo(() => {
-      if (isSelected) return 0.6;
-      return Math.max(0.1, baseOpacity * 0.6);
-    }, [baseOpacity, isSelected]);
 
     const lineOpacity = useMemo(() => {
       if (isSelected) return 0.9;
@@ -160,66 +153,6 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
           </group>
         )}
 
-        {/* Small ring for better visibility when not selected */}
-        {!isSelected &&
-          (isVR ? (
-            <Interactive onSelect={onClick}>
-              <group position={[0, flight.position.y, 0]}>
-                {/* Large invisible collision mesh for easier VR selection */}
-                <mesh visible={false}>
-                  <sphereGeometry args={[ringOuterRadius * 2, 16, 16]} />
-                </mesh>
-                {/* Visible ring */}
-                <mesh>
-                  <ringGeometry args={[ringInnerRadius, ringOuterRadius, 32]} />
-                  <meshBasicMaterial
-                    color="#ffffff"
-                    transparent
-                    opacity={ringOpacity}
-                  />
-                </mesh>
-              </group>
-            </Interactive>
-          ) : (
-            <group position={[0, flight.position.y, 0]}>
-              {/* Visible ring */}
-              <mesh
-                onClick={isMobile ? undefined : onClick}
-                onPointerOver={(e) => {
-                  e.stopPropagation();
-                  if (!isMobile) {
-                    document.body.style.cursor = "pointer";
-                  }
-                }}
-                onPointerOut={() => {
-                  if (!isMobile) {
-                    document.body.style.cursor = "default";
-                  }
-                }}
-                raycast={isMobile ? () => null : undefined}
-              >
-                <ringGeometry args={[ringInnerRadius, ringOuterRadius, 32]} />
-                <meshBasicMaterial
-                  color="#ffffff"
-                  transparent
-                  opacity={ringOpacity}
-                />
-              </mesh>
-              {/* Large invisible hitbox for mobile devices on ring (rendered last to catch events) */}
-              {isMobile && (
-                <mesh
-                  visible={false}
-                  onClick={onClick}
-                  onPointerOver={(e) => {
-                    e.stopPropagation();
-                  }}
-                >
-                  <sphereGeometry args={[ringOuterRadius * 2.5, 16, 16]} />
-                  <meshBasicMaterial transparent opacity={0} />
-                </mesh>
-              )}
-            </group>
-          ))}
       </group>
     );
   }
