@@ -196,14 +196,6 @@ PORT=8080
 CORS_ORIGIN=https://yourdomain.com
 ```
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
-
 ## 📝 License
 
 MIT License - see LICENSE file for details
@@ -232,13 +224,6 @@ Enable debug logging:
 ```bash
 LOG_LEVEL=debug npm run dev
 ```
-
-## 📞 Support
-
-For issues and questions:
-- Create an issue on GitHub
-- Check the troubleshooting section
-- Review the API documentation
 
 ---
 
