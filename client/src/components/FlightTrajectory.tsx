@@ -200,6 +200,12 @@ export function FlightTrajectory({
     const sampleCount = Math.max(basePoints.length * 40, 80);
     const sampledPoints = curve.getPoints(sampleCount);
 
+    // Ensure the trajectory ends exactly at the plane's current position
+    // This prevents the curve from extending beyond the plane due to CatmullRom interpolation
+    if (sampledPoints.length > 0) {
+      sampledPoints[sampledPoints.length - 1] = currentPosition.clone();
+    }
+
     const segmentsData = [];
     const segmentCount = sampledPoints.length - 1;
 

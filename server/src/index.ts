@@ -33,7 +33,6 @@ const defaultDevOrigins = [
   `http://${process.env.LOCAL_IP}:3000`,
   `http://${process.env.LOCAL_IP}:4173`,
   `http://${process.env.LOCAL_IP}:8080`,
-  'https://recognised-examined-nicole-bras.trycloudflare.com',
   /\.trycloudflare\.com$/,
 ]
 
