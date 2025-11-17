@@ -333,15 +333,15 @@ function App() {
       </div>
       
       {/* Made by + OpenSky citation footer */}
-      <div className="fixed bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center max-w-screen-lg pointer-events-none">
-        <p className="text-xs sm:text-sm">
+      <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none mt-4 sm:mt-0">
+        <p className="text-[10px] sm:text-sm">
           Made by Eduard Šimon of Gymnázium Žďár nad Sázavou ©
         </p>
-        <div className="mt-2 text-[8.5px] sm:text-[9px] text-white/70">
-          <p className="text-[10px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
+        <div className="mt-2 text-[6.5px] sm:text-[9px] text-white/70">
+          <p className="text-[7.5px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
           <p>Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm.</p>
           <p>"Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research".</p>
-          <p className="whitespace-nowrap">In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
+          <p className="whitespace-normal sm:whitespace-nowrap">In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
         </div>
       </div>
     </div>
