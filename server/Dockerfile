@@ -37,12 +37,10 @@ COPY package.json package-lock.json ./
 
 # Copy shared package (built dist and package.json for runtime)
 COPY --from=builder /app/shared/package.json shared/
-COPY --from=builder /app/shared/package-lock.json shared/
 COPY --from=builder /app/shared/dist shared/dist
 
 # Copy server package
 COPY --from=builder /app/server/package.json server/
-COPY --from=builder /app/server/package-lock.json server/
 COPY --from=builder /app/server/dist server/dist
 COPY --from=builder /app/server/env.example server/
 

@@ -571,7 +571,7 @@ function JoystickCoefficientAdjuster({
     distanceCoeffRef.current = distanceCoefficient;
   }, [heightCoefficient, distanceCoefficient]);
 
-  useFrame((state, delta, xrFrame) => {
+  useFrame((_state, _delta, xrFrame) => {
     frameCountRef.current++;
     
     // Try multiple methods to access gamepad input
