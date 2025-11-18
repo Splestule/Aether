@@ -78,6 +78,18 @@
     letter-spacing: 0.08em;
     text-transform: none;
   }
+
+  .responsive-map-container {
+    height: min(20rem, calc(100vh - 28rem));
+    max-height: calc(100vh - 28rem);
+  }
+
+  @media (min-width: 640px) {
+    .responsive-map-container {
+      height: min(24.6rem, calc(100vh - 23rem));
+      max-height: calc(100vh - 23rem);
+    }
+  }
 }
 
 /* Leaflet map styles */

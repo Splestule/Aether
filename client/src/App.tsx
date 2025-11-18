@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { VRScene } from "./components/VRScene";
 import { LocationSelector } from "./components/LocationSelector";
 import { FlightInfoPanel } from "./components/FlightInfoPanel";
@@ -18,6 +18,36 @@ function App() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isRouteEnabled, setIsRouteEnabled] = useState(false);
+  
+  // Load default coefficients from localStorage or use 1.0
+  const loadDefaultCoefficients = () => {
+    try {
+      const savedHeight = localStorage.getItem('vr_height_coefficient');
+      const savedDistance = localStorage.getItem('vr_distance_coefficient');
+      return {
+        height: savedHeight ? parseFloat(savedHeight) : 1.0,
+        distance: savedDistance ? parseFloat(savedDistance) : 1.0,
+      };
+    } catch (error) {
+      console.warn('Failed to load default coefficients:', error);
+      return { height: 1.0, distance: 1.0 };
+    }
+  };
+  
+  const defaultCoeffs = loadDefaultCoefficients();
+  const [heightCoefficient, setHeightCoefficient] = useState(defaultCoeffs.height);
+  const [distanceCoefficient, setDistanceCoefficient] = useState(defaultCoeffs.distance);
+  
+  // Function to save current coefficients as defaults
+  const saveCoefficientsAsDefaults = useCallback(() => {
+    try {
+      localStorage.setItem('vr_height_coefficient', heightCoefficient.toString());
+      localStorage.setItem('vr_distance_coefficient', distanceCoefficient.toString());
+      console.log('Coefficients saved as defaults:', { heightCoefficient, distanceCoefficient });
+    } catch (error) {
+      console.error('Failed to save default coefficients:', error);
+    }
+  }, [heightCoefficient, distanceCoefficient]);
 
   useEffect(() => {
     if (!userLocation && selectedFlight) {
@@ -32,6 +62,7 @@ function App() {
     clearFlights,
     updateFlights,
     extrapolatePositions,
+    recalculatePositions,
   } = useFlights();
 
   // Refresh flights for current location
@@ -75,11 +106,18 @@ function App() {
     if (!userLocation || flights.length === 0) return;
 
     const interval = setInterval(() => {
-      extrapolatePositions(userLocation, 5); // 5 seconds time delta
+      extrapolatePositions(userLocation, 5, heightCoefficient, distanceCoefficient); // 5 seconds time delta
     }, 5000); // Update every 5 seconds
 
     return () => clearInterval(interval);
-  }, [userLocation, flights.length, extrapolatePositions]);
+  }, [userLocation, flights.length, extrapolatePositions, heightCoefficient, distanceCoefficient]);
+
+  // Recalculate positions when coefficients change
+  useEffect(() => {
+    if (!userLocation || flights.length === 0) return;
+    console.log('Recalculating positions with coefficients:', { heightCoefficient, distanceCoefficient });
+    recalculatePositions(userLocation, heightCoefficient, distanceCoefficient);
+  }, [userLocation, heightCoefficient, distanceCoefficient, recalculatePositions, flights.length]);
 
   const { isConnected, sendMessage } = useWebSocket(config.wsUrl, {
     onOpen: () => {
@@ -252,6 +290,11 @@ function App() {
           selectedFlight={selectedFlight}
           onFlightSelect={handleFlightSelect}
           config={config.vr}
+          heightCoefficient={heightCoefficient}
+          distanceCoefficient={distanceCoefficient}
+          onHeightCoefficientChange={setHeightCoefficient}
+          onDistanceCoefficientChange={setDistanceCoefficient}
+          onSaveDefaults={saveCoefficientsAsDefaults}
         />
       )}
 
@@ -286,8 +329,8 @@ function App() {
       <div className="vr-ui">
         {/* Location Selector */}
         {!userLocation && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
-            <div className="vr-panel p-4 sm:p-[0.96rem] max-w-[36.9rem] w-full mx-4 space-y-4 sm:space-y-[0.77rem]">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/70 pb-32 sm:pb-16 overflow-y-auto">
+            <div className="vr-panel p-4 sm:p-[0.96rem] max-w-[36.9rem] w-full mx-4 space-y-4 sm:space-y-[0.77rem] max-h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-4rem)]">
               <div className="brand-header flex justify-center">
                 <div className="flex items-center gap-2 sm:gap-[0.38rem]">
                   <img
@@ -316,6 +359,8 @@ function App() {
             onRefreshFlights={refreshFlights}
             isRouteEnabled={isRouteEnabled}
             onToggleRoute={() => setIsRouteEnabled((prev) => !prev)}
+            heightCoefficient={heightCoefficient}
+            distanceCoefficient={distanceCoefficient}
           />
         )}
 
@@ -332,18 +377,20 @@ function App() {
         {/* Debug Info - removed */}
       </div>
       
-      {/* Made by + OpenSky citation footer */}
-      <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none mt-4 sm:mt-0">
-        <p className="text-[10px] sm:text-sm">
-          Made by Eduard Šimon of Gymnázium Žďár nad Sázavou ©
-        </p>
-        <div className="mt-2 text-[6.5px] sm:text-[9px] text-white/70">
-          <p className="text-[7.5px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
-          <p>Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm.</p>
-          <p>"Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research".</p>
-          <p className="whitespace-normal sm:whitespace-nowrap">In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
+      {/* Made by + OpenSky citation footer - only show on homepage */}
+      {!userLocation && (
+        <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none">
+          <p className="text-[10px] sm:text-sm">
+            Made by Eduard Šimon of Gymnázium Žďár nad Sázavou ©
+          </p>
+          <div className="mt-2 text-[6.5px] sm:text-[9px] text-white/70">
+            <p className="text-[7.5px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
+            <p>Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm.</p>
+            <p>"Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research".</p>
+            <p className="whitespace-normal sm:whitespace-nowrap">In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

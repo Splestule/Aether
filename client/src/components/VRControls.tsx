@@ -8,6 +8,8 @@ interface VRControlsProps {
   onRefreshFlights?: () => void;
   isRouteEnabled?: boolean;
   onToggleRoute?: () => void;
+  heightCoefficient: number;
+  distanceCoefficient: number;
 }
 
 export function VRControls({
@@ -17,6 +19,8 @@ export function VRControls({
   onRefreshFlights,
   isRouteEnabled = false,
   onToggleRoute,
+  heightCoefficient,
+  distanceCoefficient,
 }: VRControlsProps) {
   return (
     <div className="absolute top-2 left-2 sm:top-6 sm:left-6 flex flex-col gap-2 sm:gap-4 text-white z-[9999]">
@@ -44,6 +48,20 @@ export function VRControls({
           {flightCount}
         </span>
       </button>
+
+      {/* Coefficient Display */}
+      <div className="vr-panel px-2.5 py-2 sm:px-5 sm:py-3 w-fit max-w-[140px] sm:max-w-none">
+        <div className="flex flex-col gap-1.5 sm:gap-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="compass-subtle tracking-[0.22em] text-[10px] sm:text-[0.6rem] whitespace-nowrap">Height:</span>
+            <span className="text-[10px] sm:text-[0.65rem] font-semibold tracking-[0.2em]">{heightCoefficient.toFixed(2)}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span className="compass-subtle tracking-[0.22em] text-[10px] sm:text-[0.6rem] whitespace-nowrap">Distance:</span>
+            <span className="text-[10px] sm:text-[0.65rem] font-semibold tracking-[0.2em]">{distanceCoefficient.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
 
       {/* Refresh Flights Button */}
       {onRefreshFlights && (

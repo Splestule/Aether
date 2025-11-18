@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { ProcessedFlight, UserLocation } from '@shared/src/types.js'
-import { extrapolatePosition } from '@shared/src/utils.js'
+import { extrapolatePosition, gpsToVRCoordinates } from '@shared/src/utils.js'
 
 export function useFlights() {
   const [flights, setFlights] = useState<Map<string, ProcessedFlight>>(new Map())
@@ -83,15 +83,17 @@ export function useFlights() {
    * Updates positions every 5 seconds without API calls
    * @param userLocation User's location for recalculating relative positions
    * @param timeDelta Time elapsed in seconds (default 5 seconds)
+   * @param heightCoefficient Coefficient to apply to height conversion
+   * @param distanceCoefficient Coefficient to apply to distance conversion
    */
-  const extrapolatePositions = useCallback((userLocation: UserLocation, timeDelta: number = 5) => {
+  const extrapolatePositions = useCallback((userLocation: UserLocation, timeDelta: number = 5, heightCoefficient: number = 1.0, distanceCoefficient: number = 1.0) => {
     if (!userLocation) return
 
     setFlights(prev => {
       const updatedFlights = new Map(prev)
 
       updatedFlights.forEach((flight, id) => {
-        const extrapolated = extrapolatePosition(flight, userLocation, timeDelta)
+        const extrapolated = extrapolatePosition(flight, userLocation, timeDelta, heightCoefficient, distanceCoefficient)
 
         if (!extrapolated) {
           return
@@ -114,6 +116,38 @@ export function useFlights() {
     })
   }, [])
 
+  /**
+   * Recalculate flight positions using new coefficients
+   * This is called when coefficients change to update all existing flight positions
+   */
+  const recalculatePositions = useCallback((userLocation: UserLocation, heightCoefficient: number, distanceCoefficient: number) => {
+    if (!userLocation) return
+
+    setFlights(prev => {
+      const updatedFlights = new Map(prev)
+
+      updatedFlights.forEach((flight, id) => {
+        const newPosition = gpsToVRCoordinates(
+          userLocation,
+          flight.gps.latitude,
+          flight.gps.longitude,
+          flight.gps.altitude,
+          heightCoefficient,
+          distanceCoefficient
+        )
+
+        const updatedFlight: ProcessedFlight = {
+          ...flight,
+          position: newPosition,
+        }
+
+        updatedFlights.set(id, updatedFlight)
+      })
+
+      return updatedFlights
+    })
+  }, [])
+
   return {
     flights: getFlightsArray(),
     flightsMap: flights,
@@ -125,6 +159,7 @@ export function useFlights() {
     getFlightById,
     getFlightsByDistance,
     extrapolatePositions,
+    recalculatePositions,
     lastUpdate: lastUpdateRef.current,
   }
 }

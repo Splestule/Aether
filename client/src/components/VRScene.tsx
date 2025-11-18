@@ -36,6 +36,11 @@ interface VRSceneProps {
   selectedFlight: ProcessedFlight | null;
   onFlightSelect: (flight: ProcessedFlight | null) => void;
   config: VRConfig;
+  heightCoefficient: number;
+  distanceCoefficient: number;
+  onHeightCoefficientChange: (value: number) => void;
+  onDistanceCoefficientChange: (value: number) => void;
+  onSaveDefaults: () => void;
 }
 
 // VR Flight Info Panel - 3D panel attached to left controller
@@ -534,12 +539,191 @@ function VRRaycastLine({ flights }: { flights: ProcessedFlight[] }) {
   );
 }
 
+// Button coefficient adjuster - reads button input to adjust coefficients
+// Left controller: X = decrease height, Y = increase height
+// Right controller: A = decrease distance, B = increase distance
+// Right controller trigger = save current coefficients as defaults
+function JoystickCoefficientAdjuster({
+  heightCoefficient,
+  distanceCoefficient,
+  onHeightCoefficientChange,
+  onDistanceCoefficientChange,
+  onSaveDefaults,
+}: {
+  heightCoefficient: number;
+  distanceCoefficient: number;
+  onHeightCoefficientChange: (value: number) => void;
+  onDistanceCoefficientChange: (value: number) => void;
+  onSaveDefaults: () => void;
+}) {
+  const { controllers, session } = useXR();
+  const leftController = useController("left");
+  const rightController = useController("right");
+  const heightCoeffRef = useRef(heightCoefficient);
+  const distanceCoeffRef = useRef(distanceCoefficient);
+  const debugLoggedRef = useRef(false);
+  const frameCountRef = useRef(0);
+  const rightTriggerPressedRef = useRef(false);
+
+  // Update refs when props change
+  useEffect(() => {
+    heightCoeffRef.current = heightCoefficient;
+    distanceCoeffRef.current = distanceCoefficient;
+  }, [heightCoefficient, distanceCoefficient]);
+
+  useFrame((state, delta, xrFrame) => {
+    frameCountRef.current++;
+    
+    // Try multiple methods to access gamepad input
+    
+    // Method 1: Through useController hook
+    let leftGamepad = leftController?.inputSource?.gamepad;
+    let rightGamepad = rightController?.inputSource?.gamepad;
+    
+    // Method 2: Through XR frame's input sources (if available)
+    if (xrFrame && session) {
+      const inputSources = session.inputSources;
+      if (inputSources && inputSources.length > 0) {
+        for (const inputSource of inputSources) {
+          if (inputSource.handedness === 'left' && !leftGamepad) {
+            leftGamepad = inputSource.gamepad;
+          }
+          if (inputSource.handedness === 'right' && !rightGamepad) {
+            rightGamepad = inputSource.gamepad;
+          }
+        }
+      }
+    }
+    
+    // Method 3: Through controllers array from useXR
+    if (!leftGamepad || !rightGamepad) {
+      for (const controller of controllers) {
+        const inputSource = controller.inputSource;
+        if (inputSource?.handedness === 'left' && !leftGamepad) {
+          leftGamepad = inputSource.gamepad;
+        }
+        if (inputSource?.handedness === 'right' && !rightGamepad) {
+          rightGamepad = inputSource.gamepad;
+        }
+      }
+    }
+    
+    // Debug logging (once at frame 60)
+    if (frameCountRef.current === 60 && !debugLoggedRef.current) {
+      console.log('Button Debug Info:', {
+        hasSession: !!session,
+        hasXRFrame: !!xrFrame,
+        controllersCount: controllers.length,
+        leftController: !!leftController,
+        rightController: !!rightController,
+        leftGamepad: leftGamepad ? {
+          id: leftGamepad.id,
+          connected: leftGamepad.connected,
+          buttonsLength: leftGamepad.buttons?.length,
+          buttons: leftGamepad.buttons ? Array.from(leftGamepad.buttons).map((btn, idx) => ({
+            index: idx,
+            pressed: btn.pressed,
+            touched: btn.touched,
+            value: btn.value
+          })) : []
+        } : null,
+        rightGamepad: rightGamepad ? {
+          id: rightGamepad.id,
+          connected: rightGamepad.connected,
+          buttonsLength: rightGamepad.buttons?.length,
+          buttons: rightGamepad.buttons ? Array.from(rightGamepad.buttons).map((btn, idx) => ({
+            index: idx,
+            pressed: btn.pressed,
+            touched: btn.touched,
+            value: btn.value
+          })) : []
+        } : null
+      });
+      debugLoggedRef.current = true;
+    }
+
+    // Quest controller button mapping:
+    // Left: X = button 4, Y = button 5
+    // Right: A = button 4, B = button 5
+    // But we'll check all buttons and identify by index
+    
+    // Left controller: X (decrease height) and Y (increase height)
+    if (leftGamepad && leftGamepad.connected && leftGamepad.buttons) {
+      const buttons = leftGamepad.buttons;
+      
+      // Button 4 = X (decrease height)
+      if (buttons[4] && buttons[4].pressed) {
+        // Continuous adjustment while button is held
+        const newValue = Math.max(0.1, heightCoeffRef.current - 0.01);
+        if (Math.abs(newValue - heightCoeffRef.current) > 0.001) {
+          heightCoeffRef.current = newValue;
+          onHeightCoefficientChange(newValue);
+        }
+      }
+      
+      // Button 5 = Y (increase height)
+      if (buttons[5] && buttons[5].pressed) {
+        // Continuous adjustment while button is held
+        const newValue = Math.min(2.0, heightCoeffRef.current + 0.01);
+        if (Math.abs(newValue - heightCoeffRef.current) > 0.001) {
+          heightCoeffRef.current = newValue;
+          onHeightCoefficientChange(newValue);
+        }
+      }
+    }
+
+    // Right controller: A (decrease distance) and B (increase distance)
+    if (rightGamepad && rightGamepad.connected && rightGamepad.buttons) {
+      const buttons = rightGamepad.buttons;
+      
+      // Button 0 = Trigger (save defaults)
+      if (buttons[0] && buttons[0].pressed) {
+        // Only trigger once when button is first pressed
+        if (!rightTriggerPressedRef.current) {
+          rightTriggerPressedRef.current = true;
+          onSaveDefaults();
+          console.log('Right trigger pressed - Coefficients saved as defaults');
+        }
+      } else {
+        rightTriggerPressedRef.current = false;
+      }
+      
+      // Button 4 = A (decrease distance)
+      if (buttons[4] && buttons[4].pressed) {
+        // Continuous adjustment while button is held
+        const newValue = Math.max(0.1, distanceCoeffRef.current - 0.01);
+        if (Math.abs(newValue - distanceCoeffRef.current) > 0.001) {
+          distanceCoeffRef.current = newValue;
+          onDistanceCoefficientChange(newValue);
+        }
+      }
+      
+      // Button 5 = B (increase distance)
+      if (buttons[5] && buttons[5].pressed) {
+        // Continuous adjustment while button is held
+        const newValue = Math.min(2.0, distanceCoeffRef.current + 0.01);
+        if (Math.abs(newValue - distanceCoeffRef.current) > 0.001) {
+          distanceCoeffRef.current = newValue;
+          onDistanceCoefficientChange(newValue);
+        }
+      }
+    }
+  });
+
+  return null;
+}
+
 function SceneContent({
   userLocation,
   flights,
   selectedFlight,
   onFlightSelect,
   config,
+  heightCoefficient,
+  distanceCoefficient,
+  onHeightCoefficientChange,
+  onDistanceCoefficientChange,
+  onSaveDefaults,
 }: VRSceneProps) {
   const { isPresenting } = useXR();
   const [sceneRotation, setSceneRotation] = useState(0);
@@ -578,6 +762,17 @@ function SceneContent({
 
       {/* Visible raycast line from controller */}
       {isPresenting && <VRRaycastLine flights={filteredFlights} />}
+
+      {/* Joystick coefficient adjuster - only active in VR */}
+      {isPresenting && (
+        <JoystickCoefficientAdjuster
+          heightCoefficient={heightCoefficient}
+          distanceCoefficient={distanceCoefficient}
+          onHeightCoefficientChange={onHeightCoefficientChange}
+          onDistanceCoefficientChange={onDistanceCoefficientChange}
+          onSaveDefaults={onSaveDefaults}
+        />
+      )}
 
       {/* Dark background sphere for PC mode - replaces Sky */}
       {!isPresenting && (
@@ -661,6 +856,11 @@ export function VRScene({
   selectedFlight,
   onFlightSelect,
   config,
+  heightCoefficient,
+  distanceCoefficient,
+  onHeightCoefficientChange,
+  onDistanceCoefficientChange,
+  onSaveDefaults,
 }: VRSceneProps) {
   return (
     <>
@@ -702,6 +902,11 @@ export function VRScene({
               selectedFlight={selectedFlight}
               onFlightSelect={onFlightSelect}
               config={config}
+              heightCoefficient={heightCoefficient}
+              distanceCoefficient={distanceCoefficient}
+              onHeightCoefficientChange={onHeightCoefficientChange}
+              onDistanceCoefficientChange={onDistanceCoefficientChange}
+              onSaveDefaults={onSaveDefaults}
             />
           </Suspense>
         </ARCanvas>

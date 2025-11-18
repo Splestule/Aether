@@ -7,13 +7,17 @@ import { UserLocation, ProcessedFlight, FlightData } from './types';
  * @param flightLat Flight's latitude
  * @param flightLon Flight's longitude
  * @param flightAlt Flight's altitude in meters
+ * @param heightCoefficient Coefficient to apply to height conversion (default: 1.0)
+ * @param distanceCoefficient Coefficient to apply to distance conversion (default: 1.0)
  * @returns VR space coordinates (x, y, z) in meters
  */
 export function gpsToVRCoordinates(
   userLocation: UserLocation,
   flightLat: number,
   flightLon: number,
-  flightAlt: number
+  flightAlt: number,
+  heightCoefficient: number = 1.0,
+  distanceCoefficient: number = 1.0
 ): { x: number; y: number; z: number } {
   // Calculate horizontal distance (returns kilometers)
   const distanceKm = calculateDistance(
@@ -43,9 +47,11 @@ export function gpsToVRCoordinates(
   // Swap X and Z to fix central symmetry through origin
   // X should represent North-South: cos(bearing) gives North component
   // Z should represent East-West: sin(bearing) gives East component
-  const x = distanceM * Math.cos(bearingRad);   // North-South (positive = North)
-  const z = distanceM * Math.sin(bearingRad);    // East-West (positive = East)
-  const y = flightAlt - (userLocation.altitude || 0);  // Height unchanged
+  const x = distanceM * Math.cos(bearingRad) * distanceCoefficient;   // North-South (positive = North)
+  const z = distanceM * Math.sin(bearingRad) * distanceCoefficient;    // East-West (positive = East)
+  // Apply scaling factor to make planes appear lower to the ground for better real-world alignment
+  const altitudeDifference = flightAlt - (userLocation.altitude || 0);
+  const y = altitudeDifference * heightCoefficient;
 
   return { x, y, z };
 }
@@ -122,7 +128,9 @@ export function calculateElevation(
 export function processFlightData(
   flight: FlightData,
   userLocation: UserLocation,
-  maxDistance: number = 200 // Default 200km, can be overridden
+  maxDistance: number = 200, // Default 200km, can be overridden
+  heightCoefficient: number = 1.0,
+  distanceCoefficient: number = 1.0
 ): ProcessedFlight | null {
   // Skip flights without position data
   // Use geo_altitude if baro_altitude is not available
@@ -147,7 +155,9 @@ export function processFlightData(
     userLocation,
     flight.latitude,
     flight.longitude,
-    altitude
+    altitude,
+    heightCoefficient,
+    distanceCoefficient
   );
 
   const elevation = calculateElevation(
@@ -225,7 +235,9 @@ function getAirlineFromCallsign(callsign: string): string {
 export function extrapolatePosition(
   flight: ProcessedFlight,
   userLocation: UserLocation,
-  secondsAhead: number
+  secondsAhead: number,
+  heightCoefficient: number = 1.0,
+  distanceCoefficient: number = 1.0
 ): {
   gps: { latitude: number; longitude: number; altitude: number };
   position: { x: number; y: number; z: number };
@@ -263,7 +275,9 @@ export function extrapolatePosition(
     userLocation,
     newLat,
     newLon,
-    altitude
+    altitude,
+    heightCoefficient,
+    distanceCoefficient
   );
 
   const distance = calculateDistance(

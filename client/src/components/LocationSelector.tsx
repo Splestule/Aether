@@ -212,8 +212,8 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
   };
 
   return (
-    <div className="space-y-[0.77rem] text-white">
-      <div className="h-[20rem] sm:h-[24.6rem] rounded-2xl overflow-hidden border border-white/40 shadow-[0_30px_65px_rgba(15,23,42,0.55)]">
+    <div className="space-y-[0.77rem] text-white flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
+      <div className="responsive-map-container rounded-2xl overflow-hidden border border-white/40 shadow-[0_30px_65px_rgba(15,23,42,0.55)] flex-shrink min-h-0">
         <MapContainer
           center={currentLocation}
           zoom={10}
