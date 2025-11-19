@@ -2,7 +2,6 @@ import { Suspense, useRef, useEffect, useState } from "react";
 import {
   Interactive,
   useXR,
-  DefaultXRControllers,
   ARCanvas,
   useController,
 } from "@react-three/xr";
@@ -384,6 +383,143 @@ function ExtendedRaycastManager() {
   return null;
 }
 
+// Component to hide VR controllers visually (they still work for input)
+function HideControllers() {
+  const { controllers } = useXR();
+  const { scene } = useThree();
+
+  // Hide controllers immediately when they're created
+  useEffect(() => {
+    const hideControllerObjects = () => {
+      controllers.forEach((controller) => {
+        if (controller.controller) {
+          controller.controller.traverse((child: any) => {
+            if (child.isMesh || child.isGroup || child.isLine || child.isPoints) {
+              child.visible = false;
+              if (child.material) {
+                if (Array.isArray(child.material)) {
+                  child.material.forEach((mat: any) => {
+                    if (mat) {
+                      mat.transparent = true;
+                      mat.opacity = 0;
+                    }
+                  });
+                } else if (child.material) {
+                  child.material.transparent = true;
+                  child.material.opacity = 0;
+                }
+              }
+            }
+          });
+        }
+      });
+
+      // Also search the scene
+      scene.traverse((child: any) => {
+        const isControllerRelated =
+          (child.userData &&
+            (child.userData.controller ||
+              child.userData.hand ||
+              child.userData.xrController)) ||
+          child.name?.toLowerCase().includes("controller") ||
+          child.name?.toLowerCase().includes("hand") ||
+          child.name?.toLowerCase().includes("xr");
+
+        if (isControllerRelated) {
+          if (child.isMesh || child.isGroup || child.isLine || child.isPoints) {
+            child.visible = false;
+            if (child.material) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach((mat: any) => {
+                  if (mat) {
+                    mat.transparent = true;
+                    mat.opacity = 0;
+                  }
+                });
+              } else if (child.material) {
+                child.material.transparent = true;
+                child.material.opacity = 0;
+              }
+            }
+          }
+        }
+      });
+    };
+
+    hideControllerObjects();
+    // Also run periodically in case controllers are added later
+    const interval = setInterval(hideControllerObjects, 100);
+    return () => clearInterval(interval);
+  }, [controllers, scene]);
+
+  useFrame(() => {
+    // Hide all controller meshes in the scene
+    controllers.forEach((controller) => {
+      if (controller.controller) {
+        // Traverse the controller object and hide all meshes and groups
+        controller.controller.traverse((child: any) => {
+          if (child.isMesh || child.isGroup || child.isLine || child.isPoints) {
+            child.visible = false;
+            // Also try to make materials transparent
+            if (child.material) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach((mat: any) => {
+                  if (mat) {
+                    mat.transparent = true;
+                    mat.opacity = 0;
+                    mat.visible = false;
+                  }
+                });
+              } else if (child.material) {
+                child.material.transparent = true;
+                child.material.opacity = 0;
+                child.material.visible = false;
+              }
+            }
+          }
+        });
+      }
+    });
+
+    // Also search the scene for any controller-related objects
+    scene.traverse((child: any) => {
+      // Hide objects that look like controllers (common patterns in react-three/xr)
+      const isControllerRelated =
+        (child.userData &&
+          (child.userData.controller ||
+            child.userData.hand ||
+            child.userData.xrController)) ||
+        child.name?.toLowerCase().includes("controller") ||
+        child.name?.toLowerCase().includes("hand") ||
+        child.name?.toLowerCase().includes("xr");
+
+      if (isControllerRelated) {
+        if (child.isMesh || child.isGroup || child.isLine || child.isPoints) {
+          child.visible = false;
+          // Also try to make materials transparent
+          if (child.material) {
+            if (Array.isArray(child.material)) {
+              child.material.forEach((mat: any) => {
+                if (mat) {
+                  mat.transparent = true;
+                  mat.opacity = 0;
+                  mat.visible = false;
+                }
+              });
+            } else if (child.material) {
+              child.material.transparent = true;
+              child.material.opacity = 0;
+              child.material.visible = false;
+            }
+          }
+        }
+      }
+    });
+  });
+
+  return null;
+}
+
 // Visible raycast line from VR controller (for a single controller)
 function SingleControllerRaycast({
   controller,
@@ -748,8 +884,9 @@ function SceneContent({
       <hemisphereLight color="#ffffff" groundColor="#888888" intensity={0.8} />
       <directionalLight position={[-50, 50, -50]} intensity={0.8} />
 
-      {/* VR Controllers - visible in AR/VR mode */}
-      {isPresenting && <DefaultXRControllers />}
+      {/* VR Controllers - hidden to avoid blocking UI (input still works) */}
+      {/* {isPresenting && <DefaultXRControllers />} */}
+      {isPresenting && <HideControllers />}
 
       {/* VR Compass - attached to left controller, controls scene rotation */}
       {isPresenting && (

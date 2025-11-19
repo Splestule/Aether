@@ -133,3 +133,4 @@ echo "🎯 You can now double-click the app or use it from the Dock!"
 
 
 
+
