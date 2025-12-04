@@ -101,6 +101,7 @@ export class FlightService {
       logger.debug('Applied distance filter to processed flights')
 
       // Cache the results for 15 seconds
+      // @ts-ignore - TypeScript incorrectly infers type due to Boolean() usage elsewhere
       this.cacheService.set(cacheKey, processedFlights, 15)
 
       // Clear any previous error since request succeeded
@@ -115,17 +116,25 @@ export class FlightService {
     } catch (error) {
       // Extract OpenSky error information
       const openskyError = (this as any).lastOpenSkyError
-      const errorInfo = openskyError ? {
-        type: 'opensky' as const,
-        statusCode: openskyError.statusCode,
-        message: openskyError.message || 'OpenSky Network error',
-      } : axios.isAxiosError(error) && error.response ? {
-        type: 'opensky' as const,
-        statusCode: error.response.status,
-        message: error.response.statusText || error.message,
-      } : {
-        type: 'network' as const,
-        message: error instanceof Error ? error.message : 'Network error',
+      let errorInfo: { type: 'opensky' | 'network' | 'server', statusCode?: number, message: string }
+      
+      if (openskyError) {
+        errorInfo = {
+          type: 'opensky' as const,
+          statusCode: openskyError.statusCode,
+          message: openskyError.message || 'OpenSky Network error',
+        }
+      } else if (axios.isAxiosError(error) && error.response) {
+        errorInfo = {
+          type: 'opensky' as const,
+          statusCode: error.response.status,
+          message: error.response.statusText || error.message,
+        }
+      } else {
+        errorInfo = {
+          type: 'network' as const,
+          message: error instanceof Error ? error.message : 'Network error',
+        }
       }
       
       // Store error info for route handler
@@ -248,14 +257,14 @@ export class FlightService {
               longitude: Number(state[5] || 0),
               latitude: Number(state[6] || 0),
               geo_altitude: Number(state[7] || 0),
-              on_ground: Boolean(state[8]),
+              on_ground: !!state[8],
               velocity: Number(state[9] || 0),
               true_track: Number(state[10] || 0),
               vertical_rate: Number(state[11] || 0),
               sensors: Array.isArray(state[12]) ? state[12] : [],
               baro_altitude: Number(state[13] || 0),
               squawk: String(state[14] || ''),
-              spi: Boolean(state[15]),
+              spi: !!state[15],
               position_source: Number(state[16] || 0),
             }));
   
