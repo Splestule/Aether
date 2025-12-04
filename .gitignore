@@ -28,6 +28,7 @@ yarn-error.log*
 # Editor directories and files
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 .DS_Store
@@ -55,3 +56,7 @@ coverage/
 # Misc
 .cache/
 .local/
+
+# SDD and specs
+.sdd/
+specs/

@@ -50,11 +50,15 @@ export function setupRoutes(app: Express, services: Services) {
         radiusKm
       )
 
+      // Check if there was an OpenSky error (stored in flightService)
+      const lastError = (flightService as any).lastError
+      
       res.json({
         success: true,
         data: flights,
         count: flights.length,
         timestamp: Date.now(),
+        ...(lastError && { error: lastError }),
       })
     } catch (error) {
       logger.error('E-API-001', 'Failed to fetch flights', error)

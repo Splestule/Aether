@@ -3,6 +3,7 @@ import { VRScene } from "./components/VRScene";
 import { LocationSelector } from "./components/LocationSelector";
 import { FlightInfoPanel } from "./components/FlightInfoPanel";
 import { VRControls } from "./components/VRControls";
+import { ErrorNotification, ErrorNotificationData } from "./components/ErrorNotification";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useFlights } from "./hooks/useFlights";
 import { UserLocation, ProcessedFlight } from "@shared/src/types";
@@ -18,6 +19,7 @@ function App() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isRouteEnabled, setIsRouteEnabled] = useState(false);
+  const [errorNotification, setErrorNotification] = useState<ErrorNotificationData | null>(null);
   
   // Load default coefficients from localStorage or use 1.0
   const loadDefaultCoefficients = () => {
@@ -65,6 +67,38 @@ function App() {
     recalculatePositions,
   } = useFlights();
 
+  // Helper function to detect and set error notification for HTTP errors
+  const handleApiError = (response: Response) => {
+    // Handle HTTP error responses
+    const statusCode = response.status;
+    let errorType: 'opensky' | 'network' | 'server' = 'server';
+    let errorMessage = response.statusText || 'Unknown error';
+
+    if (statusCode === 503 || statusCode === 429 || statusCode === 401 || statusCode === 403) {
+      errorType = 'opensky';
+      if (statusCode === 503) {
+        errorMessage = 'OpenSky Network is currently unavailable';
+      } else if (statusCode === 429) {
+        errorMessage = 'Rate limit exceeded for OpenSky Network';
+      } else if (statusCode === 401 || statusCode === 403) {
+        errorMessage = 'OpenSky Network authentication failed';
+      }
+    } else if (statusCode >= 500) {
+      errorType = 'server';
+      errorMessage = 'Server error occurred';
+    } else if (statusCode === 0 || !response.ok) {
+      errorType = 'network';
+      errorMessage = 'Network connection error';
+    }
+
+    setErrorNotification({
+      type: errorType,
+      message: errorMessage,
+      statusCode,
+      timestamp: Date.now(),
+    });
+  };
+
   // Refresh flights for current location
   const refreshFlights = async () => {
     if (!userLocation) return;
@@ -80,10 +114,30 @@ function App() {
         if (data.success && data.data) {
           updateFlights(data.data);
           console.log(`Refreshed ${data.data.length} flights`);
+          
+          // Check for OpenSky errors in successful response
+          if (data.error) {
+            setErrorNotification({
+              type: data.error.type || 'opensky',
+              message: data.error.message || 'OpenSky Network error',
+              statusCode: data.error.statusCode,
+              timestamp: Date.now(),
+            });
+          } else {
+            // Clear error if everything is OK
+            setErrorNotification(null);
+          }
         }
+      } else {
+        handleApiError(response);
       }
     } catch (error) {
       console.error("Failed to refresh flights:", error);
+      setErrorNotification({
+        type: 'network',
+        message: 'Failed to connect to server',
+        timestamp: Date.now(),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -165,6 +219,20 @@ function App() {
           console.log(
             `Loaded ${data.data.length} flights for location ${location.latitude}, ${location.longitude}`
           );
+          
+          // Check for OpenSky errors in successful response
+          if (data.error) {
+            setErrorNotification({
+              type: data.error.type || 'opensky',
+              message: data.error.message || 'OpenSky Network error',
+              statusCode: data.error.statusCode,
+              timestamp: Date.now(),
+            });
+          } else {
+            // Clear error if everything is OK
+            setErrorNotification(null);
+          }
+          
           if (isConnected) {
             sendMessage({
               type: "subscribe_flights",
@@ -191,9 +259,15 @@ function App() {
           response.status,
           response.statusText
         );
+        handleApiError(response);
       }
     } catch (error) {
       console.error("Failed to request flights:", error);
+      setErrorNotification({
+        type: 'network',
+        message: 'Failed to connect to server',
+        timestamp: Date.now(),
+      });
     } finally {
       setIsLoading(false);
     }
@@ -372,6 +446,13 @@ function App() {
             showRoute={isRouteEnabled}
           />
         )}
+
+        {/* Error Notification */}
+        <ErrorNotification
+          error={errorNotification}
+          onDismiss={() => setErrorNotification(null)}
+          onRetry={userLocation ? refreshFlights : undefined}
+        />
 
         {/* Loading Indicator - removed, using the one in VRControls (left side) */}
         {/* Debug Info - removed */}

@@ -17,3 +17,8 @@ client/dev-dist
 *.local
 *.env
 
+# Editor directories
+.cursor/
+.sdd/
+specs/
+

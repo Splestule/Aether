@@ -103,6 +103,9 @@ export class FlightService {
       // Cache the results for 15 seconds
       this.cacheService.set(cacheKey, processedFlights, 15)
 
+      // Clear any previous error since request succeeded
+      (this as any).lastError = null
+
       logger.action(
         'Flights processed',
         `Fetched ${processedFlights.length} flights for area ${latitude}, ${longitude}`
@@ -110,6 +113,24 @@ export class FlightService {
       return processedFlights
 
     } catch (error) {
+      // Extract OpenSky error information
+      const openskyError = (this as any).lastOpenSkyError
+      const errorInfo = openskyError ? {
+        type: 'opensky' as const,
+        statusCode: openskyError.statusCode,
+        message: openskyError.message || 'OpenSky Network error',
+      } : axios.isAxiosError(error) && error.response ? {
+        type: 'opensky' as const,
+        statusCode: error.response.status,
+        message: error.response.statusText || error.message,
+      } : {
+        type: 'network' as const,
+        message: error instanceof Error ? error.message : 'Network error',
+      }
+      
+      // Store error info for route handler
+      (this as any).lastError = errorInfo
+      
       logger.error('E-FLT-001', 'Failed to fetch flights from OpenSky, using demo data', error)
       // Fallback to demo data
       const demoFlights = this.demoService.getFlightsInArea(latitude, longitude, radiusKm)
@@ -214,6 +235,9 @@ export class FlightService {
               )
               return []
             }
+            
+            // Store last successful response status for error reporting
+            (this as any).lastOpenSkyStatus = response.status
 
             const flights: FlightData[] = response.data.states.map((state): FlightData => ({
               icao24: String(state[0] || ''),
@@ -250,6 +274,14 @@ export class FlightService {
               this.authService?.invalidateToken()
               authAttempt++
               continue
+            }
+            // Store error info for error reporting
+            if (axios.isAxiosError(error) && error.response) {
+              (this as any).lastOpenSkyError = {
+                statusCode: error.response.status,
+                statusText: error.response.statusText,
+                message: error.message,
+              }
             }
             throw error
           }
