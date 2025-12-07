@@ -30,8 +30,6 @@
     "vite-plugin-static-copy": "^3.1.4"
   },
   "devDependencies": {
-    "@esbuild/darwin-arm64": "^0.25.12",
-    "@rollup/rollup-darwin-arm64": "^4.53.3",
     "@types/leaflet": "^1.9.8",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",

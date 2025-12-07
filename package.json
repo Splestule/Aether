@@ -17,7 +17,6 @@
     "install:all": "npm install && cd server && npm install && cd ../client && npm install"
   },
   "devDependencies": {
-    "@esbuild/darwin-arm64": "^0.27.1",
     "concurrently": "^8.2.2",
     "vite-plugin-cesium": "^1.2.23"
   },
@@ -28,7 +27,5 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "overrides": {
-    "esbuild": "^0.27.1"
-  }
+}
 }
