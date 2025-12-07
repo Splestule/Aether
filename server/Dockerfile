@@ -4,14 +4,14 @@ FROM node:20-bookworm AS builder
 WORKDIR /app
 
 # Copy root package files for workspace support
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # Copy all workspace packages
-COPY shared/package*.json shared/
+COPY shared/package.json shared/
 COPY shared/tsconfig.json shared/
 COPY shared/src shared/src
 
-COPY server/package*.json server/
+COPY server/package.json server/
 COPY server/tsconfig.json server/
 COPY server/src server/src
 COPY server/env.example server/
@@ -34,7 +34,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copy root package files for workspace support
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # Copy shared package (built dist and package.json for runtime)
 COPY --from=builder /app/shared/package.json shared/

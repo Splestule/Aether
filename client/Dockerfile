@@ -4,14 +4,14 @@ FROM node:20-bookworm AS builder
 WORKDIR /app
 
 # Copy root package files for workspace support
-COPY package.json package-lock.json ./
+COPY package.json ./
 
 # Copy all workspace packages
-COPY shared/package*.json shared/
+COPY shared/package.json shared/
 COPY shared/tsconfig.json shared/
 COPY shared/src shared/src
 
-COPY client/package*.json client/
+COPY client/package.json client/
 COPY client/tsconfig.json client/
 COPY client/tsconfig.node.json client/
 COPY client/vite.config.ts client/
