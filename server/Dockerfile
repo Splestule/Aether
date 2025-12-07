@@ -17,7 +17,8 @@ COPY server/src server/src
 COPY server/env.example server/
 
 # Install all dependencies at root level (sets up workspaces)
-RUN npm ci
+# Using npm install instead of npm ci to handle cross-platform optional dependencies
+RUN npm install
 
 # Build shared package first (required by server)
 WORKDIR /app/shared
@@ -46,7 +47,7 @@ COPY --from=builder /app/server/env.example server/
 
 # Install production dependencies only
 # Install at root to set up workspace linking, then install production deps
-RUN npm ci --omit=dev
+RUN npm install --omit=dev
 
 EXPOSE 8080
 WORKDIR /app/server

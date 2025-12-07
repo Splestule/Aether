@@ -28,7 +28,8 @@ ENV VITE_API_URL=${VITE_API_URL}
 ENV VITE_WS_URL=${VITE_WS_URL}
 
 # Install all dependencies at root level (sets up workspaces)
-RUN npm ci
+# Using npm install instead of npm ci to handle cross-platform optional dependencies (esbuild)
+RUN npm install
 
 # Build shared package first (required by client)
 WORKDIR /app/shared
