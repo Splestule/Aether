@@ -10,7 +10,6 @@ import {
     createWorldTerrainAsync,
     sampleTerrainMostDetailed,
     Cartographic,
-    Cartographic,
     Matrix4,
     Ion,
     VerticalOrigin,
@@ -80,7 +79,7 @@ export function CesiumScene({
                     requestVertexNormals: true, // Better lighting
                     requestWaterMask: true
                 });
-                setTerrainProvider(terrain);
+                // setTerrainProvider(terrain); // State removed to fix unused var error
 
                 // FORCE UPDATE: Manually assign to viewer to ensure it applies immediately
                 if (viewerRef.current) {
