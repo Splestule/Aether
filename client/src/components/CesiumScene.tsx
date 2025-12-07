@@ -10,7 +10,7 @@ import {
     createWorldTerrainAsync,
     sampleTerrainMostDetailed,
     Cartographic,
-    OpenStreetMapImageryProvider,
+    Cartographic,
     Matrix4,
     Ion,
     VerticalOrigin,
@@ -49,7 +49,6 @@ export function CesiumScene({
     const viewerRef = useRef<CesiumViewer | null>(null);
     const isCameraInitialized = useRef(false);
     const [trajectory, setTrajectory] = useState<any[]>([]);
-    const [terrainProvider, setTerrainProvider] = useState<any>(undefined);
 
     // Fetch trajectory when flight is selected
     useEffect(() => {
@@ -222,8 +221,8 @@ export function CesiumScene({
         viewer.scene.globe.depthTestAgainstTerrain = false;
 
         // SKY & ATMOSPHERE STYLING (Gradient Sky)
-        viewer.scene.skyAtmosphere.show = false;
-        viewer.scene.skyBox.show = false;
+        if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false;
+        if (viewer.scene.skyBox) viewer.scene.skyBox.show = false;
         viewer.scene.backgroundColor = Color.TRANSPARENT; // Let CSS gradient show through
         viewer.scene.globe.baseColor = Color.BLACK; // Solid core
 
@@ -299,7 +298,7 @@ export function CesiumScene({
 
                 // 1. High Detail Nearby (0-2km)
                 tileset.maximumScreenSpaceError = 2; // Very high detail
-                tileset.maximumMemoryUsage = 2048;
+                (tileset as any).maximumMemoryUsage = 2048;
 
                 // 2. Dynamic Detail Reduction (2km - 6km)
                 // We simulate fog density to drop detail, even though visual fog is off.
@@ -489,7 +488,7 @@ Heading: ${flight.heading}°
                 style={{
                     background: "linear-gradient(to bottom, #1a1625 0%, #4a3b69 100%)" // Dark Purple Gradient
                 }}
-                onClickCapture={(e) => {
+                onClickCapture={() => {
                     // Force focus on click
                     const canvas = viewerRef.current?.scene.canvas;
                     if (canvas) canvas.focus();
