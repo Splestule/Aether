@@ -1,5 +1,5 @@
-const isLocalhost = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1';
+const isLocalhost = window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1';
 
 const isCloudflare = window.location.hostname.includes('trycloudflare.com');
 
@@ -9,20 +9,20 @@ const getApiUrl = () => {
     console.log('Using VITE_API_URL:', import.meta.env.VITE_API_URL);
     return import.meta.env.VITE_API_URL;
   }
-  
+
   // If running on localhost, use local server
   if (isLocalhost) {
     console.log('Detected localhost, using local API');
     return 'http://localhost:8080';
   }
-  
+
   // If on Cloudflare, must use env var (error if not set)
   if (isCloudflare) {
     console.error('⚠️ Running on Cloudflare but VITE_API_URL not set!');
     alert('Configuration Error: Server URL not configured for remote access');
     return 'http://localhost:8080'; // Fallback (won't work)
   }
-  
+
   return 'http://localhost:8080';
 };
 
@@ -32,20 +32,20 @@ const getWsUrl = () => {
     console.log('Using VITE_WS_URL:', import.meta.env.VITE_WS_URL);
     return import.meta.env.VITE_WS_URL;
   }
-  
+
   // If running on localhost, use local server
   if (isLocalhost) {
     console.log('Detected localhost, using local WebSocket');
     return 'ws://localhost:8080';
   }
-  
+
   // If on Cloudflare, must use env var (error if not set)
   if (isCloudflare) {
     console.error('⚠️ Running on Cloudflare but VITE_WS_URL not set!');
     alert('Configuration Error: WebSocket URL not configured for remote access');
     return 'ws://localhost:8080'; // Fallback (won't work)
   }
-  
+
   return 'ws://localhost:8080';
 };
 

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import "cesium/Build/Cesium/Widgets/widgets.css";
 import { VRScene } from "./components/VRScene";
 import { LocationSelector } from "./components/LocationSelector";
 import { FlightInfoPanel } from "./components/FlightInfoPanel";
@@ -9,6 +10,7 @@ import { useFlights } from "./hooks/useFlights";
 import { UserLocation, ProcessedFlight } from "@shared/src/types";
 import { config } from "./config";
 import { ParticleField } from "./components/ParticleField";
+import { CesiumScene } from "./components/CesiumScene";
 
 function App() {
   console.log("App component rendering");
@@ -19,8 +21,9 @@ function App() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isRouteEnabled, setIsRouteEnabled] = useState(false);
+  const [viewMode, setViewMode] = useState<'vr' | 'cesium'>('vr');
   const [errorNotification, setErrorNotification] = useState<ErrorNotificationData | null>(null);
-  
+
   // Load default coefficients from localStorage or use 1.0
   const loadDefaultCoefficients = () => {
     try {
@@ -35,11 +38,11 @@ function App() {
       return { height: 1.0, distance: 1.0 };
     }
   };
-  
+
   const defaultCoeffs = loadDefaultCoefficients();
   const [heightCoefficient, setHeightCoefficient] = useState(defaultCoeffs.height);
   const [distanceCoefficient, setDistanceCoefficient] = useState(defaultCoeffs.distance);
-  
+
   // Function to save current coefficients as defaults
   const saveCoefficientsAsDefaults = useCallback(() => {
     try {
@@ -114,7 +117,7 @@ function App() {
         if (data.success && data.data) {
           updateFlights(data.data);
           console.log(`Refreshed ${data.data.length} flights`);
-          
+
           // Check for OpenSky errors in successful response
           if (data.error) {
             setErrorNotification({
@@ -219,7 +222,7 @@ function App() {
           console.log(
             `Loaded ${data.data.length} flights for location ${location.latitude}, ${location.longitude}`
           );
-          
+
           // Check for OpenSky errors in successful response
           if (data.error) {
             setErrorNotification({
@@ -232,7 +235,7 @@ function App() {
             // Clear error if everything is OK
             setErrorNotification(null);
           }
-          
+
           if (isConnected) {
             sendMessage({
               type: "subscribe_flights",
@@ -291,18 +294,18 @@ function App() {
   // Hide react-three/xr AR button on mobile when flight is selected
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    
+
     const hideARButton = () => {
       const isMobile = window.innerWidth < 640;
       const shouldHide = isMobile && selectedFlight;
-      
+
       // Find AR button - react-three/xr renders it with "Enter AR" or "AR unsupported" text
       const buttons = document.querySelectorAll('button');
       buttons.forEach((button) => {
         const text = (button.textContent || '').trim();
         // Match exact text or buttons that contain "AR" and are likely the AR button
-        if (text === 'Enter AR' || text === 'AR unsupported' || 
-            (text.includes('AR') && button.closest('canvas')?.nextElementSibling)) {
+        if (text === 'Enter AR' || text === 'AR unsupported' ||
+          (text.includes('AR') && button.closest('canvas')?.nextElementSibling)) {
           if (shouldHide) {
             button.style.display = 'none';
             button.style.pointerEvents = 'none';
@@ -315,12 +318,12 @@ function App() {
         }
       });
     };
-    
+
     // Run after a short delay to ensure ARCanvas has rendered
     const timeoutId = setTimeout(() => {
       hideARButton();
     }, 200);
-    
+
     // Use MutationObserver to catch buttons added later by react-three/xr
     const observer = new MutationObserver(() => {
       setTimeout(() => {
@@ -328,14 +331,14 @@ function App() {
       }, 50);
     });
     observer.observe(document.body, { childList: true, subtree: true });
-    
+
     const resizeHandler = () => {
       setTimeout(() => {
         hideARButton();
       }, 50);
     };
     window.addEventListener('resize', resizeHandler);
-    
+
     return () => {
       clearTimeout(timeoutId);
       window.removeEventListener('resize', resizeHandler);
@@ -357,7 +360,7 @@ function App() {
     <div className="h-screen w-screen relative">
       <ParticleField />
       {/* VR Scene */}
-      {userLocation && (
+      {userLocation && viewMode === 'vr' && (
         <VRScene
           userLocation={userLocation}
           flights={flights}
@@ -369,6 +372,16 @@ function App() {
           onHeightCoefficientChange={setHeightCoefficient}
           onDistanceCoefficientChange={setDistanceCoefficient}
           onSaveDefaults={saveCoefficientsAsDefaults}
+        />
+      )}
+
+      {/* Cesium Scene */}
+      {userLocation && viewMode === 'cesium' && (
+        <CesiumScene
+          userLocation={userLocation}
+          flights={flights}
+          selectedFlight={selectedFlight}
+          onFlightSelect={handleFlightSelect}
         />
       )}
 
@@ -421,7 +434,7 @@ function App() {
         )}
 
         {/* VR Controls */}
-        {userLocation && (
+        {userLocation && viewMode === 'vr' && (
           <VRControls
             flightCount={flights.length}
             isLoading={isLoading}
@@ -436,6 +449,43 @@ function App() {
             heightCoefficient={heightCoefficient}
             distanceCoefficient={distanceCoefficient}
           />
+        )}
+
+        {/* View Mode Toggle */}
+        {userLocation && (
+          <div className="absolute top-4 right-4 z-[1000] flex gap-2">
+            <button
+              onClick={() => setViewMode('vr')}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors ${viewMode === 'vr'
+                ? 'bg-blue-600 text-white'
+                : 'bg-black/50 text-white/70 hover:bg-black/70'
+                }`}
+            >
+              VR Mode
+            </button>
+            <button
+              onClick={() => setViewMode('cesium')}
+              className={`px-4 py-2 rounded-lg font-bold transition-colors ${viewMode === 'cesium'
+                ? 'bg-blue-600 text-white'
+                : 'bg-black/50 text-white/70 hover:bg-black/70'
+                }`}
+            >
+              Real World
+            </button>
+            {/* Back button for Cesium mode since VRControls is hidden */}
+            {viewMode === 'cesium' && (
+              <button
+                onClick={() => {
+                  setUserLocation(null);
+                  clearFlights();
+                  setSelectedFlight(null);
+                }}
+                className="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold transition-colors"
+              >
+                Exit
+              </button>
+            )}
+          </div>
         )}
 
         {/* Flight Info Panel */}
@@ -457,7 +507,7 @@ function App() {
         {/* Loading Indicator - removed, using the one in VRControls (left side) */}
         {/* Debug Info - removed */}
       </div>
-      
+
       {/* Made by + OpenSky citation footer - only show on homepage */}
       {!userLocation && (
         <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none">
