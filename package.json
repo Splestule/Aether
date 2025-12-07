@@ -1,6 +1,6 @@
 {
   "name": "vr-flight-tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Real-time airplane visualization in VR space",
   "private": true,
   "workspaces": [
@@ -26,6 +26,5 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  },
-}
+  }
 }

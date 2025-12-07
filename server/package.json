@@ -1,6 +1,6 @@
 {
   "name": "@vr-flight-tracker/server",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Backend API server for VR Flight Tracker",
   "main": "dist/index.js",
