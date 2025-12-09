@@ -33,7 +33,7 @@ export class FlightService {
     radiusKm: number
   ): Promise<ProcessedFlight[]> {
     const cacheKey = `flights_${latitude.toFixed(4)}_${longitude.toFixed(4)}_${radiusKm}`
-    
+
     // Check cache first
     const cached = this.cacheService.get<ProcessedFlight[]>(cacheKey)
     if (cached) {
@@ -47,10 +47,10 @@ export class FlightService {
     try {
       // Calculate bounding box
       const bbox = this.calculateBoundingBox(latitude, longitude, radiusKm)
-      
+
       // Fetch from OpenSky API
       const rawFlights = await this.fetchFromOpenSky(bbox)
-      
+
       // Process flights
       const userLocation: UserLocation = {
         latitude,
@@ -61,42 +61,42 @@ export class FlightService {
       logger.debug('Processing raw flight dataset')
 
       const processedFlights = rawFlights
-      .map(flight => {
-        logger.debug('Processing raw flight:', {
-          icao24: flight.icao24,
-          callsign: flight.callsign,
-          latitude: flight.latitude,
-          longitude: flight.longitude,
-          altitude: flight.geo_altitude
-        })
-        
-        const processed = processFlightData(flight, userLocation, radiusKm)
-        if (!processed) {
-          logger.debug(`Flight ${flight.icao24} filtered out during processing`, {
-            hasValidCoordinates: flight.latitude != null && flight.longitude != null,
-            hasValidAltitude: flight.geo_altitude != null,
-            hasValidSpeed: flight.velocity != null,
-            hasValidHeading: flight.true_track != null
+        .map(flight => {
+          logger.debug('Processing raw flight:', {
+            icao24: flight.icao24,
+            callsign: flight.callsign,
+            latitude: flight.latitude,
+            longitude: flight.longitude,
+            altitude: flight.geo_altitude
           })
-        }
-        return processed
-      })
-      .filter((flight): flight is ProcessedFlight => {
-        const valid = flight !== null
-        if (!valid) {
-          logger.debug('Flight filtered out by null check')
-        }
-        return valid
-      })
-      .filter(flight => {
-        const inRange = flight.distance <= radiusKm
-        logger.debug(`Flight ${flight.icao24} distance check`, {
-          distance: flight.distance,
-          radiusKm,
-          inRange
+
+          const processed = processFlightData(flight, userLocation, radiusKm)
+          if (!processed) {
+            logger.debug(`Flight ${flight.icao24} filtered out during processing`, {
+              hasValidCoordinates: flight.latitude != null && flight.longitude != null,
+              hasValidAltitude: flight.geo_altitude != null,
+              hasValidSpeed: flight.velocity != null,
+              hasValidHeading: flight.true_track != null
+            })
+          }
+          return processed
         })
-        return inRange
-      })
+        .filter((flight): flight is ProcessedFlight => {
+          const valid = flight !== null
+          if (!valid) {
+            logger.debug('Flight filtered out by null check')
+          }
+          return valid
+        })
+        .filter(flight => {
+          const inRange = flight.distance <= radiusKm
+          logger.debug(`Flight ${flight.icao24} distance check`, {
+            distance: flight.distance,
+            radiusKm,
+            inRange
+          })
+          return inRange
+        })
 
       logger.debug('Applied distance filter to processed flights')
 
@@ -124,7 +124,7 @@ export class FlightService {
    */
   async getFlightByIcao(icao: string): Promise<ProcessedFlight | null> {
     const cacheKey = `flight_${icao}`
-    
+
     // Check cache first
     const cached = this.cacheService.get<ProcessedFlight>(cacheKey)
     if (cached) {
@@ -136,7 +136,7 @@ export class FlightService {
       // In a real implementation, you might want to use a different approach
       const bbox = this.calculateBoundingBox(50, 10, 1000) // Large area around Europe
       const rawFlights = await this.fetchFromOpenSky(bbox)
-      
+
       const flight = rawFlights.find(f => f.icao24 === icao)
       if (!flight) {
         return null
@@ -150,7 +150,7 @@ export class FlightService {
       }
 
       const processedFlight = processFlightData(flight, userLocation, 1000) // Use 1000km for individual flight lookup
-      
+
       if (processedFlight) {
         // Cache for 30 seconds
         this.cacheService.set(cacheKey, processedFlight, 30)
@@ -234,7 +234,7 @@ export class FlightService {
               spi: Boolean(state[15]),
               position_source: Number(state[16] || 0),
             }));
-  
+
             return flights;
           } catch (error) {
             if (
@@ -257,7 +257,7 @@ export class FlightService {
       } catch (error) {
         lastError = error as Error
         logger.error('E-FLT-003', `OpenSky request attempt ${attempt} failed`, error)
-        
+
         if (attempt === this.MAX_RETRIES) {
           throw new Error(`Failed to fetch flight data after ${this.MAX_RETRIES} attempts: ${lastError.message}`)
         }
@@ -284,7 +284,7 @@ export class FlightService {
     }>
   > {
     const cacheKey = `trajectory_${icao24}_${Date.now() - (30 * 60 * 1000)}`
-    
+
     // Check cache first (cache for 1 minute)
     const cached = this.cacheService.get<Array<{
       timestamp: number;
@@ -446,7 +446,16 @@ export class FlightService {
           }
         } catch (error) {
           lastError = error as Error
-          logger.error('E-FLT-004', `Trajectory attempt ${attempt} failed`, error)
+
+          if (axios.isAxiosError(error)) {
+            logger.error('E-FLT-004', `Trajectory attempt ${attempt} failed. Status: ${error.response?.status}`, {
+              status: error.response?.status,
+              statusText: error.response?.statusText,
+              data: error.response?.data
+            })
+          } else {
+            logger.error('E-FLT-004', `Trajectory attempt ${attempt} failed`, error)
+          }
 
           if (attempt === this.MAX_RETRIES) {
             throw new Error(`Failed to fetch flight trajectory after ${this.MAX_RETRIES} attempts: ${lastError.message}`)

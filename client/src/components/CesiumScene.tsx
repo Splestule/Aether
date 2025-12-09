@@ -12,14 +12,18 @@ import {
     Cartographic,
     Matrix4,
     Ion,
-    VerticalOrigin,
-    HorizontalOrigin,
-    DistanceDisplayCondition,
     ScreenSpaceEventHandler,
     ScreenSpaceEventType,
     defined,
     IonImageryProvider,
+    CatmullRomSpline,
+    HermiteSpline,
+    ConstantProperty,
+    NearFarScalar,
     CustomShader,
+    CallbackProperty,
+    ColorMaterialProperty,
+    Transforms,
 } from "cesium";
 
 import { ProcessedFlight, UserLocation } from "@shared/src/types";
@@ -51,20 +55,44 @@ export function CesiumScene({
 
     // Fetch trajectory when flight is selected
     useEffect(() => {
+        // Clear previous trajectory immediately to prevent "transfer" glitch
+        setTrajectory([]);
+        setHistorySamples([]); // Clear static history immediately
+
+        // INSTANT CLEANUP: Remove existing trajectory entities from the scene
+        // This ensures the old path disappears *instantly* when switching planes.
+        if (viewerRef.current) {
+            const entitiesToRemove: any[] = [];
+            viewerRef.current.entities.values.forEach(e => {
+                if (e.id && typeof e.id === 'string' && e.id.startsWith("traj-")) {
+                    entitiesToRemove.push(e);
+                }
+            });
+            entitiesToRemove.forEach(e => viewerRef.current?.entities.remove(e));
+        }
+
         if (!selectedFlight) {
-            setTrajectory([]);
             return;
         }
 
         const fetchTrajectory = async () => {
             try {
-                const response = await fetch(`${config.apiUrl}/api/flights/${selectedFlight.icao24}/trajectory?lat=${userLocation.latitude}&lon=${userLocation.longitude}&alt=${userLocation.altitude}`);
+                console.log(`[CesiumScene] Fetching trajectory for ${selectedFlight.icao24}...`);
+                const url = `${config.apiUrl}/api/flights/${selectedFlight.icao24}/trajectory?lat=${userLocation.latitude}&lon=${userLocation.longitude}&alt=${userLocation.altitude}`;
+                // console.log("[CesiumScene] URL:", url);
+
+                const response = await fetch(url);
+                console.log(`[CesiumScene] Response status: ${response.status}`);
+
                 const data = await response.json();
                 if (data.success) {
+                    console.log(`[CesiumScene] Loaded ${data.data.length} points.`);
                     setTrajectory(data.data);
+                } else {
+                    console.warn("[CesiumScene] API returned success: false", data);
                 }
             } catch (error) {
-                console.error("Failed to fetch trajectory:", error);
+                console.error("[CesiumScene] Failed to fetch trajectory:", error);
             }
         };
 
@@ -217,11 +245,14 @@ export function CesiumScene({
         viewerRef.current = viewer;
 
         // B. Global Settings
-        viewer.scene.globe.depthTestAgainstTerrain = false;
+        viewer.scene.globe.depthTestAgainstTerrain = true;
+        viewer.scene.highDynamicRange = false; // Fix "white" color washout
 
         // SKY & ATMOSPHERE STYLING (Gradient Sky)
         if (viewer.scene.skyAtmosphere) viewer.scene.skyAtmosphere.show = false;
         if (viewer.scene.skyBox) viewer.scene.skyBox.show = false;
+        if (viewer.scene.sun) viewer.scene.sun.show = false;
+        if (viewer.scene.moon) viewer.scene.moon.show = false;
         viewer.scene.backgroundColor = Color.TRANSPARENT; // Let CSS gradient show through
         viewer.scene.globe.baseColor = Color.BLACK; // Solid core
 
@@ -284,6 +315,13 @@ export function CesiumScene({
         controller.enableInputs = true;
         controller.enableLook = true;
         controller.lookEventTypes = CameraEventType.LEFT_DRAG;
+
+        // Disable Double Click (Teleport)
+        try {
+            (viewer as any).cesiumWidget.screenSpaceEventHandler.removeInputAction(ScreenSpaceEventType.LEFT_DOUBLE_CLICK);
+        } catch (e) {
+            console.warn("Failed to disable double-click zoom:", e);
+        }
 
         // FIX SNAPPING
         viewer.trackedEntity = undefined;
@@ -388,68 +426,454 @@ export function CesiumScene({
     }, []); // Empty dependency array = Runs ONCE
 
     // -------------------------------------------------------------------------
-    // 3. RENDER ENTITIES (Flights & Trajectory)
+    // 3. RENDER ENTITIES (Flights)
     // -------------------------------------------------------------------------
     useEffect(() => {
         if (!viewerRef.current) return;
         const viewer = viewerRef.current;
 
-        // Clear all entities to prevent duplicates
-        viewer.entities.removeAll();
+        // Track active flight IDs to identify removals
+        const activeFlightIds = new Set(flights.map(f => f.id));
 
-        // Add Flights
+        // 1. Update or Add Flights
         flights.forEach((flight) => {
-            // Add click handler wrapper? 
-            // Native Cesium entities don't have onClick props directly.
-            // We handle clicks via ScreenSpaceEventHandler usually, but for now let's just render.
-            // To handle selection, we need a global handler.
+            const isSelected = selectedFlight?.id === flight.id;
+            const ghostId = `${flight.id}-ghost`;
 
-            viewer.entities.add({
-                id: flight.id,
-                position: Cartesian3.fromDegrees(
-                    flight.gps.longitude,
-                    flight.gps.latitude,
-                    flight.gps.altitude
-                ),
-                point: {
-                    pixelSize: selectedFlight?.id === flight.id ? 15 : 10,
-                    color: selectedFlight?.id === flight.id ? Color.YELLOW : Color.RED,
-                    outlineColor: Color.WHITE,
-                    outlineWidth: 2,
-                },
-                label: {
-                    text: `${flight.callsign} \n${formatAltitude(flight.gps.altitude)} `,
-                    font: "12px sans-serif",
-                    pixelOffset: new Cartesian3(0, 20, 0),
-                    verticalOrigin: VerticalOrigin.BOTTOM,
-                    horizontalOrigin: HorizontalOrigin.CENTER,
-                    fillColor: Color.WHITE,
-                    showBackground: false,
-                    distanceDisplayCondition: new DistanceDisplayCondition(0, 50000),
-                },
-                description: `
+            let entity = viewer.entities.getById(flight.id);
+            let ghostEntity = viewer.entities.getById(ghostId);
+
+            const position = Cartesian3.fromDegrees(
+                flight.gps.longitude,
+                flight.gps.latitude,
+                flight.gps.altitude
+            );
+
+            // Colors
+            const mainColor = isSelected ? Color.fromCssColorString("#c6a0e8") : Color.WHITE;
+            const ghostColor = mainColor.withAlpha(0.5);
+            const pixelSize = isSelected ? 25 : 20;
+
+            // --- MAIN ENTITY ---
+            if (entity) {
+                // UPDATE existing entity
+                entity.position = position as any;
+
+                if (entity.point) {
+                    entity.point.color = new ConstantProperty(mainColor);
+                    entity.point.pixelSize = new ConstantProperty(pixelSize);
+                }
+
+                // Polyline positions are handled by CallbackProperty set on creation
+
+                entity.description = new ConstantProperty(`
+Callsign: ${flight.callsign}
+Altitude: ${formatAltitude(flight.gps.altitude)}
+Speed: ${formatSpeed(flight.velocity)}
+Heading: ${flight.heading}°
+`) as any;
+
+            } else {
+                // ADD new entity
+                const newEntity = viewer.entities.add({
+                    id: flight.id,
+                    position: position,
+                    // Point (Flat, No Shading)
+                    point: {
+                        pixelSize: pixelSize,
+                        color: mainColor,
+                        outlineColor: Color.BLACK.withAlpha(0.2),
+                        outlineWidth: 1,
+                        scaleByDistance: new NearFarScalar(1.0e3, 1.0, 1.0e5, 0.5),
+                        // Normal depth test (occluded by terrain)
+                        disableDepthTestDistance: 0,
+                    },
+                    // Vertical Line to Ground
+                    polyline: {
+                        width: 2,
+                        material: new Color(1.0, 1.0, 1.0, 0.3) // Faint white
+                    },
+                    description: `
 Callsign: ${flight.callsign}
 Altitude: ${formatAltitude(flight.gps.altitude)}
 Speed: ${formatSpeed(flight.velocity)}
 Heading: ${flight.heading}°
 `
-            });
+                });
+
+                // Use CallbackProperty to lock line to point
+                newEntity.polyline!.positions = new CallbackProperty((time: any) => {
+                    const currentPos = newEntity.position?.getValue(time);
+                    if (!currentPos) return [];
+
+                    // Calculate ground position (same lat/lon, height 0)
+                    const cart = Cartographic.fromCartesian(currentPos);
+                    const groundPos = Cartesian3.fromRadians(cart.longitude, cart.latitude, 0);
+
+                    return [currentPos, groundPos];
+                }, false);
+            }
+
+            // --- GHOST ENTITY (Always Visible, 50% Opacity) ---
+            if (ghostEntity) {
+                ghostEntity.position = position as any;
+                if (ghostEntity.point) {
+                    ghostEntity.point.color = new ConstantProperty(ghostColor);
+                    ghostEntity.point.pixelSize = new ConstantProperty(pixelSize);
+                }
+            } else {
+                viewer.entities.add({
+                    id: ghostId,
+                    position: position,
+                    point: {
+                        pixelSize: pixelSize,
+                        color: ghostColor,
+                        outlineColor: Color.BLACK.withAlpha(0.1),
+                        outlineWidth: 1,
+                        scaleByDistance: new NearFarScalar(1.0e3, 1.0, 1.0e5, 0.5),
+                        // Always visible (ignores depth)
+                        disableDepthTestDistance: Number.POSITIVE_INFINITY,
+                    },
+                    // No polyline for ghost
+                });
+            }
         });
 
-        // Add Trajectory
-        if (trajectory.length > 0) {
-            viewer.entities.add({
-                polyline: {
-                    positions: Cartesian3.fromDegreesArrayHeights(
-                        trajectory.flatMap(p => [p.gps.longitude, p.gps.latitude, p.gps.altitude])
-                    ),
-                    width: 3,
-                    material: Color.CYAN
-                }
-            });
+        // 2. Remove Stale Flights
+        const entitiesToRemove: any[] = [];
+        viewer.entities.values.forEach((entity) => {
+            const id = entity.id;
+            if (typeof id !== 'string') return;
+
+            // Trajectory
+            if (id.startsWith("traj-")) return;
+
+            // Ghost Entity
+            if (id.endsWith("-ghost")) {
+                const baseId = id.replace("-ghost", "");
+                if (activeFlightIds.has(baseId)) return; // Keep if base is active
+                entitiesToRemove.push(entity);
+                return;
+            }
+
+            // Main Entity
+            if (activeFlightIds.has(id)) return;
+
+            // Otherwise remove (stale main entity or unknown)
+            entitiesToRemove.push(entity);
+        });
+
+        entitiesToRemove.forEach(e => viewer.entities.remove(e));
+
+    }, [flights, selectedFlight]); // Only re-run when flights or selection changes
+
+    // -------------------------------------------------------------------------
+    // 4. RENDER TRAJECTORY (Split into Static History + Live Bridge)
+
+    // State for static history samples (computed only when trajectory data changes)
+    const [historySamples, setHistorySamples] = useState<Cartesian3[]>([]);
+    // const [lastHistoryTime, setLastHistoryTime] = useState<number>(0);
+
+    // Effect A: Compute Static History Spline
+    useEffect(() => {
+        if (trajectory.length === 0) {
+            setHistorySamples([]);
+            // setLastHistoryTime(0);
+            return;
         }
 
-    }, [flights, selectedFlight, trajectory]);
+        // Helper to remove outliers (sharp turns)
+        const removeOutliers = (points: any[]) => {
+            if (points.length < 3) return points;
+
+            try {
+                const cartesians = points.map(p => Cartesian3.fromDegrees(p.gps.longitude, p.gps.latitude, p.gps.altitude));
+                const keep = new Array(points.length).fill(true);
+
+                for (let i = 1; i < points.length - 1; i++) {
+                    const prev = cartesians[i - 1];
+                    const curr = cartesians[i];
+                    const next = cartesians[i + 1];
+
+                    const v1 = Cartesian3.subtract(curr, prev, new Cartesian3());
+                    const v2 = Cartesian3.subtract(next, curr, new Cartesian3());
+
+                    // Check for zero length vectors to prevent crash
+                    if (Cartesian3.magnitudeSquared(v1) < 0.0001 || Cartesian3.magnitudeSquared(v2) < 0.0001) {
+                        continue;
+                    }
+
+                    Cartesian3.normalize(v1, v1);
+                    Cartesian3.normalize(v2, v2);
+
+                    const dot = Cartesian3.dot(v1, v2);
+
+                    // Filter sharp turns (> 90 degrees change)
+                    if (dot < 0.0) {
+                        keep[i] = false;
+                    }
+                }
+
+                return points.filter((_, i) => keep[i]);
+            } catch (e) {
+                console.error("[CesiumScene] Error removing outliers:", e);
+                return points;
+            }
+        };
+
+        // Sort by timestamp first
+        const sortedTrajectory = [...trajectory].sort((a, b) => a.timestamp - b.timestamp);
+
+        // Remove outliers before filtering by time
+        let workingTrajectory = removeOutliers(sortedTrajectory);
+
+        // Safety check: If outlier removal left us with too few points, revert to original
+        if (workingTrajectory.length < 2) {
+            workingTrajectory = sortedTrajectory;
+        }
+
+        // Filter for last 15 minutes
+        const cutoff = Date.now() - 15 * 60 * 1000;
+        let filteredTrajectory = workingTrajectory.filter(p => p.timestamp > cutoff);
+
+        // Fallback: If we have no recent points, or too few, take the last 20 points available
+        // This ensures we show *something* even if data is old (matching Desktop behavior)
+        if (filteredTrajectory.length < 2 && workingTrajectory.length > 0) {
+            filteredTrajectory = workingTrajectory.slice(-20);
+        }
+
+        // If we have NO points, clear and return
+        if (filteredTrajectory.length === 0) {
+            setHistorySamples([]);
+            return;
+        }
+
+        const positions = filteredTrajectory.map(p => Cartesian3.fromDegrees(p.gps.longitude, p.gps.latitude, p.gps.altitude));
+
+        // If we only have 1 point, we can't make a spline, but we CAN use it as a start point for the bridge
+        if (positions.length === 1) {
+            setHistorySamples(positions);
+            return;
+        }
+
+        const times = filteredTrajectory.map(p => p.timestamp / 1000);
+
+        try {
+            const spline = new CatmullRomSpline({
+                times: times,
+                points: positions
+            });
+
+            const startTime = times[0];
+            const endTime = times[times.length - 1];
+            const duration = endTime - startTime;
+
+            if (duration <= 0) return;
+
+            const numSamples = Math.max(positions.length * 10, 50);
+            const samples: Cartesian3[] = [];
+            for (let i = 0; i <= numSamples; i++) {
+                const t = startTime + (i / numSamples) * duration;
+                samples.push(spline.evaluate(t));
+            }
+
+            setHistorySamples(samples);
+            // setLastHistoryTime(endTime); // Store end time of history for bridging
+        } catch (e) {
+            console.error("[CesiumScene] Error generating history spline:", e);
+            // Fallback: Use raw positions if spline fails
+            setHistorySamples(positions);
+        }
+    }, [trajectory]);
+
+    // Effect B: Render Loop (Connect History to Live Plane)
+    useEffect(() => {
+        if (!viewerRef.current) return;
+        const viewer = viewerRef.current;
+
+        // SKIP LAST POINT STRATEGY:
+        // We exclude the very last point of the static history from the "static" list.
+        // Instead, we start the smooth bridge from the *second to last* point.
+        // This replaces the final jagged segment with a smooth curve, eliminating the "kink" at the connection.
+        let finalPositions: Cartesian3[] = [];
+        let bridgeStartPoint: Cartesian3 | null = null;
+        let prevHistoryPoint: Cartesian3 | null = null;
+
+        if (historySamples.length >= 2) {
+            // Use all points EXCEPT the last one
+            finalPositions = historySamples.slice(0, historySamples.length - 1);
+            bridgeStartPoint = historySamples[historySamples.length - 2];
+
+            // For tangent calculation
+            if (historySamples.length >= 3) {
+                prevHistoryPoint = historySamples[historySamples.length - 3];
+            } else {
+                prevHistoryPoint = bridgeStartPoint; // Fallback
+            }
+        } else {
+            // Not enough history to skip, just use what we have
+            finalPositions = [...historySamples];
+            if (historySamples.length > 0) {
+                bridgeStartPoint = historySamples[historySamples.length - 1];
+                prevHistoryPoint = bridgeStartPoint;
+            }
+        }
+
+        // Add Bridge to Current Position (Smooth Spline + Validation)
+        if (selectedFlight && bridgeStartPoint) {
+            const currentPos = Cartesian3.fromDegrees(
+                selectedFlight.gps.longitude,
+                selectedFlight.gps.latitude,
+                selectedFlight.gps.altitude
+            );
+
+            // Validate currentPos to prevent crash
+            if (currentPos && !Cartesian3.equals(currentPos, Cartesian3.ZERO)) {
+                const distance = Cartesian3.distance(bridgeStartPoint, currentPos);
+
+                // Only add if distance is significant (> 1 meter) to prevent zero-length segments
+                // which cause "normalized result is not a number" errors in Cesium
+                if (distance > 1.0) {
+                    // SMOOTHING: Use a local spline to connect history to current position
+                    try {
+                        // Calculate tangents for Hermite Spline
+                        // 1. Outgoing tangent from history (at bridgeStartPoint)
+                        let outgoingTangent: Cartesian3;
+
+                        // Scale factor: 0.5 is standard for Catmull-Rom style curvature. 
+                        const tangentScale = distance * 0.5;
+
+                        if (prevHistoryPoint && Cartesian3.distance(prevHistoryPoint, bridgeStartPoint) > 0.1) {
+                            // CATMULL-ROM TANGENT STRATEGY:
+                            // Tangent = (NextPoint - PrevPoint) / 2
+                            // NextPoint = currentPos
+                            // PrevPoint = prevHistoryPoint
+                            const curveDir = Cartesian3.subtract(currentPos, prevHistoryPoint, new Cartesian3());
+                            Cartesian3.normalize(curveDir, curveDir);
+                            outgoingTangent = Cartesian3.multiplyByScalar(curveDir, tangentScale, new Cartesian3());
+                        } else {
+                            // No previous history, point straight at plane
+                            const dir = Cartesian3.subtract(currentPos, bridgeStartPoint, new Cartesian3());
+                            Cartesian3.normalize(dir, dir);
+                            outgoingTangent = Cartesian3.multiplyByScalar(dir, tangentScale, new Cartesian3());
+                        }
+
+                        // 2. Incoming tangent to plane: Aligned with Heading AND Pitch
+                        const currentAlt = selectedFlight.gps.altitude;
+                        const lastCartographic = Cartographic.fromCartesian(bridgeStartPoint);
+                        const lastAlt = lastCartographic.height;
+                        const altDiff = currentAlt - lastAlt;
+
+                        // Calculate slope (approximate sine of pitch)
+                        const slope = altDiff / distance;
+
+                        const headingRad = CesiumMath.toRadians(selectedFlight.heading);
+                        const modelMatrix = Transforms.eastNorthUpToFixedFrame(currentPos);
+
+                        // ENU: East=X, North=Y, Up=Z
+                        const x = Math.sin(headingRad);
+                        const y = Math.cos(headingRad);
+
+                        // Combine into 3D vector
+                        const localDir = new Cartesian3(x, y, slope);
+                        Cartesian3.normalize(localDir, localDir);
+
+                        const planeDir = Matrix4.multiplyByPointAsVector(modelMatrix, localDir, new Cartesian3());
+
+                        // Scale tangent by distance
+                        const planeTangent = Cartesian3.multiplyByScalar(planeDir, tangentScale, new Cartesian3());
+
+                        // Create Hermite Spline
+                        const bridgeSpline = new HermiteSpline({
+                            times: [0, 1],
+                            points: [bridgeStartPoint, currentPos],
+                            inTangents: [outgoingTangent, planeTangent],
+                            outTangents: [outgoingTangent, planeTangent]
+                        });
+
+                        // Sample the bridge segment
+                        const bridgeSamples = 20; // Increased samples for smoother curve
+                        for (let i = 1; i <= bridgeSamples; i++) {
+                            const t = i / bridgeSamples;
+                            finalPositions.push(bridgeSpline.evaluate(t));
+                        }
+                    } catch (e) {
+                        // Fallback to straight line if spline fails
+                        finalPositions.push(currentPos);
+                    }
+                }
+            }
+        } else if (selectedFlight && historySamples.length > 0) {
+            // Fallback for very short history (0 or 1 point): just draw line from last point
+            const currentPos = Cartesian3.fromDegrees(
+                selectedFlight.gps.longitude,
+                selectedFlight.gps.latitude,
+                selectedFlight.gps.altitude
+            );
+            if (currentPos && !Cartesian3.equals(currentPos, Cartesian3.ZERO)) {
+                finalPositions.push(currentPos);
+            }
+        }
+
+        // Filter out any invalid points (Zero vectors) just in case to strictly prevent crashes
+        // AND Deduplicate points to prevent "normalized result is not a number" crash in PolylinePipeline
+        finalPositions = finalPositions.filter((p, index) => {
+            if (Cartesian3.equals(p, Cartesian3.ZERO)) return false;
+            if (index === 0) return true;
+            return Cartesian3.distance(p, finalPositions[index - 1]) > 0.1; // 10cm threshold
+        });
+
+        const segmentCount = finalPositions.length - 1;
+
+        for (let i = 0; i < segmentCount; i++) {
+            const start = finalPositions[i];
+            const end = finalPositions[i + 1];
+            const progress = i / segmentCount;
+
+            // Visual Style: Thinner, Purple, Fades out
+            // Width: 0 (tail) -> 3 (plane)
+            const width = progress * 3;
+            // Opacity: 0.0 (tail) -> 0.8 (plane)
+            const opacity = progress * 0.8;
+            const color = Color.fromCssColorString("#c6a0e8").withAlpha(opacity);
+
+            const segmentId = `traj-${i}`;
+            const entity = viewer.entities.getById(segmentId);
+
+            if (entity) {
+                // UPDATE existing segment
+                if (entity.polyline) {
+                    entity.polyline.positions = [start, end] as any;
+                    entity.polyline.width = new ConstantProperty(width);
+                    entity.polyline.material = new ColorMaterialProperty(color);
+                    entity.polyline.depthFailMaterial = new ColorMaterialProperty(Color.TRANSPARENT);
+                }
+            } else {
+                // ADD new segment
+                viewer.entities.add({
+                    id: segmentId,
+                    polyline: {
+                        positions: [start, end],
+                        width: width,
+                        material: new ColorMaterialProperty(color),
+                        depthFailMaterial: new ColorMaterialProperty(Color.TRANSPARENT)
+                    }
+                });
+            }
+        }
+
+        // Cleanup Stale Segments
+        const entitiesToRemove: any[] = [];
+        viewer.entities.values.forEach(e => {
+            if (e.id && typeof e.id === 'string' && e.id.startsWith("traj-")) {
+                const index = parseInt(e.id.replace("traj-", ""), 10);
+                if (!isNaN(index) && index >= segmentCount) {
+                    entitiesToRemove.push(e);
+                }
+            }
+        });
+        entitiesToRemove.forEach(e => viewer.entities.remove(e));
+    }, [historySamples, selectedFlight]);
 
     // Handle Clicks on Entities
     useEffect(() => {
@@ -461,7 +885,13 @@ Heading: ${flight.heading}°
             const pickedObject = viewer.scene.pick(click.position);
             if (defined(pickedObject) && pickedObject.id) {
                 // Find flight by ID
-                const flightId = pickedObject.id.id; // Entity ID
+                let flightId = pickedObject.id.id; // Entity ID (string)
+
+                // Handle ghost entities
+                if (typeof flightId === 'string' && flightId.endsWith("-ghost")) {
+                    flightId = flightId.replace("-ghost", "");
+                }
+
                 const flight = flights.find(f => f.id === flightId);
                 if (flight) {
                     handleSelect(flight);

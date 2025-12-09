@@ -580,8 +580,8 @@ function SingleControllerRaycast({
       // Calculate collision sphere size (matching ARWaypoint calculation)
       const distanceFromUser = Math.sqrt(
         flight.position.x * flight.position.x +
-          flight.position.y * flight.position.y +
-          flight.position.z * flight.position.z
+        flight.position.y * flight.position.y +
+        flight.position.z * flight.position.z
       );
       const distanceKm = distanceFromUser / 1000;
       const baseSize = 50;
@@ -709,13 +709,13 @@ function JoystickCoefficientAdjuster({
 
   useFrame((_state, _delta, xrFrame) => {
     frameCountRef.current++;
-    
+
     // Try multiple methods to access gamepad input
-    
+
     // Method 1: Through useController hook
     let leftGamepad = leftController?.inputSource?.gamepad;
     let rightGamepad = rightController?.inputSource?.gamepad;
-    
+
     // Method 2: Through XR frame's input sources (if available)
     if (xrFrame && session) {
       const inputSources = session.inputSources;
@@ -730,7 +730,7 @@ function JoystickCoefficientAdjuster({
         }
       }
     }
-    
+
     // Method 3: Through controllers array from useXR
     if (!leftGamepad || !rightGamepad) {
       for (const controller of controllers) {
@@ -743,7 +743,7 @@ function JoystickCoefficientAdjuster({
         }
       }
     }
-    
+
     // Debug logging (once at frame 60)
     if (frameCountRef.current === 60 && !debugLoggedRef.current) {
       console.log('Button Debug Info:', {
@@ -782,11 +782,11 @@ function JoystickCoefficientAdjuster({
     // Left: X = button 4, Y = button 5
     // Right: A = button 4, B = button 5
     // But we'll check all buttons and identify by index
-    
+
     // Left controller: X (decrease height) and Y (increase height)
     if (leftGamepad && leftGamepad.connected && leftGamepad.buttons) {
       const buttons = leftGamepad.buttons;
-      
+
       // Button 4 = X (decrease height)
       if (buttons[4] && buttons[4].pressed) {
         // Continuous adjustment while button is held
@@ -796,7 +796,7 @@ function JoystickCoefficientAdjuster({
           onHeightCoefficientChange(newValue);
         }
       }
-      
+
       // Button 5 = Y (increase height)
       if (buttons[5] && buttons[5].pressed) {
         // Continuous adjustment while button is held
@@ -811,7 +811,7 @@ function JoystickCoefficientAdjuster({
     // Right controller: A (decrease distance) and B (increase distance)
     if (rightGamepad && rightGamepad.connected && rightGamepad.buttons) {
       const buttons = rightGamepad.buttons;
-      
+
       // Button 0 = Trigger (save defaults)
       if (buttons[0] && buttons[0].pressed) {
         // Only trigger once when button is first pressed
@@ -823,7 +823,7 @@ function JoystickCoefficientAdjuster({
       } else {
         rightTriggerPressedRef.current = false;
       }
-      
+
       // Button 4 = A (decrease distance)
       if (buttons[4] && buttons[4].pressed) {
         // Continuous adjustment while button is held
@@ -833,7 +833,7 @@ function JoystickCoefficientAdjuster({
           onDistanceCoefficientChange(newValue);
         }
       }
-      
+
       // Button 5 = B (increase distance)
       if (buttons[5] && buttons[5].pressed) {
         // Continuous adjustment while button is held
@@ -862,11 +862,69 @@ function SceneContent({
   onSaveDefaults,
 }: VRSceneProps) {
   const { isPresenting } = useXR();
+  const { camera } = useThree();
   const [sceneRotation, setSceneRotation] = useState(0);
+  const controlsRef = useRef<any>(null);
+  const [hasAimed, setHasAimed] = useState(false);
 
   const filteredFlights = flights.filter(
     (flight) => flight.distance <= config.maxDistance
   );
+
+  // Aim at the nearest flight on mount (Desktop mode only)
+  useEffect(() => {
+    if (!isPresenting && !hasAimed && filteredFlights.length > 0) {
+      // Find nearest flight
+      let nearestFlight = filteredFlights[0];
+      let minDistance = Infinity;
+
+      filteredFlights.forEach(flight => {
+        const dist = Math.sqrt(
+          flight.position.x * flight.position.x +
+          flight.position.y * flight.position.y +
+          flight.position.z * flight.position.z
+        );
+        if (dist < minDistance) {
+          minDistance = dist;
+          nearestFlight = flight;
+        }
+      });
+
+      if (nearestFlight) {
+        // Calculate direction from origin to flight
+        const flightPos = new Vector3(
+          nearestFlight.position.x,
+          nearestFlight.position.y,
+          nearestFlight.position.z
+        );
+
+        // We want the camera to be on the opposite side of the origin, looking at the origin
+        // This way the flight (which is behind the origin from the camera's perspective) is visible?
+        // Wait, OrbitControls target is (0,0,0).
+        // If Camera is at C, looking at O.
+        // We want Flight F to be in the view.
+        // If F is at (100, 0, 0) [East].
+        // Camera at (-10, 0, 0) [West] looking at O [Center] sees F in the background.
+        // So Camera Position = -DirectionToFlight * Radius.
+
+        const direction = flightPos.clone().normalize();
+        const currentRadius = camera.position.length() || 1.6; // Default to 1.6m if 0
+
+        // Position camera opposite to the flight
+        const newCamPos = direction.multiplyScalar(-currentRadius);
+
+        camera.position.copy(newCamPos);
+        camera.lookAt(0, 0, 0); // Ensure looking at center
+
+        if (controlsRef.current) {
+          controlsRef.current.update();
+        }
+
+        setHasAimed(true);
+        console.log("Aimed at nearest flight:", nearestFlight.callsign);
+      }
+    }
+  }, [isPresenting, hasAimed, filteredFlights, camera]);
 
   const handleCompassRotation = (rotationDelta: number) => {
     // Accumulate rotation delta into scene rotation
@@ -972,6 +1030,7 @@ function SceneContent({
       {/* Controls - only enabled when not in VR */}
       {!isPresenting && (
         <OrbitControls
+          ref={controlsRef}
           enablePan={false}
           enableZoom={false}
           enableRotate={true}
@@ -1047,35 +1106,6 @@ export function VRScene({
             />
           </Suspense>
         </ARCanvas>
-        <div
-          className="absolute top-2 right-4 sm:top-6 sm:right-6 pointer-events-none z-[4]"
-        >
-          <div className="vr-panel flex items-center gap-3 sm:gap-5 px-3 py-2 sm:px-5 sm:py-4">
-            <img
-              src="/aether-logo.png"
-              alt="Aether logo"
-              className="h-8 w-8 sm:h-[58px] sm:w-[58px] object-contain"
-              style={{
-                filter: "drop-shadow(0 18px 32px rgba(56, 189, 248, 0.32))",
-              }}
-              draggable={false}
-            />
-            <span
-              className="hidden sm:inline-block"
-              style={{
-                fontFamily: '"Unbounded", "Stack Sans Notch", "Gabarito", sans-serif',
-                fontSize: "1.75rem",
-                letterSpacing: "0.12em",
-                textTransform: "none",
-                color: "#ffffff",
-                textShadow: "0 8px 24px rgba(15, 23, 42, 0.85)",
-                lineHeight: 1,
-              }}
-            >
-              Aether
-            </span>
-          </div>
-        </div>
       </div>
     </>
   );

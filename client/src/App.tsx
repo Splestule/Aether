@@ -433,8 +433,8 @@ function App() {
           </div>
         )}
 
-        {/* VR Controls */}
-        {userLocation && viewMode === 'vr' && (
+        {/* VR Controls - Show in both VR and Cesium (Real World) modes */}
+        {userLocation && (viewMode === 'vr' || viewMode === 'cesium') && (
           <VRControls
             flightCount={flights.length}
             isLoading={isLoading}
@@ -446,47 +446,77 @@ function App() {
             onRefreshFlights={refreshFlights}
             isRouteEnabled={isRouteEnabled}
             onToggleRoute={() => setIsRouteEnabled((prev) => !prev)}
-            heightCoefficient={heightCoefficient}
-            distanceCoefficient={distanceCoefficient}
           />
         )}
 
         {/* View Mode Toggle */}
         {userLocation && (
-          <div className="absolute top-4 right-4 z-[1000] flex gap-2">
-            <button
-              onClick={() => setViewMode('vr')}
-              className={`px-4 py-2 rounded-lg font-bold transition-colors ${viewMode === 'vr'
-                ? 'bg-blue-600 text-white'
-                : 'bg-black/50 text-white/70 hover:bg-black/70'
-                }`}
-            >
-              VR Mode
-            </button>
-            <button
-              onClick={() => setViewMode('cesium')}
-              className={`px-4 py-2 rounded-lg font-bold transition-colors ${viewMode === 'cesium'
-                ? 'bg-blue-600 text-white'
-                : 'bg-black/50 text-white/70 hover:bg-black/70'
-                }`}
-            >
-              Real World
-            </button>
-            {/* Back button for Cesium mode since VRControls is hidden */}
-            {viewMode === 'cesium' && (
-              <button
-                onClick={() => {
-                  setUserLocation(null);
-                  clearFlights();
-                  setSelectedFlight(null);
+          <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000] flex flex-col items-end gap-2 sm:gap-4">
+            {/* Logo - moved from VRScene */}
+            <div className="vr-panel hidden sm:flex items-center gap-3 sm:gap-5 px-3 py-2 sm:px-5 sm:py-4 pointer-events-none select-none">
+              <img
+                src="/aether-logo.png"
+                alt="Aether logo"
+                className="h-8 w-8 sm:h-[58px] sm:w-[58px] object-contain"
+                style={{
+                  filter: "drop-shadow(0 18px 32px rgba(56, 189, 248, 0.32))",
                 }}
-                className="bg-red-600/80 hover:bg-red-600 text-white px-4 py-2 rounded-lg font-bold transition-colors"
+                draggable={false}
+              />
+              <span
+                className="hidden sm:inline-block"
+                style={{
+                  fontFamily: '"Unbounded", "Stack Sans Notch", "Gabarito", sans-serif',
+                  fontSize: "1.75rem",
+                  letterSpacing: "0.12em",
+                  textTransform: "none",
+                  color: "#ffffff",
+                  textShadow: "0 8px 24px rgba(15, 23, 42, 0.85)",
+                  lineHeight: 1,
+                }}
               >
-                Exit
+                Aether
+              </span>
+            </div>
+
+            {/* Mobile Logo - Bottom Left */}
+            <div className="fixed bottom-6 left-6 z-[1000] flex sm:hidden pointer-events-none select-none opacity-70">
+              <img
+                src="/aether-logo.png"
+                alt="Aether logo"
+                className="h-12 w-12 object-contain"
+                style={{
+                  filter: "drop-shadow(0 4px 12px rgba(56, 189, 248, 0.3))",
+                }}
+                draggable={false}
+              />
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col gap-2 w-full">
+              <button
+                onClick={() => setViewMode('vr')}
+                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${viewMode === 'vr'
+                  ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
+                  : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
+                  }`}
+              >
+                Passthrough View
               </button>
-            )}
+              <button
+                onClick={() => setViewMode('cesium')}
+                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${viewMode === 'cesium'
+                  ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
+                  : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
+                  }`}
+              >
+                Virtual Environment
+              </button>
+            </div>
           </div>
         )}
+        {/* Back button removed - now handled by VRControls */}
+
 
         {/* Flight Info Panel */}
         {selectedFlight && (
@@ -509,20 +539,22 @@ function App() {
       </div>
 
       {/* Made by + OpenSky citation footer - only show on homepage */}
-      {!userLocation && (
-        <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none">
-          <p className="text-[10px] sm:text-sm">
-            Made by Eduard Šimon of Gymnázium Žďár nad Sázavou ©
-          </p>
-          <div className="mt-2 text-[6.5px] sm:text-[9px] text-white/70">
-            <p className="text-[7.5px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
-            <p>Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm.</p>
-            <p>"Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research".</p>
-            <p className="whitespace-normal sm:whitespace-nowrap">In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
+      {
+        !userLocation && (
+          <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none">
+            <p className="text-[10px] sm:text-sm">
+              Made by Eduard Šimon of Gymnázium Žďár nad Sázavou ©
+            </p>
+            <div className="mt-2 text-[6.5px] sm:text-[9px] text-white/70">
+              <p className="text-[7.5px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
+              <p>Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm.</p>
+              <p>"Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research".</p>
+              <p className="whitespace-normal sm:whitespace-nowrap">In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }
 
