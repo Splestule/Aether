@@ -41,6 +41,7 @@ interface VRSceneProps {
   onDistanceCoefficientChange: (value: number) => void;
   onSaveDefaults: () => void;
   isOutOfRange?: boolean;
+  cameraRef?: React.MutableRefObject<{ heading: number; pitch: number } | null>;
 }
 
 // VR Flight Info Panel - 3D panel attached to left controller
@@ -880,6 +881,7 @@ function SceneContent({
   onDistanceCoefficientChange,
   onSaveDefaults,
   isOutOfRange,
+  cameraRef,
 }: VRSceneProps) {
   const { isPresenting } = useXR();
   const { camera } = useThree();
@@ -893,6 +895,45 @@ function SceneContent({
 
   // Aim at the nearest flight on mount (Desktop mode only)
   useEffect(() => {
+    // If we have a saved camera orientation, use it instead of auto-aiming
+    if (cameraRef?.current && !isPresenting) {
+      const { heading, pitch } = cameraRef.current;
+      console.log("Restoring VR Camera:", { heading, pitch });
+
+      // Convert Cesium (Heading/Pitch) to Three.js (Position/LookAt)
+      // Cesium Heading: 0=North (X+), 90=East (Z+)
+      // Cesium Pitch: 0=Horizon, -90=Down (looking down)
+
+      // We want the camera to look in the direction (heading, pitch).
+      // Since OrbitControls looks at (0,0,0), we place the camera in the OPPOSITE direction.
+
+      // Direction vector (where we want to look)
+      // Note: Cesium pitch is negative for looking down. 
+      // In Three.js Y-up: looking down means direction.y is negative.
+      // So sin(pitch) works directly.
+
+      const y = Math.sin(pitch);
+      const horiz = Math.cos(pitch);
+      const x = Math.cos(heading) * horiz;
+      const z = Math.sin(heading) * horiz;
+
+      const lookDir = new Vector3(x, y, z).normalize();
+
+      // Camera Position = Center - (LookDir * Radius)
+      const radius = camera.position.length() || 1.6;
+      const newPos = lookDir.multiplyScalar(-radius);
+
+      camera.position.copy(newPos);
+      camera.lookAt(0, 0, 0);
+
+      if (controlsRef.current) {
+        controlsRef.current.update();
+      }
+
+      setHasAimed(true); // Prevent auto-aim
+      return;
+    }
+
     if (!isPresenting && !hasAimed && filteredFlights.length > 0) {
       // Find nearest flight
       let nearestFlight = filteredFlights[0];
@@ -945,6 +986,27 @@ function SceneContent({
       }
     }
   }, [isPresenting, hasAimed, filteredFlights, camera]);
+
+  // Save camera orientation on unmount
+  useEffect(() => {
+    return () => {
+      if (cameraRef && !isPresenting) {
+        // Calculate Heading/Pitch from Camera
+        // Forward vector = (0, 0, -1) in camera space
+        const forward = new Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
+
+        // Heading: atan2(z, x)
+        // X+ = North, Z+ = East
+        const heading = Math.atan2(forward.z, forward.x);
+
+        // Pitch: asin(y)
+        const pitch = Math.asin(forward.y);
+
+        cameraRef.current = { heading, pitch };
+        console.log("Saved VR Camera:", cameraRef.current);
+      }
+    };
+  }, [camera, isPresenting]);
 
   const handleCompassRotation = (rotationDelta: number) => {
     // Accumulate rotation delta into scene rotation
@@ -1071,6 +1133,7 @@ export function VRScene({
   onDistanceCoefficientChange,
   onSaveDefaults,
   isOutOfRange,
+  cameraRef,
 }: VRSceneProps) {
   return (
     <>
@@ -1118,6 +1181,7 @@ export function VRScene({
               onDistanceCoefficientChange={onDistanceCoefficientChange}
               onSaveDefaults={onSaveDefaults}
               isOutOfRange={isOutOfRange}
+              cameraRef={cameraRef}
             />
           </Suspense>
         </ARCanvas>

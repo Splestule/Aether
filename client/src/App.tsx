@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { VRScene } from "./components/VRScene";
 import { LocationSelector } from "./components/LocationSelector";
@@ -24,6 +24,9 @@ function App() {
   const [viewMode, setViewMode] = useState<'vr' | 'cesium'>('vr');
   const [followingFlight, setFollowingFlight] = useState<ProcessedFlight | null>(null);
   const [errorNotification, setErrorNotification] = useState<ErrorNotificationData | null>(null);
+
+  // Ref to store camera orientation when switching views
+  const cameraOrientationRef = useRef<{ heading: number; pitch: number } | null>(null);
 
   // Load default coefficients from localStorage or use 1.0
   const loadDefaultCoefficients = () => {
@@ -392,6 +395,7 @@ function App() {
           onDistanceCoefficientChange={setDistanceCoefficient}
           onSaveDefaults={saveCoefficientsAsDefaults}
           isOutOfRange={isOutOfRange}
+          cameraRef={cameraOrientationRef}
         />
       )}
 
@@ -403,6 +407,7 @@ function App() {
           selectedFlight={selectedFlight}
           onFlightSelect={handleFlightSelect}
           followingFlight={followingFlight}
+          cameraRef={cameraOrientationRef}
         />
       )}
 

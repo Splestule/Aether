@@ -41,6 +41,7 @@ interface CesiumSceneProps {
     selectedFlight: ProcessedFlight | null;
     onFlightSelect: (flight: ProcessedFlight | null) => void;
     followingFlight: ProcessedFlight | null;
+    cameraRef?: React.MutableRefObject<{ heading: number; pitch: number } | null>;
 }
 
 export function CesiumScene({
@@ -49,6 +50,7 @@ export function CesiumScene({
     selectedFlight,
     onFlightSelect,
     followingFlight,
+    cameraRef,
 }: CesiumSceneProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<CesiumViewer | null>(null);
@@ -624,17 +626,24 @@ export function CesiumScene({
         setTimeout(() => {
             if (viewer.isDestroyed()) return;
             console.log("Executing Initial Camera SetView");
+
+            const initialOrientation = cameraRef?.current ? {
+                heading: cameraRef.current.heading,
+                pitch: cameraRef.current.pitch,
+                roll: 0
+            } : {
+                heading: CesiumMath.toRadians(0),
+                pitch: CesiumMath.toRadians(-10), // Look more level
+                roll: 0
+            };
+
             viewer.camera.setView({
                 destination: Cartesian3.fromDegrees(
                     userLocation.longitude,
                     userLocation.latitude,
                     (userLocation.altitude || 0) + 100 // Lower altitude (Closer to ground)
                 ),
-                orientation: {
-                    heading: CesiumMath.toRadians(0),
-                    pitch: CesiumMath.toRadians(-10), // Look more level
-                    roll: 0
-                }
+                orientation: initialOrientation
             });
             isCameraInitialized.current = true;
         }, 100);
@@ -643,6 +652,15 @@ export function CesiumScene({
         return () => {
             console.log("CesiumScene Unmounting...");
             if (viewerRef.current) {
+                // Save camera orientation
+                if (cameraRef) {
+                    cameraRef.current = {
+                        heading: viewerRef.current.camera.heading,
+                        pitch: viewerRef.current.camera.pitch
+                    };
+                    console.log("Saved Cesium Camera:", cameraRef.current);
+                }
+
                 viewerRef.current.destroy();
                 viewerRef.current = null;
             }
