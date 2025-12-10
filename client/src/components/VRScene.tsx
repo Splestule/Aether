@@ -40,15 +40,18 @@ interface VRSceneProps {
   onHeightCoefficientChange: (value: number) => void;
   onDistanceCoefficientChange: (value: number) => void;
   onSaveDefaults: () => void;
+  isOutOfRange?: boolean;
 }
 
 // VR Flight Info Panel - 3D panel attached to left controller
 function VRFlightInfoPanel({
   flight,
   onClose,
+  isOutOfRange,
 }: {
   flight: ProcessedFlight;
   onClose: () => void;
+  isOutOfRange?: boolean;
 }) {
   const leftController = useController("left");
   const panelRef = useRef<any>(null);
@@ -127,6 +130,21 @@ function VRFlightInfoPanel({
           <planeGeometry args={[0.02, baseHeight + 0.02]} />
           <meshBasicMaterial color="#ffffff" />
         </mesh>
+
+        {/* OUT OF RANGE WARNING */}
+        {isOutOfRange && (
+          <Text
+            position={[0, baseHeight / 2 + 0.15, 0.01]}
+            fontSize={0.08}
+            color="#ff4444"
+            anchorX="center"
+            anchorY="bottom"
+            maxWidth={baseWidth}
+            fontWeight="bold"
+          >
+            OUT OF RANGE
+          </Text>
+        )}
 
         {/* Title */}
         <Text
@@ -861,6 +879,7 @@ function SceneContent({
   onHeightCoefficientChange,
   onDistanceCoefficientChange,
   onSaveDefaults,
+  isOutOfRange,
 }: VRSceneProps) {
   const { isPresenting } = useXR();
   const { camera } = useThree();
@@ -1012,11 +1031,12 @@ function SceneContent({
         })}
       </group>
 
-      {/* VR Info Panel - 3D panel visible in VR mode (not rotated with scene) */}
-      {isPresenting && selectedFlight && (
+      {/* VR Info Panel - 3D panel visible in      {/* Flight Info Panel on Left Controller */}
+      {selectedFlight && isPresenting && (
         <VRFlightInfoPanel
           flight={selectedFlight}
           onClose={() => onFlightSelect(null)}
+          isOutOfRange={isOutOfRange}
         />
       )}
 
@@ -1050,6 +1070,7 @@ export function VRScene({
   onHeightCoefficientChange,
   onDistanceCoefficientChange,
   onSaveDefaults,
+  isOutOfRange,
 }: VRSceneProps) {
   return (
     <>
@@ -1096,6 +1117,7 @@ export function VRScene({
               onHeightCoefficientChange={onHeightCoefficientChange}
               onDistanceCoefficientChange={onDistanceCoefficientChange}
               onSaveDefaults={onSaveDefaults}
+              isOutOfRange={isOutOfRange}
             />
           </Suspense>
         </ARCanvas>

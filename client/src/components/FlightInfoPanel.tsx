@@ -24,6 +24,7 @@ interface FlightInfoPanelProps {
   showRoute: boolean;
   isFollowing?: boolean;
   onToggleFollow?: () => void;
+  isOutOfRange?: boolean;
 }
 
 export function FlightInfoPanel({
@@ -32,6 +33,7 @@ export function FlightInfoPanel({
   showRoute,
   isFollowing,
   onToggleFollow,
+  isOutOfRange,
 }: FlightInfoPanelProps) {
   const [routeInfo, setRouteInfo] = useState<FlightRouteInfo | null>(null);
   const [routeStatus, setRouteStatus] = useState<
@@ -169,6 +171,13 @@ export function FlightInfoPanel({
         zIndex: 10000, // Ensure it appears above VR canvas
       }}
     >
+      {/* Out of Range Warning */}
+      {isOutOfRange && (
+        <div className="mb-3 sm:mb-4 p-2 bg-red-500/20 border border-red-500/50 rounded text-red-200 text-xs sm:text-sm font-bold text-center uppercase tracking-wider">
+          Out of Range - Data Stale
+        </div>
+      )}
+
       <div className="flex items-center justify-between mb-3 sm:mb-6">
         <h3 className="compass-title text-sm sm:text-xl">Flight Details</h3>
         <button
@@ -306,7 +315,7 @@ export function FlightInfoPanel({
           </div>
         </div>
         {/* Follow Flight Button */}
-        {onToggleFollow && (
+        {onToggleFollow && !isOutOfRange && !flight.onGround && (
           <button
             onClick={onToggleFollow}
             className={clsx(

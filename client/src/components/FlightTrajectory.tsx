@@ -178,15 +178,38 @@ export function FlightTrajectory({
       return [];
     }
 
-    const basePoints = history.map(
-      (point) =>
-        new Vector3(point.position.x, point.position.y, point.position.z)
-    );
+
 
     const currentPosition = new Vector3(
       flight.position.x,
       flight.position.y,
       flight.position.z
+    );
+
+    // Enforce separation with CURRENT position (Time AND Distance)
+    // This prevents overshoots when the plane "jumps back" due to API updates
+    const MIN_SEPARATION_MS = 20000;
+    const MIN_SEPARATION_METERS = 1000; // 1km
+
+    // Filter history points working backwards
+    const filteredHistory = [...history];
+    while (filteredHistory.length > 0) {
+      const lastPoint = filteredHistory[filteredHistory.length - 1];
+      const lastPointPos = new Vector3(lastPoint.position.x, lastPoint.position.y, lastPoint.position.z);
+
+      const timeDiff = flight.lastUpdate - lastPoint.timestamp;
+      const distance = currentPosition.distanceTo(lastPointPos);
+
+      if (timeDiff < MIN_SEPARATION_MS || distance < MIN_SEPARATION_METERS) {
+        filteredHistory.pop();
+      } else {
+        break;
+      }
+    }
+
+    const basePoints = filteredHistory.map(
+      (point) =>
+        new Vector3(point.position.x, point.position.y, point.position.z)
     );
 
     basePoints.push(currentPosition);

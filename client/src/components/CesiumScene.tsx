@@ -18,10 +18,10 @@ import {
     IonImageryProvider,
     CatmullRomSpline,
     ConstantProperty,
-    NearFarScalar,
     CustomShader,
     CallbackProperty,
     ColorMaterialProperty,
+    EasingFunction,
     Transforms,
     JulianDate,
 } from "cesium";
@@ -54,7 +54,8 @@ export function CesiumScene({
     const viewerRef = useRef<CesiumViewer | null>(null);
     const isCameraInitialized = useRef(false);
     const [trajectory, setTrajectory] = useState<any[]>([]);
-    const flightsRef = useRef(flights);
+    const flightsRef = useRef<ProcessedFlight[]>(flights); // Ref to access latest flights in loop
+    const isLandingViewTriggered = useRef(false);
 
     // Update flights ref
     useEffect(() => {
@@ -122,39 +123,58 @@ export function CesiumScene({
         return () => clearInterval(interval);
     }, []);
 
+    const prevSelectedFlightId = useRef<string | null>(null);
+
     // Fetch trajectory when flight is selected
     useEffect(() => {
-        // Clear previous trajectory immediately to prevent "transfer" glitch
-        setTrajectory([]);
-
-        // INSTANT CLEANUP: Remove existing trajectory entities from the scene
-        // This ensures the old path disappears *instantly* when switching planes.
-        if (viewerRef.current) {
-            const entitiesToRemove: any[] = [];
-            viewerRef.current.entities.values.forEach(e => {
-                if (e.id && typeof e.id === 'string' && e.id.startsWith("traj-")) {
-                    entitiesToRemove.push(e);
-                }
-            });
-            entitiesToRemove.forEach(e => viewerRef.current?.entities.remove(e));
+        if (!selectedFlight) {
+            // If deselected, clear everything
+            setTrajectory([]);
+            prevSelectedFlightId.current = null;
+            if (viewerRef.current) {
+                const entitiesToRemove: any[] = [];
+                viewerRef.current.entities.values.forEach(e => {
+                    if (e.id && typeof e.id === 'string' && e.id.startsWith("traj-")) {
+                        entitiesToRemove.push(e);
+                    }
+                });
+                entitiesToRemove.forEach(e => viewerRef.current?.entities.remove(e));
+            }
+            return;
         }
 
-        if (!selectedFlight) {
-            return;
+        // Check if we switched planes
+        const hasSwitchedPlanes = selectedFlight.id !== prevSelectedFlightId.current;
+        prevSelectedFlightId.current = selectedFlight.id;
+
+        if (hasSwitchedPlanes) {
+            // Clear previous trajectory immediately to prevent "transfer" glitch
+            setTrajectory([]);
+
+            // INSTANT CLEANUP: Remove existing trajectory entities from the scene
+            // This ensures the old path disappears *instantly* when switching planes.
+            if (viewerRef.current) {
+                const entitiesToRemove: any[] = [];
+                viewerRef.current.entities.values.forEach(e => {
+                    if (e.id && typeof e.id === 'string' && e.id.startsWith("traj-")) {
+                        entitiesToRemove.push(e);
+                    }
+                });
+                entitiesToRemove.forEach(e => viewerRef.current?.entities.remove(e));
+            }
         }
 
         const fetchTrajectory = async () => {
             try {
-                console.log(`[CesiumScene] Fetching trajectory for ${selectedFlight.icao24}...`);
+                // console.log(`[CesiumScene] Fetching trajectory for ${selectedFlight.icao24}...`);
                 const url = `${config.apiUrl}/api/flights/${selectedFlight.icao24}/trajectory?lat=${userLocation.latitude}&lon=${userLocation.longitude}&alt=${userLocation.altitude}`;
-                // console.log("[CesiumScene] URL:", url);
 
                 const response = await fetch(url);
-                console.log(`[CesiumScene] Response status: ${response.status}`);
+                // console.log(`[CesiumScene] Response status: ${response.status}`);
 
                 const data = await response.json();
                 if (data.success) {
-                    console.log(`[CesiumScene] Loaded ${data.data.length} points.`);
+                    // console.log(`[CesiumScene] Loaded ${data.data.length} points.`);
                     setTrajectory(data.data);
                 } else {
                     console.warn("[CesiumScene] API returned success: false", data);
@@ -287,19 +307,39 @@ export function CesiumScene({
             // Cesium heading: 0 = North, 90 = East
             const headingRad = CesiumMath.toRadians(currentFlightData.heading);
 
-            // Calculate offset: Behind and Above
+            if (currentFlightData.onGround) {
+                // LANDING VIEW: High above, looking straight down
+                // Only trigger once to allow smooth transition
+                if (!isLandingViewTriggered.current) {
+                    isLandingViewTriggered.current = true;
+
+                    // Position: Directly above the plane at 75,000m (User Request)
+                    const transform = Transforms.eastNorthUpToFixedFrame(planePos);
+                    const localOffset = new Cartesian3(0, 0, 75000); // 75km up
+                    const targetPos = Matrix4.multiplyByPoint(transform, localOffset, new Cartesian3());
+
+                    viewer.camera.flyTo({
+                        destination: targetPos,
+                        orientation: {
+                            heading: 0, // North Up
+                            pitch: CesiumMath.toRadians(-90), // Straight Down
+                            roll: 0
+                        },
+                        duration: 3.0, // Smooth 3s transition
+                        easingFunction: EasingFunction.CUBIC_IN_OUT
+                    });
+                }
+                // Stop updating camera frame-by-frame once landed
+                return;
+            }
+
+            // Reset trigger if we go back to flying (unlikely but good for state safety)
+            isLandingViewTriggered.current = false;
+
+            // FOLLOW VIEW: Behind and Above
             // Behind: Opposite to heading
-            const distanceBehind = 200; // meters
-            const heightAbove = 100; // meters
-
-            // Calculate offset in East-North-Up (ENU) frame
-            // North = Y+, East = X+
-            // Forward vector = (sin(heading), cos(heading), 0)
-            // Backward vector = (-sin(heading), -cos(heading), 0)
-
-            // Wait, standard math: 0 deg = East? No, Navigation: 0 = North.
-            // sin(0) = 0, cos(0) = 1 -> (0, 1) = North. Correct.
-            // sin(90) = 1, cos(90) = 0 -> (1, 0) = East. Correct.
+            const distanceBehind = 1000; // meters
+            const heightAbove = 400; // meters
 
             const offsetX = -Math.sin(headingRad) * distanceBehind;
             const offsetY = -Math.cos(headingRad) * distanceBehind;
@@ -643,7 +683,44 @@ export function CesiumScene({
             // Colors
             const mainColor = isSelected ? Color.fromCssColorString("#c6a0e8") : Color.WHITE;
             const ghostColor = mainColor.withAlpha(0.5);
-            const pixelSize = isSelected ? 25 : 20;
+
+            // VR SCALING LOGIC
+            // We use a CallbackProperty to calculate the pixel size dynamically based on distance and altitude.
+            // This matches the 3D sphere size from VRScene.
+            const getPixelSize = (time: any) => {
+                const currentPos = entity?.position?.getValue(time) || position;
+                const cameraPos = viewer.camera.position;
+                const distanceMeters = Cartesian3.distance(currentPos, cameraPos);
+                const distanceKm = distanceMeters / 1000;
+
+                // VR Formula (Scaled up for 2D Screen):
+                // Base Size: 480m (80% of 600) normally
+                // Follow Mode: 100m (50% of 200) to be unobtrusive
+                const baseSize = followingFlight ? 100 : 480;
+
+                // Distance Multiplier: Slightly larger for very far planes (>50km)
+                const distanceMultiplier = distanceKm > 50 ? Math.min(1.5, 1 + (distanceKm - 50) / 100) : 1;
+
+                // Altitude Multiplier: Larger for high planes
+                const altitudeMultiplier = Math.max(1, Math.min(2, Math.sqrt(Math.abs(flight.gps.altitude) / 5000)));
+
+                // Final 3D Size in Meters
+                const sphereSizeMeters = baseSize * distanceMultiplier * altitudeMultiplier;
+
+                // Project to Pixels
+                // PixelSize = (TargetSize / Distance) * (ScreenHeight / (2 * tan(FOV / 2)))
+                const frustum = viewer.camera.frustum as any; // PerspectiveFrustum
+                const fov = frustum.fov || CesiumMath.toRadians(60); // Default 60 deg
+                const screenHeight = viewer.scene.drawingBufferHeight;
+
+                const pixelSize = (sphereSizeMeters / distanceMeters) * (screenHeight / (2 * Math.tan(fov / 2)));
+
+                // Clamp to reasonable limits (e.g. min 15px so it's always visible, max 200px)
+                return Math.max(15, Math.min(200, pixelSize));
+            };
+
+            const pixelSizeProperty = new CallbackProperty(getPixelSize, false);
+
 
             // --- MAIN ENTITY ---
             if (entity) {
@@ -653,7 +730,9 @@ export function CesiumScene({
 
                 if (entity.point) {
                     entity.point.color = new ConstantProperty(mainColor);
-                    entity.point.pixelSize = new ConstantProperty(pixelSize);
+                    entity.point.pixelSize = pixelSizeProperty;
+                    // Remove scaleByDistance if it exists from previous version
+                    entity.point.scaleByDistance = undefined;
                 }
 
                 // Polyline positions are handled by CallbackProperty set on creation
@@ -672,11 +751,11 @@ Heading: ${flight.heading}°
                     position: position,
                     // Point (Flat, No Shading)
                     point: {
-                        pixelSize: pixelSize,
+                        pixelSize: pixelSizeProperty,
                         color: mainColor,
                         outlineColor: Color.BLACK.withAlpha(0.2),
                         outlineWidth: 1,
-                        scaleByDistance: new NearFarScalar(1.0e3, 1.0, 1.0e5, 0.5),
+                        // scaleByDistance REMOVED - we handle scaling manually
                         // Normal depth test (occluded by terrain)
                         disableDepthTestDistance: 0,
                     },
@@ -711,18 +790,19 @@ Heading: ${flight.heading}°
                 ghostEntity.position = position as any;
                 if (ghostEntity.point) {
                     ghostEntity.point.color = new ConstantProperty(ghostColor);
-                    ghostEntity.point.pixelSize = new ConstantProperty(pixelSize);
+                    ghostEntity.point.pixelSize = pixelSizeProperty;
+                    ghostEntity.point.scaleByDistance = undefined;
                 }
             } else {
                 viewer.entities.add({
                     id: ghostId,
                     position: position,
                     point: {
-                        pixelSize: pixelSize,
+                        pixelSize: pixelSizeProperty,
                         color: ghostColor,
                         outlineColor: Color.BLACK.withAlpha(0.1),
                         outlineWidth: 1,
-                        scaleByDistance: new NearFarScalar(1.0e3, 1.0, 1.0e5, 0.5),
+                        // scaleByDistance REMOVED
                         // Always visible (ignores depth)
                         disableDepthTestDistance: Number.POSITIVE_INFINITY,
                     },
@@ -828,14 +908,35 @@ Heading: ${flight.heading}°
         const HISTORY_LIMIT = 5;
         let filteredTrajectory = workingTrajectory.slice(-HISTORY_LIMIT);
 
-        // 4. Enforce separation with CURRENT position
+        // 4. Enforce separation with CURRENT position (Time AND Distance)
         // Cesium's CatmullRomSpline doesn't support "centripetal" parameterization like Three.js.
         // This causes overshoots/loops if the last history point is too close to the current position.
-        // We manually enforce the 20s separation between the last history point and the current plane.
+        // We manually enforce separation between the last history point and the current plane.
         const MIN_SEPARATION_MS = 20000;
-        while (filteredTrajectory.length > 0) {
+        const MIN_SEPARATION_METERS = 1000; // 1km
+
+        // Current position Cartesian
+        const currentPosCartesian = selectedFlight ? Cartesian3.fromDegrees(
+            selectedFlight.gps.longitude,
+            selectedFlight.gps.latitude,
+            selectedFlight.gps.altitude
+        ) : Cartesian3.ZERO;
+
+        while (filteredTrajectory.length > 0 && selectedFlight) {
             const lastPoint = filteredTrajectory[filteredTrajectory.length - 1];
-            if (selectedFlight.lastUpdate - lastPoint.timestamp < MIN_SEPARATION_MS) {
+
+            // Check Time
+            const timeDiff = selectedFlight.lastUpdate - lastPoint.timestamp;
+
+            // Check Distance
+            const lastPointCartesian = Cartesian3.fromDegrees(
+                lastPoint.gps.longitude,
+                lastPoint.gps.latitude,
+                lastPoint.gps.altitude
+            );
+            const distance = Cartesian3.distance(currentPosCartesian, lastPointCartesian);
+
+            if (timeDiff < MIN_SEPARATION_MS || distance < MIN_SEPARATION_METERS) {
                 // Too close! Drop the history point in favor of the live one.
                 filteredTrajectory.pop();
             } else {
@@ -956,9 +1057,8 @@ Heading: ${flight.heading}°
             const maxWidth = followingFlight ? 10 : 4; // Slightly thicker
             const width = progress * maxWidth;
 
-            // Opacity: 0.4 (tail) -> 1.0 (plane)
-            // High minimum opacity ensures it never looks "white" or washed out
-            const opacity = 0.4 + (progress * 0.6);
+            // Opacity: Solid 1.0 (User Request: "only purple", no gradient)
+            const opacity = 1.0;
 
             // SOLID PURPLE
             const color = Color.fromCssColorString("#c6a0e8").withAlpha(opacity);

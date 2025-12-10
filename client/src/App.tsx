@@ -372,6 +372,9 @@ function App() {
     };
   }, [selectedFlight]);
 
+  // Check if selected flight is out of range (not in current flights list)
+  const isOutOfRange = selectedFlight ? !flights.some(f => f.id === selectedFlight.id) : false;
+
   return (
     <div className="h-screen w-screen relative">
       <ParticleField />
@@ -388,6 +391,7 @@ function App() {
           onHeightCoefficientChange={setHeightCoefficient}
           onDistanceCoefficientChange={setDistanceCoefficient}
           onSaveDefaults={saveCoefficientsAsDefaults}
+          isOutOfRange={isOutOfRange}
         />
       )}
 
@@ -543,6 +547,7 @@ function App() {
             showRoute={isRouteEnabled}
             isFollowing={followingFlight?.id === selectedFlight.id}
             onToggleFollow={viewMode === 'cesium' ? handleToggleFollow : undefined}
+            isOutOfRange={isOutOfRange}
           />
         )}
 
