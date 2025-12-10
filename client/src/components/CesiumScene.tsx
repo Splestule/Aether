@@ -17,13 +17,13 @@ import {
     defined,
     IonImageryProvider,
     CatmullRomSpline,
-    HermiteSpline,
     ConstantProperty,
     NearFarScalar,
     CustomShader,
     CallbackProperty,
     ColorMaterialProperty,
     Transforms,
+    JulianDate,
 } from "cesium";
 
 import { ProcessedFlight, UserLocation } from "@shared/src/types";
@@ -40,6 +40,7 @@ interface CesiumSceneProps {
     flights: ProcessedFlight[];
     selectedFlight: ProcessedFlight | null;
     onFlightSelect: (flight: ProcessedFlight | null) => void;
+    followingFlight: ProcessedFlight | null;
 }
 
 export function CesiumScene({
@@ -47,17 +48,84 @@ export function CesiumScene({
     flights,
     selectedFlight,
     onFlightSelect,
+    followingFlight,
 }: CesiumSceneProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<CesiumViewer | null>(null);
     const isCameraInitialized = useRef(false);
     const [trajectory, setTrajectory] = useState<any[]>([]);
+    const flightsRef = useRef(flights);
+
+    // Update flights ref
+    useEffect(() => {
+        flightsRef.current = flights;
+    }, [flights]);
+
+    // EXTRAPOLATION LOOP (Every 2 seconds)
+    useEffect(() => {
+        if (!viewerRef.current) return;
+
+        const interval = setInterval(() => {
+            const viewer = viewerRef.current;
+            if (!viewer || viewer.isDestroyed()) return;
+
+            const now = Date.now();
+
+            flightsRef.current.forEach(flight => {
+                const entity = viewer.entities.getById(flight.id);
+                if (!entity) return;
+
+                // Calculate time since last update
+                // flight.lastUpdate is in ms (from server/OpenSky)
+                const lastUpdate = flight.lastUpdate || now;
+                const elapsedSeconds = (now - lastUpdate) / 1000;
+
+                if (elapsedSeconds <= 0) return;
+
+                // Calculate distance traveled
+                // velocity is m/s
+                const distanceMeters = (flight.velocity || 0) * elapsedSeconds;
+
+                if (distanceMeters <= 0) return;
+
+                // Calculate new position using ENU offset
+                const position = Cartesian3.fromDegrees(flight.gps.longitude, flight.gps.latitude, flight.gps.altitude);
+                const transform = Transforms.eastNorthUpToFixedFrame(position);
+
+                // Heading: 0=North (Y+), 90=East (X+)
+                const headingRad = CesiumMath.toRadians(flight.heading);
+                const offsetX = Math.sin(headingRad) * distanceMeters;
+                const offsetY = Math.cos(headingRad) * distanceMeters;
+
+                const offset = new Cartesian3(offsetX, offsetY, 0);
+                let newPos = Matrix4.multiplyByPoint(transform, offset, new Cartesian3());
+
+                // FIX ALTITUDE DRIFT:
+                // The ENU transform is a tangent plane. Moving along it increases altitude relative to the curved earth.
+                // We must snap the new position back to the correct altitude.
+                const cartographic = Cartographic.fromCartesian(newPos);
+                cartographic.height = flight.gps.altitude; // Keep altitude constant
+                newPos = Cartesian3.fromRadians(cartographic.longitude, cartographic.latitude, cartographic.height);
+
+                // Update Entity Directly (Teleport)
+                entity.position = newPos as any;
+
+                // Update Ghost
+                const ghost = viewer.entities.getById(flight.id + "-ghost");
+                if (ghost) {
+                    ghost.position = newPos as any;
+                }
+            });
+
+        }, 2000); // 2 seconds
+
+        return () => clearInterval(interval);
+    }, []);
 
     // Fetch trajectory when flight is selected
     useEffect(() => {
         // Clear previous trajectory immediately to prevent "transfer" glitch
         setTrajectory([]);
-        setHistorySamples([]); // Clear static history immediately
 
         // INSTANT CLEANUP: Remove existing trajectory entities from the scene
         // This ensures the old path disappears *instantly* when switching planes.
@@ -191,6 +259,113 @@ export function CesiumScene({
         updateCameraPosition();
     }, []); // RUN ONCE: Never re-run to prevent camera snapping/resetting
 
+    // 3. FOLLOW FLIGHT LOGIC
+    useEffect(() => {
+        if (!viewerRef.current) return;
+
+        const viewer = viewerRef.current;
+        const scene = viewer.scene;
+
+        // Function to update camera position
+        const updateCamera = () => {
+            if (!followingFlight) return;
+
+            // FIND LIVE FLIGHT DATA
+            // The followingFlight prop might be stale (snapshot). 
+            // We need the latest position from the flights array.
+            const liveFlight = flightsRef.current.find(f => f.id === followingFlight.id);
+            const currentFlightData = liveFlight || followingFlight; // Use live data if available, otherwise the prop's data.
+
+            // Get smoothed plane position from entity
+            const entity = viewer.entities.getById(followingFlight.id);
+            const planePos = entity?.position?.getValue(viewer.clock.currentTime);
+
+            if (!planePos) return; // Wait for entity
+
+            // Calculate heading (convert to radians)
+            // 0 = North (Y+), 90 = East (X+)
+            // Cesium heading: 0 = North, 90 = East
+            const headingRad = CesiumMath.toRadians(currentFlightData.heading);
+
+            // Calculate offset: Behind and Above
+            // Behind: Opposite to heading
+            const distanceBehind = 200; // meters
+            const heightAbove = 100; // meters
+
+            // Calculate offset in East-North-Up (ENU) frame
+            // North = Y+, East = X+
+            // Forward vector = (sin(heading), cos(heading), 0)
+            // Backward vector = (-sin(heading), -cos(heading), 0)
+
+            // Wait, standard math: 0 deg = East? No, Navigation: 0 = North.
+            // sin(0) = 0, cos(0) = 1 -> (0, 1) = North. Correct.
+            // sin(90) = 1, cos(90) = 0 -> (1, 0) = East. Correct.
+
+            const offsetX = -Math.sin(headingRad) * distanceBehind;
+            const offsetY = -Math.cos(headingRad) * distanceBehind;
+
+            // We need to convert this local offset to Earth-Fixed coordinates (ECEF)
+            // Use a local frame at the plane's position
+            const transform = Transforms.eastNorthUpToFixedFrame(planePos);
+
+            // Offset in local frame (x=East, y=North, z=Up)
+            const localOffset = new Cartesian3(offsetX, offsetY, heightAbove);
+
+            // Transform to world coordinates
+            const targetPos = Matrix4.multiplyByPoint(transform, localOffset, new Cartesian3());
+
+            // Set camera
+            viewer.camera.setView({
+                destination: targetPos,
+                orientation: {
+                    heading: headingRad, // Look in the direction of the plane
+                    pitch: CesiumMath.toRadians(-25), // Look down more to center plane (was -20)
+                    roll: 0
+                }
+            });
+        };
+
+        // Add or remove event listener
+        if (followingFlight) {
+            scene.postRender.addEventListener(updateCamera);
+            // Disable default controls while following?
+            scene.screenSpaceCameraController.enableInputs = false;
+        } else {
+            scene.screenSpaceCameraController.enableInputs = true;
+
+            // RETURN TO MAP: Restore camera to user location
+            // We only do this if we were previously following (implied by this effect running when followingFlight changes to null)
+            // However, this effect runs on mount too. We need to be careful.
+            // Actually, if followingFlight is null, we just want to ensure we are at a good spot?
+            // No, only if the user explicitly clicked "Return".
+            // But we don't know *why* it's null here.
+
+            // Let's assume if this effect runs and followingFlight is null, we should reset IF we are not already at user location?
+            // Better: Just reset to user location. It's safe.
+
+            const destination = Cartesian3.fromDegrees(
+                userLocation.longitude,
+                userLocation.latitude,
+                (userLocation.altitude || 0) + 150 // Closer to ground (was 1000)
+            );
+
+            viewer.camera.flyTo({
+                destination: destination,
+                orientation: {
+                    heading: CesiumMath.toRadians(0),
+                    pitch: CesiumMath.toRadians(-10), // Look at horizon (was -45)
+                    roll: 0
+                },
+                duration: 1.5 // Smooth fly back
+            });
+        }
+
+        return () => {
+            scene.postRender.removeEventListener(updateCamera);
+            scene.screenSpaceCameraController.enableInputs = true;
+        };
+    }, [followingFlight, userLocation]); // Add userLocation to dependency for flyTo. flights is accessed via ref.
+
     // Handle flight selection
     const handleSelect = (flight: ProcessedFlight) => {
         onFlightSelect(flight);
@@ -264,6 +439,15 @@ export function CesiumScene({
         viewer.scene.requestRenderMode = false;
         viewer.targetFrameRate = 60;
         viewer.resolutionScale = 1.0;
+
+        // FORCE CLOCK TO ANIMATE
+        // If this is false, time doesn't advance, dt = 0, and smoothing freezes.
+        viewer.clock.shouldAnimate = true;
+        viewer.clock.startTime = JulianDate.now();
+        viewer.clock.currentTime = JulianDate.now();
+        viewer.clock.clockRange = 1; // LOOP_STOP (but we want continuous real time?)
+        // Actually, for real-time, we just want it to tick.
+        viewer.clock.multiplier = 1.0; // Real time speed
 
         // HORIZON LOCK & COMPASS UPDATE
         viewer.scene.postRender.addEventListener(() => {
@@ -427,16 +611,23 @@ export function CesiumScene({
 
     // -------------------------------------------------------------------------
     // 3. RENDER ENTITIES (Flights)
-    // -------------------------------------------------------------------------
+    // -------------------------------------------------------------------------    // Filter flights if following
+    // Ensure we use the LIVE flight data from the flights array, otherwise the entity won't update
+    const visibleFlights = followingFlight
+        ? (flights.find(f => f.id === followingFlight.id) ? [flights.find(f => f.id === followingFlight.id)!] : [followingFlight])
+        : flights;
+
+    // 4. RENDER LOOP (Create/Update/Remove Entities)
     useEffect(() => {
         if (!viewerRef.current) return;
+
         const viewer = viewerRef.current;
 
-        // Track active flight IDs to identify removals
-        const activeFlightIds = new Set(flights.map(f => f.id));
+        // Map of current flight IDs for cleanup
+        const activeFlightIds = new Set(visibleFlights.map(f => f.id));
 
         // 1. Update or Add Flights
-        flights.forEach((flight) => {
+        visibleFlights.forEach((flight) => {
             const isSelected = selectedFlight?.id === flight.id;
             const ghostId = `${flight.id}-ghost`;
 
@@ -457,6 +648,7 @@ export function CesiumScene({
             // --- MAIN ENTITY ---
             if (entity) {
                 // UPDATE existing entity
+                // Reset position to exact GPS from server (correction)
                 entity.position = position as any;
 
                 if (entity.point) {
@@ -565,264 +757,194 @@ Heading: ${flight.heading}°
 
         entitiesToRemove.forEach(e => viewer.entities.remove(e));
 
-    }, [flights, selectedFlight]); // Only re-run when flights or selection changes
+    }, [visibleFlights, selectedFlight]); // Only re-run when flights or selection changes
 
     // -------------------------------------------------------------------------
     // 4. RENDER TRAJECTORY (Split into Static History + Live Bridge)
 
-    // State for static history samples (computed only when trajectory data changes)
-    const [historySamples, setHistorySamples] = useState<Cartesian3[]>([]);
-    // const [lastHistoryTime, setLastHistoryTime] = useState<number>(0);
+    // -------------------------------------------------------------------------
+    // 4. RENDER TRAJECTORY (Unified Spline)
+    // -------------------------------------------------------------------------
 
-    // Effect A: Compute Static History Spline
-    useEffect(() => {
-        if (trajectory.length === 0) {
-            setHistorySamples([]);
-            // setLastHistoryTime(0);
-            return;
-        }
-
-        // Helper to remove outliers (sharp turns)
-        const removeOutliers = (points: any[]) => {
-            if (points.length < 3) return points;
-
-            try {
-                const cartesians = points.map(p => Cartesian3.fromDegrees(p.gps.longitude, p.gps.latitude, p.gps.altitude));
-                const keep = new Array(points.length).fill(true);
-
-                for (let i = 1; i < points.length - 1; i++) {
-                    const prev = cartesians[i - 1];
-                    const curr = cartesians[i];
-                    const next = cartesians[i + 1];
-
-                    const v1 = Cartesian3.subtract(curr, prev, new Cartesian3());
-                    const v2 = Cartesian3.subtract(next, curr, new Cartesian3());
-
-                    // Check for zero length vectors to prevent crash
-                    if (Cartesian3.magnitudeSquared(v1) < 0.0001 || Cartesian3.magnitudeSquared(v2) < 0.0001) {
-                        continue;
-                    }
-
-                    Cartesian3.normalize(v1, v1);
-                    Cartesian3.normalize(v2, v2);
-
-                    const dot = Cartesian3.dot(v1, v2);
-
-                    // Filter sharp turns (> 90 degrees change)
-                    if (dot < 0.0) {
-                        keep[i] = false;
-                    }
-                }
-
-                return points.filter((_, i) => keep[i]);
-            } catch (e) {
-                console.error("[CesiumScene] Error removing outliers:", e);
-                return points;
-            }
-        };
-
-        // Sort by timestamp first
-        const sortedTrajectory = [...trajectory].sort((a, b) => a.timestamp - b.timestamp);
-
-        // Remove outliers before filtering by time
-        let workingTrajectory = removeOutliers(sortedTrajectory);
-
-        // Safety check: If outlier removal left us with too few points, revert to original
-        if (workingTrajectory.length < 2) {
-            workingTrajectory = sortedTrajectory;
-        }
-
-        // Filter for last 15 minutes
-        const cutoff = Date.now() - 15 * 60 * 1000;
-        let filteredTrajectory = workingTrajectory.filter(p => p.timestamp > cutoff);
-
-        // Fallback: If we have no recent points, or too few, take the last 20 points available
-        // This ensures we show *something* even if data is old (matching Desktop behavior)
-        if (filteredTrajectory.length < 2 && workingTrajectory.length > 0) {
-            filteredTrajectory = workingTrajectory.slice(-20);
-        }
-
-        // If we have NO points, clear and return
-        if (filteredTrajectory.length === 0) {
-            setHistorySamples([]);
-            return;
-        }
-
-        const positions = filteredTrajectory.map(p => Cartesian3.fromDegrees(p.gps.longitude, p.gps.latitude, p.gps.altitude));
-
-        // If we only have 1 point, we can't make a spline, but we CAN use it as a start point for the bridge
-        if (positions.length === 1) {
-            setHistorySamples(positions);
-            return;
-        }
-
-        const times = filteredTrajectory.map(p => p.timestamp / 1000);
-
-        try {
-            const spline = new CatmullRomSpline({
-                times: times,
-                points: positions
-            });
-
-            const startTime = times[0];
-            const endTime = times[times.length - 1];
-            const duration = endTime - startTime;
-
-            if (duration <= 0) return;
-
-            const numSamples = Math.max(positions.length * 10, 50);
-            const samples: Cartesian3[] = [];
-            for (let i = 0; i <= numSamples; i++) {
-                const t = startTime + (i / numSamples) * duration;
-                samples.push(spline.evaluate(t));
-            }
-
-            setHistorySamples(samples);
-            // setLastHistoryTime(endTime); // Store end time of history for bridging
-        } catch (e) {
-            console.error("[CesiumScene] Error generating history spline:", e);
-            // Fallback: Use raw positions if spline fails
-            setHistorySamples(positions);
-        }
-    }, [trajectory]);
-
-    // Effect B: Render Loop (Connect History to Live Plane)
     useEffect(() => {
         if (!viewerRef.current) return;
         const viewer = viewerRef.current;
 
-        // SKIP LAST POINT STRATEGY:
-        // We exclude the very last point of the static history from the "static" list.
-        // Instead, we start the smooth bridge from the *second to last* point.
-        // This replaces the final jagged segment with a smooth curve, eliminating the "kink" at the connection.
-        let finalPositions: Cartesian3[] = [];
-        let bridgeStartPoint: Cartesian3 | null = null;
-        let prevHistoryPoint: Cartesian3 | null = null;
+        // 1. Prepare Points: History + Current Position
+        let allPoints: Cartesian3[] = [];
 
-        if (historySamples.length >= 2) {
-            // Use all points EXCEPT the last one
-            finalPositions = historySamples.slice(0, historySamples.length - 1);
-            bridgeStartPoint = historySamples[historySamples.length - 2];
-
-            // For tangent calculation
-            if (historySamples.length >= 3) {
-                prevHistoryPoint = historySamples[historySamples.length - 3];
-            } else {
-                prevHistoryPoint = bridgeStartPoint; // Fallback
+        // A. Process History
+        // Helper to remove outliers (sharp turns) - KEEPING THIS as it's good for Cesium
+        const removeOutliers = (points: any[]) => {
+            if (points.length < 3) return points;
+            try {
+                const cartesians = points.map(p => Cartesian3.fromDegrees(p.gps.longitude, p.gps.latitude, p.gps.altitude));
+                const keep = new Array(points.length).fill(true);
+                for (let i = 1; i < points.length - 1; i++) {
+                    const prev = cartesians[i - 1];
+                    const curr = cartesians[i];
+                    const next = cartesians[i + 1];
+                    const v1 = Cartesian3.subtract(curr, prev, new Cartesian3());
+                    const v2 = Cartesian3.subtract(next, curr, new Cartesian3());
+                    if (Cartesian3.magnitudeSquared(v1) < 0.0001 || Cartesian3.magnitudeSquared(v2) < 0.0001) continue;
+                    Cartesian3.normalize(v1, v1);
+                    Cartesian3.normalize(v2, v2);
+                    if (Cartesian3.dot(v1, v2) < 0.0) keep[i] = false; // > 90 deg turn
+                }
+                return points.filter((_, i) => keep[i]);
+            } catch (e) {
+                return points;
             }
-        } else {
-            // Not enough history to skip, just use what we have
-            finalPositions = [...historySamples];
-            if (historySamples.length > 0) {
-                bridgeStartPoint = historySamples[historySamples.length - 1];
-                prevHistoryPoint = bridgeStartPoint;
-            }
-        }
+        };
 
-        // Add Bridge to Current Position (Smooth Spline + Validation)
-        if (selectedFlight && bridgeStartPoint) {
-            const currentPos = Cartesian3.fromDegrees(
-                selectedFlight.gps.longitude,
-                selectedFlight.gps.latitude,
-                selectedFlight.gps.altitude
-            );
+        // VR LOGIC PORT: Dedupe close points (min 20s separation)
+        const dedupeClosePoints = (points: any[]) => {
+            if (points.length === 0) return points;
+            const sorted = [...points].sort((a, b) => a.timestamp - b.timestamp);
+            const filtered = [sorted[0]];
 
-            // Validate currentPos to prevent crash
-            if (currentPos && !Cartesian3.equals(currentPos, Cartesian3.ZERO)) {
-                const distance = Cartesian3.distance(bridgeStartPoint, currentPos);
-
-                // Only add if distance is significant (> 1 meter) to prevent zero-length segments
-                // which cause "normalized result is not a number" errors in Cesium
-                if (distance > 1.0) {
-                    // SMOOTHING: Use a local spline to connect history to current position
-                    try {
-                        // Calculate tangents for Hermite Spline
-                        // 1. Outgoing tangent from history (at bridgeStartPoint)
-                        let outgoingTangent: Cartesian3;
-
-                        // Scale factor: 0.5 is standard for Catmull-Rom style curvature. 
-                        const tangentScale = distance * 0.5;
-
-                        if (prevHistoryPoint && Cartesian3.distance(prevHistoryPoint, bridgeStartPoint) > 0.1) {
-                            // CATMULL-ROM TANGENT STRATEGY:
-                            // Tangent = (NextPoint - PrevPoint) / 2
-                            // NextPoint = currentPos
-                            // PrevPoint = prevHistoryPoint
-                            const curveDir = Cartesian3.subtract(currentPos, prevHistoryPoint, new Cartesian3());
-                            Cartesian3.normalize(curveDir, curveDir);
-                            outgoingTangent = Cartesian3.multiplyByScalar(curveDir, tangentScale, new Cartesian3());
-                        } else {
-                            // No previous history, point straight at plane
-                            const dir = Cartesian3.subtract(currentPos, bridgeStartPoint, new Cartesian3());
-                            Cartesian3.normalize(dir, dir);
-                            outgoingTangent = Cartesian3.multiplyByScalar(dir, tangentScale, new Cartesian3());
-                        }
-
-                        // 2. Incoming tangent to plane: Aligned with Heading AND Pitch
-                        const currentAlt = selectedFlight.gps.altitude;
-                        const lastCartographic = Cartographic.fromCartesian(bridgeStartPoint);
-                        const lastAlt = lastCartographic.height;
-                        const altDiff = currentAlt - lastAlt;
-
-                        // Calculate slope (approximate sine of pitch)
-                        const slope = altDiff / distance;
-
-                        const headingRad = CesiumMath.toRadians(selectedFlight.heading);
-                        const modelMatrix = Transforms.eastNorthUpToFixedFrame(currentPos);
-
-                        // ENU: East=X, North=Y, Up=Z
-                        const x = Math.sin(headingRad);
-                        const y = Math.cos(headingRad);
-
-                        // Combine into 3D vector
-                        const localDir = new Cartesian3(x, y, slope);
-                        Cartesian3.normalize(localDir, localDir);
-
-                        const planeDir = Matrix4.multiplyByPointAsVector(modelMatrix, localDir, new Cartesian3());
-
-                        // Scale tangent by distance
-                        const planeTangent = Cartesian3.multiplyByScalar(planeDir, tangentScale, new Cartesian3());
-
-                        // Create Hermite Spline
-                        const bridgeSpline = new HermiteSpline({
-                            times: [0, 1],
-                            points: [bridgeStartPoint, currentPos],
-                            inTangents: [outgoingTangent, planeTangent],
-                            outTangents: [outgoingTangent, planeTangent]
-                        });
-
-                        // Sample the bridge segment
-                        const bridgeSamples = 20; // Increased samples for smoother curve
-                        for (let i = 1; i <= bridgeSamples; i++) {
-                            const t = i / bridgeSamples;
-                            finalPositions.push(bridgeSpline.evaluate(t));
-                        }
-                    } catch (e) {
-                        // Fallback to straight line if spline fails
-                        finalPositions.push(currentPos);
-                    }
+            for (let i = 1; i < sorted.length; i++) {
+                const prev = filtered[filtered.length - 1];
+                const current = sorted[i];
+                // 20 seconds = 20000 ms
+                if (current.timestamp - prev.timestamp >= 20000) {
+                    filtered.push(current);
                 }
             }
-        } else if (selectedFlight && historySamples.length > 0) {
-            // Fallback for very short history (0 or 1 point): just draw line from last point
+            return filtered;
+        };
+
+        const sortedTrajectory = [...trajectory].sort((a, b) => a.timestamp - b.timestamp);
+
+        // 1. Remove outliers first (sanity check)
+        let workingTrajectory = removeOutliers(sortedTrajectory);
+        if (workingTrajectory.length < 2) workingTrajectory = sortedTrajectory;
+
+        // 2. Dedupe close points (VR Logic)
+        workingTrajectory = dedupeClosePoints(workingTrajectory);
+
+        // 3. Trim History to last 5 points (VR Logic)
+        // VR uses slice(-5).
+        const HISTORY_LIMIT = 5;
+        let filteredTrajectory = workingTrajectory.slice(-HISTORY_LIMIT);
+
+        // 4. Enforce separation with CURRENT position
+        // Cesium's CatmullRomSpline doesn't support "centripetal" parameterization like Three.js.
+        // This causes overshoots/loops if the last history point is too close to the current position.
+        // We manually enforce the 20s separation between the last history point and the current plane.
+        const MIN_SEPARATION_MS = 20000;
+        while (filteredTrajectory.length > 0) {
+            const lastPoint = filteredTrajectory[filteredTrajectory.length - 1];
+            if (selectedFlight.lastUpdate - lastPoint.timestamp < MIN_SEPARATION_MS) {
+                // Too close! Drop the history point in favor of the live one.
+                filteredTrajectory.pop();
+            } else {
+                break;
+            }
+        }
+
+        // Convert history to Cartesian3
+        const historyPositions = filteredTrajectory.map(p =>
+            Cartesian3.fromDegrees(p.gps.longitude, p.gps.latitude, p.gps.altitude)
+        );
+
+        // B. Add Current Position
+        if (selectedFlight) {
             const currentPos = Cartesian3.fromDegrees(
                 selectedFlight.gps.longitude,
                 selectedFlight.gps.latitude,
                 selectedFlight.gps.altitude
             );
-            if (currentPos && !Cartesian3.equals(currentPos, Cartesian3.ZERO)) {
-                finalPositions.push(currentPos);
+
+            // Only add if we have history and it's distinct from the last point
+            if (historyPositions.length > 0) {
+                const lastHist = historyPositions[historyPositions.length - 1];
+                if (Cartesian3.distance(lastHist, currentPos) > 5.0) { // 5m threshold
+                    historyPositions.push(currentPos);
+                } else {
+                    // Update last point to be exact current pos
+                    historyPositions[historyPositions.length - 1] = currentPos;
+                }
+            } else {
+                historyPositions.push(currentPos);
             }
         }
 
-        // Filter out any invalid points (Zero vectors) just in case to strictly prevent crashes
-        // AND Deduplicate points to prevent "normalized result is not a number" crash in PolylinePipeline
-        finalPositions = finalPositions.filter((p, index) => {
-            if (Cartesian3.equals(p, Cartesian3.ZERO)) return false;
-            if (index === 0) return true;
-            return Cartesian3.distance(p, finalPositions[index - 1]) > 0.1; // 10cm threshold
-        });
+        allPoints = historyPositions;
 
+        // C. Generate Spline
+        let finalPositions: Cartesian3[] = [];
+
+        if (allPoints.length >= 2) {
+            try {
+                // We don't have exact times for the current position relative to history easily available 
+                // without parsing everything. For a visual path, we can assume uniform or distance-based spacing.
+                // CatmullRomSpline works best with times. We'll approximate times based on index or distance.
+                // Actually, let's use the timestamps we have for history, and extrapolate for current.
+
+                // Re-map to include timestamps
+                const pointsWithTime: { time: number, pos: Cartesian3 }[] = [];
+
+                // History points
+                filteredTrajectory.forEach((p, i) => {
+                    pointsWithTime.push({
+                        time: p.timestamp,
+                        pos: historyPositions[i] // Corresponds to filteredTrajectory[i]
+                    });
+                });
+
+                // Current point (if added)
+                if (allPoints.length > filteredTrajectory.length) {
+                    // It was added.
+                    pointsWithTime.push({
+                        time: Date.now(),
+                        pos: allPoints[allPoints.length - 1]
+                    });
+                }
+
+                // Ensure times are strictly increasing
+                for (let i = 1; i < pointsWithTime.length; i++) {
+                    if (pointsWithTime[i].time <= pointsWithTime[i - 1].time) {
+                        pointsWithTime[i].time = pointsWithTime[i - 1].time + 1000; // Force 1s gap
+                    }
+                }
+
+                const times = pointsWithTime.map(p => p.time / 1000); // Seconds
+                const positions = pointsWithTime.map(p => p.pos);
+
+                const spline = new CatmullRomSpline({
+                    times: times,
+                    points: positions
+                });
+
+                const startTime = times[0];
+                const endTime = times[times.length - 1];
+                const duration = endTime - startTime;
+
+                // Sample
+                const numSamples = Math.max(positions.length * 10, 100);
+                for (let i = 0; i <= numSamples; i++) {
+                    const t = startTime + (i / numSamples) * duration;
+                    finalPositions.push(spline.evaluate(t));
+                }
+
+            } catch (e) {
+                console.warn("Spline generation failed, using raw points", e);
+                finalPositions = allPoints;
+            }
+        } else {
+            finalPositions = allPoints;
+        }
+
+        console.log(`[CesiumScene] Trajectory Gen: History=${historyPositions.length}, Total=${allPoints.length}, Final=${finalPositions.length}`);
+
+        // REMOVED: HIDE TRAJECTORY IN FOLLOW MODE
+        // We want to see the trajectory even when following to verify the fix.
+        // if (followingFlight) {
+        //     finalPositions = [];
+        // }
+
+        // D. Render Segments
         const segmentCount = finalPositions.length - 1;
 
         for (let i = 0; i < segmentCount; i++) {
@@ -830,26 +952,27 @@ Heading: ${flight.heading}°
             const end = finalPositions[i + 1];
             const progress = i / segmentCount;
 
-            // Visual Style: Thinner, Purple, Fades out
-            // Width: 0 (tail) -> 3 (plane)
-            const width = progress * 3;
-            // Opacity: 0.0 (tail) -> 0.8 (plane)
-            const opacity = progress * 0.8;
+            // Visual Style: Solid Purple, Fades out
+            const maxWidth = followingFlight ? 10 : 4; // Slightly thicker
+            const width = progress * maxWidth;
+
+            // Opacity: 0.4 (tail) -> 1.0 (plane)
+            // High minimum opacity ensures it never looks "white" or washed out
+            const opacity = 0.4 + (progress * 0.6);
+
+            // SOLID PURPLE
             const color = Color.fromCssColorString("#c6a0e8").withAlpha(opacity);
 
             const segmentId = `traj-${i}`;
             const entity = viewer.entities.getById(segmentId);
 
             if (entity) {
-                // UPDATE existing segment
                 if (entity.polyline) {
                     entity.polyline.positions = [start, end] as any;
                     entity.polyline.width = new ConstantProperty(width);
                     entity.polyline.material = new ColorMaterialProperty(color);
-                    entity.polyline.depthFailMaterial = new ColorMaterialProperty(Color.TRANSPARENT);
                 }
             } else {
-                // ADD new segment
                 viewer.entities.add({
                     id: segmentId,
                     polyline: {
@@ -862,7 +985,7 @@ Heading: ${flight.heading}°
             }
         }
 
-        // Cleanup Stale Segments
+        // Cleanup Stale
         const entitiesToRemove: any[] = [];
         viewer.entities.values.forEach(e => {
             if (e.id && typeof e.id === 'string' && e.id.startsWith("traj-")) {
@@ -873,7 +996,8 @@ Heading: ${flight.heading}°
             }
         });
         entitiesToRemove.forEach(e => viewer.entities.remove(e));
-    }, [historySamples, selectedFlight]);
+
+    }, [trajectory, selectedFlight, followingFlight]);
 
     // Handle Clicks on Entities
     useEffect(() => {

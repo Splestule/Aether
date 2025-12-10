@@ -63,8 +63,7 @@ export function FlightTrajectory({
     setIsLoading(true);
     try {
       const response = await fetch(
-        `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${
-          userLocation.latitude
+        `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${userLocation.latitude
         }&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`
       );
 
@@ -142,7 +141,7 @@ export function FlightTrajectory({
       if (
         !lastHistorical ||
         candidate.timestamp - lastHistorical.timestamp >=
-          MIN_POINT_SEPARATION_MS
+        MIN_POINT_SEPARATION_MS
       ) {
         pendingPointRef.current = candidate;
       }
@@ -230,7 +229,7 @@ export function FlightTrajectory({
       const radiusStart =
         MathUtils.lerp(8, 28, startProgress) * thicknessFactor;
       const radiusEnd = MathUtils.lerp(8, 28, endProgress) * thicknessFactor;
-      const opacity = MathUtils.lerp(0.15, 1, endProgress);
+      const opacity = MathUtils.lerp(0.4, 1, endProgress);
 
       segmentsData.push({
         key: i,

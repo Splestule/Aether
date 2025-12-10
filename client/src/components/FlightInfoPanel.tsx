@@ -22,12 +22,16 @@ interface FlightInfoPanelProps {
   flight: ProcessedFlight;
   onClose: () => void;
   showRoute: boolean;
+  isFollowing?: boolean;
+  onToggleFollow?: () => void;
 }
 
 export function FlightInfoPanel({
   flight,
   onClose,
   showRoute,
+  isFollowing,
+  onToggleFollow,
 }: FlightInfoPanelProps) {
   const [routeInfo, setRouteInfo] = useState<FlightRouteInfo | null>(null);
   const [routeStatus, setRouteStatus] = useState<
@@ -108,8 +112,8 @@ export function FlightInfoPanel({
 
           throw new Error(
             errorBody?.error ||
-              errorBody?.message ||
-              "Unable to retrieve flight route"
+            errorBody?.message ||
+            "Unable to retrieve flight route"
           );
         }
 
@@ -197,17 +201,17 @@ export function FlightInfoPanel({
           <div className="text-[10px] sm:text-sm space-y-0.5 sm:space-y-1">
             <div className="compass-subtle text-[10px] sm:text-[0.6rem]">Route</div>
             <div className="font-semibold tracking-[0.24em] sm:tracking-[0.30em] uppercase text-[10px] sm:text-sm">
-            {!showRoute && "Route unavailable"}
-            {showRoute && routeStatus === "loading" && "Loading route..."}
-            {showRoute && routeStatus === "success" &&
+              {!showRoute && "Route unavailable"}
+              {showRoute && routeStatus === "loading" && "Loading route..."}
+              {showRoute && routeStatus === "success" &&
                 routeInfo &&
                 `${getEndpointCode(routeInfo.origin)} → ${getEndpointCode(
                   routeInfo.destination
-              )}`}
-            {showRoute &&
-              routeStatus !== "loading" &&
-              routeStatus !== "success" &&
-              "Route unavailable"}
+                )}`}
+              {showRoute &&
+                routeStatus !== "loading" &&
+                routeStatus !== "success" &&
+                "Route unavailable"}
             </div>
           </div>
         </div>
@@ -301,6 +305,20 @@ export function FlightInfoPanel({
             Updated {formatLastUpdate(flight.lastUpdate)}
           </div>
         </div>
+        {/* Follow Flight Button */}
+        {onToggleFollow && (
+          <button
+            onClick={onToggleFollow}
+            className={clsx(
+              "w-full py-2 sm:py-3 mt-2 sm:mt-4 rounded text-[10px] sm:text-sm font-bold tracking-[0.16em] sm:tracking-[0.2em] uppercase transition-colors duration-300",
+              isFollowing
+                ? "bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/50"
+                : "bg-[#c6a0e8]/20 hover:bg-[#c6a0e8]/30 text-[#c6a0e8] border border-[#c6a0e8]/50"
+            )}
+          >
+            {isFollowing ? "Return to Map" : "Follow Flight"}
+          </button>
+        )}
       </div>
     </div>
   );

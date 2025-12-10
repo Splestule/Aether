@@ -22,6 +22,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [isRouteEnabled, setIsRouteEnabled] = useState(false);
   const [viewMode, setViewMode] = useState<'vr' | 'cesium'>('vr');
+  const [followingFlight, setFollowingFlight] = useState<ProcessedFlight | null>(null);
   const [errorNotification, setErrorNotification] = useState<ErrorNotificationData | null>(null);
 
   // Load default coefficients from localStorage or use 1.0
@@ -279,6 +280,21 @@ function App() {
   // Handle flight selection
   const handleFlightSelect = (flight: ProcessedFlight | null) => {
     setSelectedFlight(flight);
+    // If we deselect the flight we are following, stop following
+    if (!flight && followingFlight) {
+      setFollowingFlight(null);
+    }
+  };
+
+  // Toggle Follow Mode
+  const handleToggleFollow = () => {
+    if (followingFlight) {
+      // Stop following
+      setFollowingFlight(null);
+    } else if (selectedFlight) {
+      // Start following
+      setFollowingFlight(selectedFlight);
+    }
   };
 
   // Keep selected flight in sync with live flight updates (extrapolated or fetched)
@@ -382,6 +398,7 @@ function App() {
           flights={flights}
           selectedFlight={selectedFlight}
           onFlightSelect={handleFlightSelect}
+          followingFlight={followingFlight}
         />
       )}
 
@@ -524,6 +541,8 @@ function App() {
             flight={selectedFlight}
             onClose={() => setSelectedFlight(null)}
             showRoute={isRouteEnabled}
+            isFollowing={followingFlight?.id === selectedFlight.id}
+            onToggleFollow={viewMode === 'cesium' ? handleToggleFollow : undefined}
           />
         )}
 

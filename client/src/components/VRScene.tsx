@@ -20,8 +20,8 @@ import {
 } from "three";
 import { UserLocation, ProcessedFlight, VRConfig } from "@shared/src/types.js";
 import { ARWaypoint } from "./ARWaypoint";
-import { FlightTrajectory } from "./FlightTrajectory";
 import { VRCompass } from "./VRCompass";
+import { FlightTrajectory } from "./FlightTrajectory";
 import {
   formatSpeed,
   formatAltitude,
@@ -353,6 +353,7 @@ function VRFlightInfoPanel({
         >
           Updated {formatLastUpdate(flight.lastUpdate)}
         </Text>
+
       </group>
     </group>
   );
@@ -979,24 +980,16 @@ function SceneContent({
 
       {/* Scene rotation wrapper - rotates all flight content based on compass rotation */}
       <group rotation={[0, sceneRotation, 0]}>
-        {/* Flight trajectory - show for selected flight */}
-        {selectedFlight && (
-          <FlightTrajectory
-            flight={selectedFlight}
-            userLocation={userLocation}
-            isVR={isPresenting}
-          />
-        )}
-
         {/* Compass heading tracker - updates the compass display */}
         <CompassHeading />
 
         {/* Flight objects - make them interactive in VR and desktop */}
         {filteredFlights.map((flight) => {
+          const isSelected = selectedFlight?.id === flight.id;
+
+          // Handle selection
           const handleSelect = () => {
-            console.log("Flight selected:", flight.callsign);
-            // Toggle selection - click same flight to deselect
-            if (selectedFlight?.id === flight.id) {
+            if (isSelected) {
               onFlightSelect(null);
             } else {
               onFlightSelect(flight);
@@ -1008,12 +1001,12 @@ function SceneContent({
               {/* Render waypoint - Interactive wraps individual meshes in VR mode */}
               <ARWaypoint
                 flight={flight}
-                isSelected={selectedFlight?.id === flight.id}
+                isSelected={isSelected}
                 onClick={handleSelect}
                 isVR={isPresenting}
               />
-              {/* Trajectories disabled - they often disconnect from planes */}
-              {/* {config.enableTrajectories && <FlightTrajectory flight={flight} />} */}
+              {/* Trajectories enabled */}
+              {config.enableTrajectories && isSelected && <FlightTrajectory flight={flight} userLocation={userLocation} isVR={isPresenting} />}
             </React.Fragment>
           );
         })}
@@ -1037,9 +1030,9 @@ function SceneContent({
           minPolarAngle={0}
           maxPolarAngle={Math.PI}
           target={[0, 0, 0]}
-          enableDamping={true}
+          enableDamping={false}
           dampingFactor={0.05}
-          rotateSpeed={0.5}
+          rotateSpeed={-0.25}
         />
       )}
     </>
