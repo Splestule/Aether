@@ -28,6 +28,7 @@ import {
   formatDistance,
 } from "@shared/src/utils.js";
 import React from "react";
+import { MobileARScene } from "./MobileARScene";
 
 interface VRSceneProps {
   userLocation: UserLocation;
@@ -896,7 +897,7 @@ function SceneContent({
   // Aim at the nearest flight on mount (Desktop mode only)
   useEffect(() => {
     // If we have a saved camera orientation, use it instead of auto-aiming
-    if (cameraRef?.current && !isPresenting) {
+    if (cameraRef?.current && !isPresenting && !hasAimed) {
       const { heading, pitch } = cameraRef.current;
       console.log("Restoring VR Camera:", { heading, pitch });
 
@@ -1121,20 +1122,112 @@ function SceneContent({
   );
 }
 
-export function VRScene({
-  userLocation,
-  flights,
-  selectedFlight,
-  onFlightSelect,
-  config,
-  heightCoefficient,
-  distanceCoefficient,
-  onHeightCoefficientChange,
-  onDistanceCoefficientChange,
-  onSaveDefaults,
-  isOutOfRange,
-  cameraRef,
-}: VRSceneProps) {
+export function VRScene(props: VRSceneProps) {
+  const [isMobileARActive, setIsMobileARActive] = useState(false);
+  const [isWebXRSupported, setIsWebXRSupported] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    // Check for WebXR support
+    if ("xr" in navigator) {
+      // @ts-ignore
+      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+        setIsWebXRSupported(supported);
+      });
+    } else {
+      setIsWebXRSupported(false);
+    }
+
+    // Check if mobile device (more reliable check, ignoring width)
+    const checkMobile = () => {
+      const ua = navigator.userAgent.toLowerCase();
+      const isAndroid = ua.includes("android");
+      const isIOS = /iphone|ipad|ipod/.test(ua);
+      // iPadOS often reports as Macintosh but has touch points
+      const isIpadOS = ua.includes("macintosh") && navigator.maxTouchPoints > 1;
+      // Check for touch capability (pointer: coarse) or maxTouchPoints
+      const isTouch = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || navigator.maxTouchPoints > 0;
+
+      // We consider it mobile if it's Android, iOS, iPadOS, or has coarse pointer (touch)
+      const mobile = isAndroid || isIOS || isIpadOS || isTouch;
+      console.log("[VRScene] Mobile Detection:", { ua, isAndroid, isIOS, isIpadOS, isTouch, mobile });
+      setIsMobile(mobile);
+
+      // DEBUG: Expose to window for debugging if needed
+      (window as any).__DEBUG_MOBILE = { ua, isAndroid, isIOS, isIpadOS, isTouch, mobile };
+    };
+
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const handleEnterMobileAR = async () => {
+    // 1. Request Device Orientation Permission (iOS 13+)
+    if (
+      typeof DeviceMotionEvent !== "undefined" &&
+      // @ts-ignore
+      typeof DeviceMotionEvent.requestPermission === "function"
+    ) {
+      try {
+        // @ts-ignore
+        const permissionState = await DeviceMotionEvent.requestPermission();
+        if (permissionState !== "granted") {
+          alert("Compass permission is required for AR mode.");
+          return;
+        }
+      } catch (error) {
+        console.error("Error requesting device orientation permission:", error);
+      }
+    }
+
+    // 2. Request Camera Permission (handled inside MobileARScene, but good to check here or just let it fail there)
+    // We'll just switch state and let MobileARScene handle the camera stream
+    setIsMobileARActive(true);
+  };
+
+  // Aggressively hide the default ARButton on mobile using MutationObserver
+  useEffect(() => {
+    if (isMobile) {
+      // Function to hide button
+      const hideButton = () => {
+        const buttons = document.getElementsByTagName('button');
+        for (let i = 0; i < buttons.length; i++) {
+          const btn = buttons[i];
+          const text = btn.textContent?.toLowerCase() || '';
+
+          // Hide if it's the default AR button (usually has ID ARButton or text AR Unsupported)
+          // Case insensitive check is crucial as some versions use "AR unsupported"
+          if (btn.id === 'ARButton' || text.includes('ar unsupported') || (text.includes('enter ar') && btn.id !== 'MobileARButton')) {
+            btn.style.display = 'none';
+            btn.style.visibility = 'hidden';
+            btn.style.opacity = '0';
+            btn.style.pointerEvents = 'none';
+          }
+        }
+      };
+
+      // Run immediately
+      hideButton();
+
+      // Run on interval
+      const interval = setInterval(hideButton, 100);
+
+      // Run on mutation
+      const observer = new MutationObserver(hideButton);
+      observer.observe(document.body, { childList: true, subtree: true });
+
+      return () => {
+        clearInterval(interval);
+        observer.disconnect();
+      };
+    }
+  }, [isMobile]);
+
+  if (isMobileARActive) {
+    return <MobileARScene {...props} />;
+  }
+
   return (
     <>
       <div
@@ -1147,6 +1240,27 @@ export function VRScene({
           background: "linear-gradient(to bottom, #1a1a2e 0%, #16213e 100%)",
         }}
       >
+        {/* Only hide default button if we are on MOBILE and WebXR is NOT supported */}
+        {/* On Desktop, we want the default "AR Unsupported" button to show */}
+        {/* Force hide if mobile, even if WebXR check is pending or false */}
+        {isMobile && (
+          <style>
+            {`
+              #ARButton {
+                display: none !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                visibility: hidden !important;
+              }
+            `}
+          </style>
+        )}
+
+        {/* Explicitly control ARButton - only show if NOT mobile */}
+        {/* If we don't include this, ARCanvas might add a default one. */}
+        {/* By adding it here, we take control. */}
+        {/* !isMobile && <ARButton /> - ARButton not exported in this version */}
+
         <ARCanvas
           camera={{
             position: [0, 1.6, 0],
@@ -1170,21 +1284,51 @@ export function VRScene({
         >
           <Suspense fallback={null}>
             <SceneContent
-              userLocation={userLocation}
-              flights={flights}
-              selectedFlight={selectedFlight}
-              onFlightSelect={onFlightSelect}
-              config={config}
-              heightCoefficient={heightCoefficient}
-              distanceCoefficient={distanceCoefficient}
-              onHeightCoefficientChange={onHeightCoefficientChange}
-              onDistanceCoefficientChange={onDistanceCoefficientChange}
-              onSaveDefaults={onSaveDefaults}
-              isOutOfRange={isOutOfRange}
-              cameraRef={cameraRef}
+              userLocation={props.userLocation}
+              flights={props.flights}
+              selectedFlight={props.selectedFlight}
+              onFlightSelect={props.onFlightSelect}
+              config={props.config}
+              heightCoefficient={props.heightCoefficient}
+              distanceCoefficient={props.distanceCoefficient}
+              onHeightCoefficientChange={props.onHeightCoefficientChange}
+              onDistanceCoefficientChange={props.onDistanceCoefficientChange}
+              onSaveDefaults={props.onSaveDefaults}
+              isOutOfRange={props.isOutOfRange}
+              cameraRef={props.cameraRef}
             />
           </Suspense>
         </ARCanvas>
+
+        {/* Custom Enter AR Button for Mobile (Magic Window) */}
+        {/* Only show if WebXR is NOT supported AND we are on MOBILE */}
+        {!isWebXRSupported && isMobile && (
+          <button
+            id="MobileARButton" // Changed ID to avoid conflict with default ARButton which we are hiding
+            onClick={handleEnterMobileAR}
+            style={{
+              position: 'absolute',
+              bottom: '40px',
+              left: 'calc(50% - 50px)',
+              width: '100px',
+              padding: '12px 6px',
+              border: '1px solid #fff',
+              borderRadius: '4px',
+              background: 'rgba(0,0,0,0.1)',
+              color: '#fff',
+              font: 'normal 13px sans-serif',
+              textAlign: 'center',
+              opacity: '0.5',
+              outline: 'none',
+              zIndex: 10002,
+              cursor: 'pointer',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
+          >
+            Enter AR
+          </button>
+        )}
       </div>
     </>
   );

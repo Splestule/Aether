@@ -34,8 +34,8 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
     // Calculate distance from user (at origin) to plane in meters
     const distanceFromUser = Math.sqrt(
       flight.position.x * flight.position.x +
-        flight.position.y * flight.position.y +
-        flight.position.z * flight.position.z
+      flight.position.y * flight.position.y +
+      flight.position.z * flight.position.z
     );
 
     // Scale sphere size - keep consistent size for visibility, but slightly larger for very far planes
@@ -138,16 +138,16 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
               />
             </mesh>
             {/* Large invisible hitbox for mobile devices - easier touch selection (rendered last to catch events) */}
+            {/* Large invisible hitbox for mobile devices - easier touch selection (rendered last to catch events) */}
             {isMobile && (
               <mesh
-                visible={false}
                 onClick={onClick}
                 onPointerOver={(e) => {
                   e.stopPropagation();
                 }}
               >
                 <sphereGeometry args={[sphereSize * 2.5, 16, 16]} />
-                <meshBasicMaterial transparent opacity={0} />
+                <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
               </mesh>
             )}
           </group>
