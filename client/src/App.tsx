@@ -414,24 +414,7 @@ function App() {
       {/* Compass - shows direction user is looking */}
       {userLocation && (
         <div
-          style={{
-            position: "fixed",
-            top: "16px",
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 10001,
-            background: "rgba(26, 26, 26, 0.9)",
-            border: "1px solid #ffffff",
-            borderRadius: "8px",
-            padding: "12px 24px",
-            color: "#ffffff",
-            fontSize: "24px",
-            fontWeight: "bold",
-            fontFamily: "monospace",
-            letterSpacing: "2px",
-            pointerEvents: "none",
-            userSelect: "none",
-          }}
+          className="fixed top-2 sm:top-4 left-1/2 -translate-x-1/2 z-[10001] bg-[#1a1a1a]/90 border border-white rounded-lg px-3 py-1.5 sm:px-6 sm:py-3 text-white text-sm sm:text-2xl font-bold font-mono tracking-[2px] pointer-events-none select-none"
           id="compass-display"
         >
           N

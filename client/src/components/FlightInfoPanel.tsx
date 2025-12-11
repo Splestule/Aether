@@ -315,7 +315,7 @@ export function FlightInfoPanel({
           </div>
         </div>
         {/* Follow Flight Button */}
-        {onToggleFollow && !isOutOfRange && !flight.onGround && (
+        {onToggleFollow && !isOutOfRange && (!flight.onGround || isFollowing) && (
           <button
             onClick={onToggleFollow}
             className={clsx(

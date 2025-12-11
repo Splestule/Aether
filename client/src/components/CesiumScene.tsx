@@ -1089,6 +1089,8 @@ Heading: ${flight.heading}°
                     entity.polyline.positions = [start, end] as any;
                     entity.polyline.width = new ConstantProperty(width);
                     entity.polyline.material = new ColorMaterialProperty(color);
+                    // Ensure depthFailMaterial matches main color so it doesn't look dark/transparent when clipping terrain
+                    entity.polyline.depthFailMaterial = new ColorMaterialProperty(color);
                 }
             } else {
                 viewer.entities.add({
@@ -1097,7 +1099,8 @@ Heading: ${flight.heading}°
                         positions: [start, end],
                         width: width,
                         material: new ColorMaterialProperty(color),
-                        depthFailMaterial: new ColorMaterialProperty(Color.TRANSPARENT)
+                        // Ensure depthFailMaterial matches main color
+                        depthFailMaterial: new ColorMaterialProperty(color)
                     }
                 });
             }
