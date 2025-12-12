@@ -4,6 +4,7 @@ import {
   useXR,
   ARCanvas,
   useController,
+  XRButton,
 } from "@react-three/xr";
 import { OrbitControls, Text } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
@@ -455,11 +456,13 @@ function HideControllers() {
                   if (mat) {
                     mat.transparent = true;
                     mat.opacity = 0;
+                    mat.visible = false;
                   }
                 });
               } else if (child.material) {
                 child.material.transparent = true;
                 child.material.opacity = 0;
+                child.material.visible = false;
               }
             }
           }
@@ -909,7 +912,7 @@ function SceneContent({
       // Since OrbitControls looks at (0,0,0), we place the camera in the OPPOSITE direction.
 
       // Direction vector (where we want to look)
-      // Note: Cesium pitch is negative for looking down. 
+      // Note: Cesium pitch is negative for looking down.
       // In Three.js Y-up: looking down means direction.y is negative.
       // So sin(pitch) works directly.
 
@@ -1124,7 +1127,7 @@ function SceneContent({
 
 export function VRScene(props: VRSceneProps) {
   const [isMobileARActive, setIsMobileARActive] = useState(false);
-  const [isWebXRSupported, setIsWebXRSupported] = useState(true);
+  const [isWebXRSupported, setIsWebXRSupported] = useState<boolean | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
@@ -1133,28 +1136,21 @@ export function VRScene(props: VRSceneProps) {
       // @ts-ignore
       navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
         setIsWebXRSupported(supported);
+        console.log("[VRScene] WebXR Support:", supported);
       });
     } else {
       setIsWebXRSupported(false);
     }
 
-    // Check if mobile device (more reliable check, ignoring width)
+    // Check if mobile device
     const checkMobile = () => {
       const ua = navigator.userAgent.toLowerCase();
       const isAndroid = ua.includes("android");
       const isIOS = /iphone|ipad|ipod/.test(ua);
-      // iPadOS often reports as Macintosh but has touch points
       const isIpadOS = ua.includes("macintosh") && navigator.maxTouchPoints > 1;
-      // Check for touch capability (pointer: coarse) or maxTouchPoints
       const isTouch = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || navigator.maxTouchPoints > 0;
-
-      // We consider it mobile if it's Android, iOS, iPadOS, or has coarse pointer (touch)
       const mobile = isAndroid || isIOS || isIpadOS || isTouch;
-      console.log("[VRScene] Mobile Detection:", { ua, isAndroid, isIOS, isIpadOS, isTouch, mobile });
       setIsMobile(mobile);
-
-      // DEBUG: Expose to window for debugging if needed
-      (window as any).__DEBUG_MOBILE = { ua, isAndroid, isIOS, isIpadOS, isTouch, mobile };
     };
 
     checkMobile();
@@ -1180,56 +1176,97 @@ export function VRScene(props: VRSceneProps) {
         console.error("Error requesting device orientation permission:", error);
       }
     }
-
-    // 2. Request Camera Permission (handled inside MobileARScene, but good to check here or just let it fail there)
-    // We'll just switch state and let MobileARScene handle the camera stream
     setIsMobileARActive(true);
   };
-
-  // Aggressively hide the default ARButton on mobile using MutationObserver
-  useEffect(() => {
-    if (isMobile) {
-      // Function to hide button
-      const hideButton = () => {
-        const buttons = document.getElementsByTagName('button');
-        for (let i = 0; i < buttons.length; i++) {
-          const btn = buttons[i];
-          const text = btn.textContent?.toLowerCase() || '';
-
-          // Hide if it's the default AR button (usually has ID ARButton or text AR Unsupported)
-          // Case insensitive check is crucial as some versions use "AR unsupported"
-          if (btn.id === 'ARButton' || text.includes('ar unsupported') || (text.includes('enter ar') && btn.id !== 'MobileARButton')) {
-            btn.style.display = 'none';
-            btn.style.visibility = 'hidden';
-            btn.style.opacity = '0';
-            btn.style.pointerEvents = 'none';
-          }
-        }
-      };
-
-      // Run immediately
-      hideButton();
-
-      // Run on interval
-      const interval = setInterval(hideButton, 100);
-
-      // Run on mutation
-      const observer = new MutationObserver(hideButton);
-      observer.observe(document.body, { childList: true, subtree: true });
-
-      return () => {
-        clearInterval(interval);
-        observer.disconnect();
-      };
-    }
-  }, [isMobile]);
 
   if (isMobileARActive) {
     return <MobileARScene {...props} />;
   }
 
+  const sessionInit = {
+    requiredFeatures: ["local-floor"],
+    optionalFeatures: ["bounded-floor", "hand-tracking"],
+  };
+
+  // Standard text style for AR button (matching default XRButton)
+  const standardButtonStyle: React.CSSProperties = {
+    position: 'absolute',
+    bottom: '20px',
+    left: 'calc(50% - 90px)', // Centered (180/2 = 90)
+    width: '180px',
+    padding: '12px 6px',
+    border: '1px solid #fff',
+    borderRadius: '4px',
+    background: 'rgba(0,0,0,0.1)',
+    color: '#fff',
+    font: 'normal 13px sans-serif',
+    textAlign: 'center',
+    opacity: '0.5',
+    outline: 'none',
+    zIndex: 99999, // High Z-Index to stay on top
+    cursor: 'pointer',
+  };
+
+  // Determine which button to show (Mutually Exclusive)
+  const renderARButton = () => {
+    // 1. Still checking support? Show nothing to avoid flash
+    if (isWebXRSupported === null) return null;
+
+    // 2. Mobile? Force Magic Window Custom Button
+    if (isMobile) {
+      return (
+        <button
+          style={{
+            ...standardButtonStyle,
+            bottom: '65px', // Align with Aether logo (bottom-6 + half height)
+            opacity: '1',
+            cursor: 'pointer',
+          }}
+          onClick={handleEnterMobileAR}
+          onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+          onMouseLeave={(e) => (e.currentTarget.style.opacity = '1')}
+          data-custom-ar-button="true"
+        >
+          Enter AR
+        </button>
+      );
+    }
+
+    // 3. Headset / WebXR Supported? Use Native XRButton with our styles
+    if (isWebXRSupported) {
+      return (
+        <XRButton
+          mode="AR"
+          sessionInit={sessionInit}
+          style={standardButtonStyle}
+        // We can't add data-attribute to XRButton potentially if it doesn't pass it down?
+        // But XRButton typically spreads props.
+        >
+          Enter AR
+        </XRButton>
+      );
+    }
+
+    // 4. Desktop / Unsupported? Show Disabled Button
+    return (
+      <button
+        style={{
+          ...standardButtonStyle,
+          cursor: 'default',
+        }}
+        disabled
+        data-custom-ar-button="true"
+      >
+        AR unsupported
+      </button>
+    );
+  };
+
   return (
     <>
+      {/* Nuclear Option: Delete any unwanted auto-generated buttons */}
+      <DeleteUnwantedButtons />
+
       <div
         style={{
           position: "absolute",
@@ -1240,33 +1277,12 @@ export function VRScene(props: VRSceneProps) {
           background: "linear-gradient(to bottom, #1a1a2e 0%, #16213e 100%)",
         }}
       >
-        {/* Only hide default button if we are on MOBILE and WebXR is NOT supported */}
-        {/* On Desktop, we want the default "AR Unsupported" button to show */}
-        {/* Force hide if mobile, even if WebXR check is pending or false */}
-        {isMobile && (
-          <style>
-            {`
-              #ARButton {
-                display: none !important;
-                opacity: 0 !important;
-                pointer-events: none !important;
-                visibility: hidden !important;
-              }
-            `}
-          </style>
-        )}
-
-        {/* Explicitly control ARButton - only show if NOT mobile */}
-        {/* If we don't include this, ARCanvas might add a default one. */}
-        {/* By adding it here, we take control. */}
-        {/* !isMobile && <ARButton /> - ARButton not exported in this version */}
-
         <ARCanvas
           camera={{
             position: [0, 1.6, 0],
             fov: 75,
             near: 0.1,
-            far: 250000, // 250 km to see planes up to 200 km away
+            far: 250000,
           }}
           gl={{
             alpha: false,
@@ -1274,13 +1290,9 @@ export function VRScene(props: VRSceneProps) {
             powerPreference: "high-performance",
           }}
           onCreated={({ gl }) => {
-            // Set dark background color for PC mode
             gl.setClearColor(0x0a0a0f, 1);
           }}
-          sessionInit={{
-            requiredFeatures: ["local-floor"],
-            optionalFeatures: ["bounded-floor", "hand-tracking"],
-          }}
+          sessionInit={sessionInit}
         >
           <Suspense fallback={null}>
             <SceneContent
@@ -1300,38 +1312,55 @@ export function VRScene(props: VRSceneProps) {
           </Suspense>
         </ARCanvas>
 
-        {/* Custom Enter AR Button for Mobile (Magic Window) */}
-        {/* Only show if WebXR is NOT supported AND we are on MOBILE */}
-        {!isWebXRSupported && isMobile && (
-          <button
-            id="MobileARButton" // Changed ID to avoid conflict with default ARButton which we are hiding
-            onClick={handleEnterMobileAR}
-            style={{
-              position: 'absolute',
-              bottom: '40px',
-              left: 'calc(50% - 50px)',
-              width: '100px',
-              padding: '12px 6px',
-              border: '1px solid #fff',
-              borderRadius: '4px',
-              background: 'rgba(0,0,0,0.1)',
-              color: '#fff',
-              font: 'normal 13px sans-serif',
-              textAlign: 'center',
-              opacity: '0.5',
-              outline: 'none',
-              zIndex: 10002,
-              cursor: 'pointer',
-            }}
-            onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-            onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.5')}
-          >
-            Enter AR
-          </button>
-        )}
+        {/* Single AR Button Source of Truth */}
+        {renderARButton()}
       </div>
     </>
   );
+}
+
+// Component to delete unwanted AR buttons
+function DeleteUnwantedButtons() {
+  useEffect(() => {
+    const cleanup = () => {
+      const buttons = document.querySelectorAll('button');
+      buttons.forEach(btn => {
+        // If the button is NOT one of ours (marked with data-custom-ar-button)
+        if (!btn.hasAttribute('data-custom-ar-button')) {
+          const text = (btn.textContent || '').trim().toLowerCase();
+          const isTarget =
+            text === 'ar unsupported' ||
+            text === 'enter ar' ||
+            text.includes('ar unsupported') ||
+            text.includes('enter ar') ||
+            btn.id === 'ARButton' ||
+            btn.id === 'XRButton';
+
+          if (isTarget) {
+            // console.log("Deleting duplicate AR button:", btn); // helpful for debugging if we could see logs
+            btn.style.display = 'none'; // Hide immediately
+            btn.remove(); // Then delete
+          }
+        }
+      });
+    };
+
+    // Run immediately
+    cleanup();
+
+    // Run on interval
+    const intervalId = setInterval(cleanup, 50);
+
+    // Run on mutation
+    const observer = new MutationObserver(cleanup);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      clearInterval(intervalId);
+      observer.disconnect();
+    };
+  }, []);
+  return null;
 }
 
 // Compass component that reads camera direction from SceneContent

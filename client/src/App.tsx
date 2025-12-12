@@ -310,70 +310,7 @@ function App() {
     }
   }, [flights, flightsMap, selectedFlight?.id]);
 
-  // Hide react-three/xr AR button on mobile when flight is selected
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const hideARButton = () => {
-      const isMobile = window.innerWidth < 640;
-      const shouldHide = isMobile && selectedFlight;
-
-      // Find AR button - react-three/xr renders it with "Enter AR" or "AR unsupported" text
-      const buttons = document.querySelectorAll('button');
-      buttons.forEach((button) => {
-        const text = (button.textContent || '').trim();
-        // Match exact text or buttons that contain "AR" and are likely the AR button
-        if (text === 'Enter AR' || text === 'AR unsupported' ||
-          (text.includes('AR') && button.closest('canvas')?.nextElementSibling)) {
-          if (shouldHide) {
-            button.style.display = 'none';
-            button.style.pointerEvents = 'none';
-            button.style.visibility = 'hidden';
-          } else {
-            button.style.display = '';
-            button.style.pointerEvents = '';
-            button.style.visibility = '';
-          }
-        }
-      });
-    };
-
-    // Run after a short delay to ensure ARCanvas has rendered
-    const timeoutId = setTimeout(() => {
-      hideARButton();
-    }, 200);
-
-    // Use MutationObserver to catch buttons added later by react-three/xr
-    const observer = new MutationObserver(() => {
-      setTimeout(() => {
-        hideARButton();
-      }, 50);
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    const resizeHandler = () => {
-      setTimeout(() => {
-        hideARButton();
-      }, 50);
-    };
-    window.addEventListener('resize', resizeHandler);
-
-    return () => {
-      clearTimeout(timeoutId);
-      window.removeEventListener('resize', resizeHandler);
-      observer.disconnect();
-      // Restore button visibility
-      const buttons = document.querySelectorAll('button');
-      buttons.forEach((button) => {
-        const text = (button.textContent || '').trim();
-        if (text === 'Enter AR' || text === 'AR unsupported') {
-          button.style.display = '';
-          button.style.pointerEvents = '';
-          button.style.visibility = '';
-        }
-      });
-    };
-  }, [selectedFlight]);
+  // Legacy AR button logic removed - handled in VRScene.tsx
 
   // Check if selected flight is out of range (not in current flights list)
   const isOutOfRange = selectedFlight ? !flights.some(f => f.id === selectedFlight.id) : false;
@@ -460,7 +397,7 @@ function App() {
 
         {/* View Mode Toggle */}
         {userLocation && (
-          <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000] flex flex-col items-end gap-2 sm:gap-4">
+          <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1000] flex flex-col items-end gap-2 sm:gap-4 w-40 sm:w-64">
             {/* Logo - moved from VRScene */}
             <div className="vr-panel hidden sm:flex items-center gap-3 sm:gap-5 px-3 py-2 sm:px-5 sm:py-4 pointer-events-none select-none">
               <img

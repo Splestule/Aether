@@ -14,6 +14,7 @@
     "@react-three/fiber": "^8.15.12",
     "@react-three/xr": "^4.1.8",
     "@vr-flight-tracker/shared": "file:../shared",
+    "3d-tiles-renderer": "^0.4.18",
     "autoprefixer": "^10.4.16",
     "cesium": "^1.114.0",
     "clsx": "^2.0.0",
