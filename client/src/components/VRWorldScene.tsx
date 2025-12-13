@@ -3,20 +3,31 @@ import { useThree, useFrame } from '@react-three/fiber';
 import { TilesRenderer } from '3d-tiles-renderer';
 import {
     Matrix4,
-    Vector3,
-    Quaternion,
-    Euler,
+    BoxGeometry,
+    MeshBasicMaterial,
     Mesh,
-    MeshStandardMaterial,
-    ShaderLib,
-    UniformsUtils,
-    Color
+    Color,
+    AmbientLight,
+    DirectionalLight,
+    PMREMGenerator,
+    Scene,
+    Box3,
+    Sphere
 } from 'three';
-import * as Cesium from 'cesium';
-import { UserLocation } from '@shared/src/types';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import {
+    Cartesian3,
+    Matrix4 as CesiumMatrix4,
+    Transforms,
+    Math as CesiumMath
+} from 'cesium';
 
 interface VRWorldSceneProps {
-    userLocation: UserLocation;
+    userLocation: {
+        latitude: number;
+        longitude: number;
+        altitude?: number;
+    } | null;
 }
 
 export function VRWorldScene({ userLocation }: VRWorldSceneProps) {
@@ -24,116 +35,123 @@ export function VRWorldScene({ userLocation }: VRWorldSceneProps) {
     const tilesRendererRef = useRef<TilesRenderer | null>(null);
     const [isLoaded, setIsLoaded] = useState(false);
 
-    // 1. Initialize TilesRenderer
+    // 1. Setup Environment & Lighting (Critical for PBR)
+    useEffect(() => {
+        // Sky Blue Background for horizon reference
+        scene.background = new Color(0x99ccff);
+
+        // Generate a high-quality Environment Map using PMREM
+        // This simulates indirect lighting and reflections, preventing "Black" textures
+        const pmremGenerator = new PMREMGenerator(gl);
+        pmremGenerator.compileEquirectangularShader();
+        const roomEnvironment = new RoomEnvironment();
+        scene.environment = pmremGenerator.fromScene(roomEnvironment).texture;
+
+        // Clean up
+        return () => {
+            scene.environment = null;
+            pmremGenerator.dispose();
+            roomEnvironment.dispose();
+        };
+    }, [scene, gl]);
+
+    // 2. Add Sun & Ambient Light
+    useEffect(() => {
+        const ambientLight = new AmbientLight(0xffffff, 1.5); // Boost ambient visibility
+        scene.add(ambientLight);
+
+        const dirLight = new DirectionalLight(0xffffff, 3.0);
+        dirLight.position.set(0, 5000, 0); // Sun high overhead
+        scene.add(dirLight);
+
+        return () => {
+            scene.remove(ambientLight);
+            scene.remove(dirLight);
+        };
+    }, [scene]);
+
+    // 3. Initialize TilesRenderer
     useEffect(() => {
         const initTiles = async () => {
             try {
-                // Fetch Google 3D Tiles URL from Cesium Ion
                 const assetId = 96188; // Google Photorealistic 3D Tiles
                 const token = import.meta.env.VITE_CESIUM_ION_TOKEN;
 
                 if (!token) {
-                    console.error("VRWorldScene: No Cesium Ion Token found!");
+                    console.error("VRWorldScene: No Token");
                     return;
                 }
 
+                console.log("VRWorldScene: Fetching tileset...");
                 const response = await fetch(`https://api.cesium.com/v1/assets/${assetId}/endpoint?access_token=${token}`);
-                const data = await response.json();
+                // TEST: USE PUBLIC NASA TILESET
+                const tilesetUrl = 'https://raw.githubusercontent.com/NASA-AMMOS/3DTilesSampleData/master/msl-dingo-gap/0528_0260184_to_s64244_v1/0528_0260184_to_s64244_v1.json';
+                console.log("VRWorldScene: DEBUG MODE - Using NASA Mars Tileset");
 
-                if (!data.url) {
-                    console.error("VRWorldScene: Failed to get tileset URL", data);
-                    return;
-                }
-
-                console.log("VRWorldScene: Loading tiles from", data.url);
-
-                // Create Renderer
-                const tilesRenderer = new TilesRenderer(data.url);
+                const tilesRenderer = new TilesRenderer(tilesetUrl);
                 tilesRenderer.setCamera(camera);
                 tilesRenderer.setResolutionFromRenderer(camera, gl);
 
-                // Optimization Settings
-                tilesRenderer.errorTarget = 12.0; // Lower = Better quality, Higher = Better perf (Default ~6)
-                tilesRenderer.maxDepth = 15;
-                tilesRenderer.loadSiblings = true;
-                tilesRenderer.displayActiveTiles = true;
-                tilesRenderer.autoDisableRendererCulling = false;
+                // No Auth needed for Public GitHub
+                tilesRenderer.fetchOptions = { mode: 'cors' };
+
+                // Visualization & Performance Settings
+                tilesRenderer.errorTarget = 12.0; // Standard
+
+                (tilesRenderer as any).addEventListener('load-tile-set', () => {
+                    console.log("VRWorldScene: Tileset JSON Loaded!");
+                    // Visual Feedback: Turn Cube CYAN
+                    const statusMesh = scene.getObjectByName("status-cube") as Mesh;
+                    if (statusMesh) (statusMesh.material as MeshBasicMaterial).color.setHex(0x00ffff);
+
+                    // Center the model roughly at 0,0,0
+                    const box = new Box3();
+                    const sphere = new Sphere();
+                    (tilesRenderer as any).getBoundingBox(box);
+                    box.getBoundingSphere(sphere);
+                    tilesRenderer.group.position.copy(sphere.center).multiplyScalar(-1);
+                    tilesRenderer.group.position.y -= sphere.radius * 0.5; // Move down a bit
+                });
+
+                (tilesRenderer as any).addEventListener('load-model', (e: any) => {
+                    // Tile geometry loaded
+                    console.log("VRWorldScene: Model Loaded", e);
+                    const statusMesh = scene.getObjectByName("status-cube") as Mesh;
+                    // Dark Blue = Model Loaded but maybe not active yet
+                    if (statusMesh) (statusMesh.material as MeshBasicMaterial).color.setHex(0x00008b);
+                });
+
+                (tilesRenderer as any).addEventListener('load-error', (e: any) => {
+                    console.error("VRWorldScene: LOAD ERROR", e);
+                    const statusMesh = scene.getObjectByName("status-cube") as Mesh;
+                    if (statusMesh) (statusMesh.material as MeshBasicMaterial).color.setHex(0xff0000); // RED
+                });
+
+                (tilesRenderer as any).addEventListener('tile-error', (e: any) => {
+                    console.error("VRWorldScene: TILE ERROR", e);
+                    const statusMesh = scene.getObjectByName("status-cube") as Mesh;
+                    if (statusMesh) (statusMesh.material as MeshBasicMaterial).color.setHex(0xffa500); // ORANGE
+                });
+
+                // FORCE GROUP RE-RENDER
+                tilesRenderer.group.frustumCulled = false;
+
+                // All debugging flags
+                tilesRenderer.autoDisableRendererCulling = true;
+                (tilesRenderer as any).displayActiveTiles = true;
+                (tilesRenderer as any).loadSiblings = true;
 
                 // Add to Scene
                 scene.add(tilesRenderer.group);
                 tilesRendererRef.current = tilesRenderer;
 
-                // 2. Custom Shader Injection (Replicating CesiumScene look)
-                tilesRenderer.onLoadModel = (scene) => {
-                    scene.traverse((c) => {
-                        if (c instanceof Mesh) {
-                            // We want to modify the material to add the distance fade and purple tint
-                            // We can't easily replace the whole shader, but we can hook into onBeforeCompile
-                            const originalMaterial = c.material as MeshStandardMaterial;
-
-                            // Clone to avoid sharing issues if needed, though usually unique per tile
-                            c.material = originalMaterial.clone();
-
-                            c.material.onBeforeCompile = (shader) => {
-                                // Pass camera position and other uniforms if needed
-                                // Three.js handles cameraPosition uniform automatically in standard materials
-
-                                shader.uniforms.uCenter = { value: new Vector3(0, 0, 0) }; // Will be updated
-                                shader.uniforms.uRadius = { value: 6000.0 }; // 6km cutoff
-
-                                // Inject logic at the end of the fragment shader
-                                shader.fragmentShader = shader.fragmentShader.replace(
-                                    '#include <dithering_fragment>',
-                                    `
-                                    #include <dithering_fragment>
-                                    
-                                    // Custom VR Flight Tracker Logic
-                                    
-                                    // 1. Distance Cutoff
-                                    // vViewPosition is view-space position. length(vViewPosition) is distance to camera.
-                                    // Or use gl_FragCoord? 
-                                    // Three.js provides vViewPosition in standard materials.
-                                    
-                                    float dist = length(vViewPosition);
-                                    if (dist > 6000.0) {
-                                        discard;
-                                    }
-
-                                    // 2. Styling: Pale Gradient (Gray -> Purple)
-                                    vec3 paleGray = vec3(0.90, 0.90, 0.92);
-                                    vec3 mildPurple = vec3(0.85, 0.80, 0.95);
-                                    
-                                    // Height Gradient (Approximate)
-                                    // We need world position for height. 
-                                    // Standard material doesn't always export vWorldPosition unless we ask.
-                                    // But we can approximate with view position or just use a simple gradient.
-                                    // Let's use a simple screen-space or view-space gradient for now to save complexity.
-                                    // Or better: use the texture color (gl_FragColor) and desaturate it.
-
-                                    vec3 texColor = gl_FragColor.rgb;
-                                    
-                                    // Grayscale
-                                    float gray = dot(texColor, vec3(0.299, 0.587, 0.114));
-                                    
-                                    // Mix with purple based on... let's just use a constant mix for the "vibe"
-                                    // In Cesium we used height. Here let's use a subtle radial gradient or just constant.
-                                    vec3 gradientColor = mildPurple; 
-                                    
-                                    vec3 base = vec3(gray);
-                                    vec3 finalColor = mix(base, gradientColor, 0.4); // 40% purple
-                                    
-                                    gl_FragColor = vec4(finalColor + 0.05, gl_FragColor.a);
-                                    `
-                                );
-                            };
-                        }
-                    });
-                };
-
                 setIsLoaded(true);
 
             } catch (error) {
-                console.error("VRWorldScene: Failed to init", error);
+                console.error("VRWorldScene: Init failed", error);
+                // Visual Error Feedback: Turn Status Cube RED
+                const statusMesh = scene.getObjectByName("status-cube") as Mesh;
+                if (statusMesh) (statusMesh.material as MeshBasicMaterial).color.setHex(0xff0000);
             }
         };
 
@@ -147,68 +165,179 @@ export function VRWorldScene({ userLocation }: VRWorldSceneProps) {
         };
     }, [scene, camera, gl]);
 
-    // 3. Coordinate System Update (When User Location Changes)
+    // 4. Floating Origin: Move the World to the User
     useEffect(() => {
         if (!tilesRendererRef.current || !userLocation) return;
 
-        const renderer = tilesRendererRef.current;
-        const group = renderer.group;
+        const group = tilesRendererRef.current.group;
 
-        // A. Calculate User's ECEF Position (Cesium)
-        const userECEF = Cesium.Cartesian3.fromDegrees(
+        // 1. Calculate Target ECEF Position (Where the user is on Earth)
+        // Add 1000m altitude to ensure we are above terrain/buildings
+        const userPositionCartographic = Cartesian3.fromDegrees(
             userLocation.longitude,
             userLocation.latitude,
-            userLocation.altitude || 0
+            (userLocation.altitude || 0) + 1000
         );
 
-        // B. Calculate Rotation Matrix to align User's Up with Three.js Y+
-        // Cesium ENU: X=East, Y=North, Z=Up
-        const enuToFixed = Cesium.Transforms.eastNorthUpToFixedFrame(userECEF);
+        // 2. Compute "East-North-Up" Matrix at this location
+        // This matrix describes a local coordinate system where:
+        // Origin = User Position
+        // Z axis = Computed Up (Normal to ellipsoid)
+        // X axis = East
+        // Y axis = North
+        // Note: Cesium's "EastNorthUp" actually produces:
+        // X=East, Y=North, Z=Up.
+        const enuToFixed = Transforms.eastNorthUpToFixedFrame(userPositionCartographic);
 
-        // We want to transform the WORLD such that the User is at (0,0,0) and aligned.
-        // World Matrix = Inverse(User ENU Matrix) * (Coordinate Swap Matrix)
+        // 3. We want the INVERSE.
+        // We want to transform the Earth (Fixed Frame) INTO the User's Local Frame.
+        // So that the User is at (0,0,0) looking along the local axes.
+        const fixedToEnu = CesiumMatrix4.inverse(enuToFixed, new CesiumMatrix4());
 
-        // 1. Get Inverse of ENU (ECEF -> ENU)
-        const inverseEnu = Cesium.Matrix4.inverse(enuToFixed, new Cesium.Matrix4());
-
-        // 2. Convert to Three.js Matrix4
+        // 4. Convert to Three.js Matrix4
+        // Cesium is Column-Major, Three.js is Column-Major. Direct copy works.
+        const invArray = CesiumMatrix4.toArray(fixedToEnu);
         const m1 = new Matrix4();
         m1.set(
-            inverseEnu[0], inverseEnu[4], inverseEnu[8], inverseEnu[12],
-            inverseEnu[1], inverseEnu[5], inverseEnu[9], inverseEnu[13],
-            inverseEnu[2], inverseEnu[6], inverseEnu[10], inverseEnu[14],
-            inverseEnu[3], inverseEnu[7], inverseEnu[11], inverseEnu[15]
+            invArray[0], invArray[4], invArray[8], invArray[12],
+            invArray[1], invArray[5], invArray[9], invArray[13],
+            invArray[2], invArray[6], invArray[10], invArray[14],
+            invArray[3], invArray[7], invArray[11], invArray[15]
         );
 
-        // 3. Coordinate Swap (Cesium ENU -> Three.js)
-        // Cesium: X=East, Y=North, Z=Up
-        // Three:  X=East, Y=Up,    Z=South (Right-handed Y-up)
-        // Rotate -90 deg around X axis: (x, y, z) -> (x, z, -y)
-        // Wait:
-        // Cesium X (East) -> Three X (East)
-        // Cesium Y (North) -> Three -Z (North is -Z)
-        // Cesium Z (Up)    -> Three Y (Up)
-
+        // 5. Coordinate Interface Match
+        // Cesium ENU: X=East, Y=North, Z=Up
+        // Three.js: X=Right, Y=Up, Z=Back (Right-Handed)
+        // In WebXR (Y-Up), we want:
+        // Cesium Z (Up) -> Three Y (Up)
+        // Cesium Y (North) -> Three -Z (Forward/North)
+        // Cesium X (East) -> Three X (Right)
+        // Rotation X = -90 degrees (-PI/2) achieves: Z->Y, Y->-Z.
         const swapMat = new Matrix4().makeRotationX(-Math.PI / 2);
 
-        // Final Transform: Apply Inverse ENU (to center/align to ENU), then Swap (to align to Three)
+        // Final = Swap * InverseENU
         const finalMat = swapMat.multiply(m1);
 
-        // Apply to Group
         group.matrixAutoUpdate = false;
-        group.matrix.copy(finalMat);
-        group.updateMatrixWorld(true);
 
-        console.log("VRWorldScene: Updated World Position for", userLocation);
+        // Debug: Log the simplified matrix to check for sanity
+        console.log("VRWorldScene: Matrix Elements", finalMat.elements);
+
+        group.matrixAutoUpdate = true; // Use standard posiiton
+        // group.matrix.copy(finalMat);
+        // group.updateMatrixWorld(true);
+
+        console.log("VRWorldScene: Floating Origin TEMPORARILY DISABLED (Mars Mode)");
 
     }, [userLocation, isLoaded]);
 
-    // 4. Render Loop
-    useFrame(() => {
+    // 5. Render Loop
+    const frameRef = useRef(0);
+    useFrame((state) => {
+        const time = state.clock.getElapsedTime();
+        const statusMesh = scene.getObjectByName("status-cube") as Mesh;
+        if (statusMesh && tilesRendererRef.current) {
+            // Pulse Effect
+            const scale = 1 + Math.sin(time * 5) * 0.2;
+            statusMesh.scale.set(scale, scale, scale);
+
+            const r = tilesRendererRef.current;
+            const mat = statusMesh.material as MeshBasicMaterial;
+
+            // Stats Analysis
+            const stats = (r as any).stats;
+
+            // Console Heartbeat (Every 60 frames)
+            frameRef.current++;
+            if (frameRef.current % 120 === 0) {
+                console.log("VRWorldScene: Status", {
+                    active: (r as any).activeTiles.size,
+                    downloading: stats.downloading,
+                    parsing: stats.parsing,
+                    visible: (r as any).visibleTiles.size,
+                    camera: camera.position.toArray()
+                });
+            }
+
+            // COLOR LOGIC
+            // BLUE = Visible Content
+            if ((r as any).activeTiles.size > 0) mat.color.setHex(0x0000ff);
+            // PURPLE = Busy Downloading (Good sign!)
+            else if (stats.downloading > 0) mat.color.setHex(0x800080);
+            // CYAN = Parse in progress
+            else if (stats.parsing > 0) mat.color.setHex(0x00ffff);
+            // GREEN = Idle / Initialized (Bad if stuck here)
+            else if (isLoaded) mat.color.setHex(0x00ff00);
+            // YELLOW = Loading Start
+            else mat.color.setHex(0xffff00);
+        }
+
+        // CRITICAL: ACTUALLY UPDATE RENDERER
         if (tilesRendererRef.current) {
+            // Force Resolution (VR sometimes reports 0/weird sizes initially)
+            tilesRendererRef.current.setResolution(1920, 1080);
+            // Aggressive Quality to force load
+            tilesRendererRef.current.errorTarget = 0.5;
+
+            tilesRendererRef.current.setCamera(camera);
             tilesRendererRef.current.update();
         }
     });
 
-    return null; // Renders nothing directly, manages the TilesRenderer
-}
+    // 6. DEBUG: Safety Sphere & Status Cube
+    useEffect(() => {
+        // Red Sphere = Scene is Alive
+        const geom = new BoxGeometry(0.5, 0.5, 0.5);
+        const mat = new MeshBasicMaterial({ color: 0xff0000 });
+        const mesh = new Mesh(geom, mat);
+        mesh.position.set(0, 1, -2); // Center
+        scene.add(mesh);
+
+        // Status Cube (Right)
+        // Blue = Tiles Loaded, Yellow = Error, Green = Init
+        const statusGeom = new BoxGeometry(0.3, 0.3, 0.3);
+        const statusMat = new MeshBasicMaterial({ color: 0xffff00 }); // Start Yellow
+        const statusMesh = new Mesh(statusGeom, statusMat);
+        statusMesh.position.set(1, 1, -2); // 1m to the right
+        statusMesh.name = "status-cube";
+        scene.add(statusMesh);
+
+        // Ground Plane Reference (Green Wireframe)
+        // To see where Y=0 is
+        const planeGeom = new BoxGeometry(100, 0.1, 100);
+        const planeMat = new MeshBasicMaterial({ color: 0x00ff00, wireframe: true });
+        const plane = new Mesh(planeGeom, planeMat);
+        plane.position.set(0, -1, 0); // 1m below eye? No, user is at Y=0 usually in WebXR? 
+        // Actually WebXR camera is at Y=Height. Ground should be at Y=0.
+        plane.position.y = 0;
+        scene.add(plane);
+
+        return () => {
+            scene.remove(mesh); scene.remove(statusMesh); scene.remove(plane);
+            geom.dispose(); mat.dispose();
+            statusGeom.dispose(); statusMat.dispose();
+            planeGeom.dispose(); planeMat.dispose();
+        };
+    }, [scene]);
+
+    // Update Status Cube Color & Pulse
+    useFrame((state) => {
+        const time = state.clock.getElapsedTime();
+        const statusMesh = scene.getObjectByName("status-cube") as Mesh;
+        if (statusMesh && tilesRendererRef.current) {
+            // Pulse Effect (Heartbeat) to prove loop is running
+            const scale = 1 + Math.sin(time * 5) * 0.2;
+            statusMesh.scale.set(scale, scale, scale);
+
+            const r = tilesRendererRef.current;
+            const mat = statusMesh.material as MeshBasicMaterial;
+
+            // Check Active TIles
+            if ((r as any).activeTiles.size > 0) mat.color.setHex(0x0000ff); // BLUE = VISIBLE
+            else if (isLoaded) mat.color.setHex(0x00ff00); // GREEN = INITIALIZED
+            else mat.color.setHex(0xffff00); // YELLOW = LOADING/ERROR
+        }
+    });
+
+    return null;
+} // Renders nothing directly, manages the TilesRenderer

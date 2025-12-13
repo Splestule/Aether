@@ -12,6 +12,7 @@ import { config } from "./config";
 import { ParticleField } from "./components/ParticleField";
 import { CesiumScene } from "./components/CesiumScene";
 
+
 function App() {
   console.log("App component rendering");
 
@@ -21,7 +22,7 @@ function App() {
   );
   const [isLoading, setIsLoading] = useState(false);
   const [isRouteEnabled, setIsRouteEnabled] = useState(false);
-  const [viewMode, setViewMode] = useState<'vr' | 'cesium'>('vr');
+  const [viewMode, setViewMode] = useState<'vr' | 'cesium' | 'vr-world'>('vr');
   const [followingFlight, setFollowingFlight] = useState<ProcessedFlight | null>(null);
   const [errorNotification, setErrorNotification] = useState<ErrorNotificationData | null>(null);
 
@@ -345,8 +346,11 @@ function App() {
           onFlightSelect={handleFlightSelect}
           followingFlight={followingFlight}
           cameraRef={cameraOrientationRef}
+          cameraRef={cameraOrientationRef}
         />
       )}
+
+
 
       {/* Compass - shows direction user is looking */}
       {userLocation && (
@@ -459,6 +463,12 @@ function App() {
                 Virtual Environment
               </button>
             </div>
+            {/* Error Notification - Moved to layout flow */}
+            <ErrorNotification
+              error={errorNotification}
+              onDismiss={() => setErrorNotification(null)}
+              onRetry={userLocation ? refreshFlights : undefined}
+            />
           </div>
         )}
         {/* Back button removed - now handled by VRControls */}
@@ -477,11 +487,7 @@ function App() {
         )}
 
         {/* Error Notification */}
-        <ErrorNotification
-          error={errorNotification}
-          onDismiss={() => setErrorNotification(null)}
-          onRetry={userLocation ? refreshFlights : undefined}
-        />
+
 
         {/* Loading Indicator - removed, using the one in VRControls (left side) */}
         {/* Debug Info - removed */}

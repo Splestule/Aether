@@ -42,6 +42,7 @@ interface CesiumSceneProps {
     onFlightSelect: (flight: ProcessedFlight | null) => void;
     followingFlight: ProcessedFlight | null;
     cameraRef?: React.MutableRefObject<{ heading: number; pitch: number } | null>;
+    cameraRef?: React.MutableRefObject<{ heading: number; pitch: number } | null>;
 }
 
 export function CesiumScene({
@@ -50,7 +51,7 @@ export function CesiumScene({
     selectedFlight,
     onFlightSelect,
     followingFlight,
-    cameraRef,
+    cameraRef
 }: CesiumSceneProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const viewerRef = useRef<CesiumViewer | null>(null);
@@ -1168,6 +1169,9 @@ Heading: ${flight.heading}°
                     if (canvas) canvas.focus();
                 }}
             />
+
+            {/* Enter AR Button */}
+
 
             {/* CSS Overlay Fix */}
             <style>{`

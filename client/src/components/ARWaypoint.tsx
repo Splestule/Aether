@@ -146,7 +146,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
                   e.stopPropagation();
                 }}
               >
-                <sphereGeometry args={[sphereSize * 2.5, 16, 16]} />
+                <sphereGeometry args={[sphereSize * 6, 16, 16]} />
                 <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
               </mesh>
             )}

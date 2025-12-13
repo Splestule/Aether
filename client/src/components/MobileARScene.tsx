@@ -1,4 +1,5 @@
 import { Canvas, useThree } from "@react-three/fiber";
+
 import { DeviceOrientationControls } from "@react-three/drei";
 import { useEffect, useRef, useState } from "react";
 import { UserLocation, ProcessedFlight, VRConfig } from "@shared/src/types.js";
@@ -16,15 +17,58 @@ interface MobileARSceneProps {
     isOutOfRange?: boolean;
 }
 
+interface MobileARContentProps extends MobileARSceneProps {
+    headingOffset: number;
+}
+
+// Compass component reading direct hardware heading
+function CompassHeading() {
+    useEffect(() => {
+        const handleOrientation = (e: DeviceOrientationEvent) => {
+            let heading: number | null = null;
+
+            // @ts-ignore - iOS Property
+            if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+                // @ts-ignore
+                heading = e.webkitCompassHeading;
+            } else if (e.alpha !== null) {
+                // Android/Standard Fallback (0=N, CCW) -> Convert to CW
+                heading = 360 - e.alpha;
+            }
+
+            if (heading !== null) {
+                // Convert to int
+                const degrees = Math.round(heading);
+                // Convert to compass direction
+                const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+                const index = Math.round(degrees / 45) % 8;
+                const direction = directions[index];
+
+                // Update the compass display element
+                const compassEl = document.getElementById("compass-display");
+                if (compassEl) {
+                    compassEl.textContent = direction;
+                }
+            }
+        };
+
+        window.addEventListener("deviceorientation", handleOrientation);
+        return () => window.removeEventListener("deviceorientation", handleOrientation);
+    }, []);
+
+    return null;
+}
+
 function MobileARContent({
     flights,
     selectedFlight,
     onFlightSelect,
     userLocation,
-}: MobileARSceneProps) {
+    headingOffset,
+}: MobileARContentProps) {
     const { camera } = useThree();
 
-    // Ensure camera starts looking North (Z-)
+    // Ensure camera starts looking forward/horizontal
     useEffect(() => {
         camera.position.set(0, 0, 0);
     }, [camera]);
@@ -37,25 +81,32 @@ function MobileARContent({
             {/* Device Orientation Controls - Syncs camera with phone gyroscope */}
             <DeviceOrientationControls />
 
-            {/* Flights */}
-            {flights.map((flight) => (
-                <ARWaypoint
-                    key={flight.id}
-                    flight={flight}
-                    isSelected={selectedFlight?.id === flight.id}
-                    onClick={() => onFlightSelect(flight)}
-                    isVR={false}
-                />
-            ))}
+            {/* Updates UI Compass (Hardware direct - no offset) */}
+            <CompassHeading />
 
-            {/* Trajectory for selected flight */}
-            {selectedFlight && (
-                <FlightTrajectory
-                    flight={selectedFlight}
-                    userLocation={userLocation}
-                    isVR={false}
-                />
-            )}
+            {/* Rotated Scene Content to Align with True North */}
+            {/* Rotation = Heading + 90 deg. (Positive Y Rotation) */}
+            <group rotation={[0, headingOffset, 0]}>
+                {/* Flights */}
+                {flights.map((flight) => (
+                    <ARWaypoint
+                        key={flight.id}
+                        flight={flight}
+                        isSelected={selectedFlight?.id === flight.id}
+                        onClick={() => onFlightSelect(flight)}
+                        isVR={false}
+                    />
+                ))}
+
+                {/* Trajectory for selected flight */}
+                {selectedFlight && (
+                    <FlightTrajectory
+                        flight={selectedFlight}
+                        userLocation={userLocation}
+                        isVR={false}
+                    />
+                )}
+            </group>
         </>
     );
 }
@@ -63,7 +114,39 @@ function MobileARContent({
 export function MobileARScene(props: MobileARSceneProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const [streamError, setStreamError] = useState<string | null>(null);
+    const [headingOffset, setHeadingOffset] = useState(0);
 
+    // Effect 1: Compass Calibration (One-time startup alignment)
+    useEffect(() => {
+        const handleOrientation = (e: DeviceOrientationEvent) => {
+            let compassHeading: number | null = null;
+
+            // @ts-ignore - iOS Property
+            if (e.webkitCompassHeading !== undefined && e.webkitCompassHeading !== null) {
+                // @ts-ignore
+                compassHeading = e.webkitCompassHeading;
+            } else if (e.alpha !== null) {
+                // Android/Standard Fallback
+                compassHeading = 360 - e.alpha;
+            }
+
+            if (compassHeading !== null) {
+                // Formula: Offset = Heading + 90 degrees (+PI/2)
+                // Mirrors the math we derived for X-North coordinate system
+                const headingRad = (compassHeading * Math.PI) / 180 + Math.PI / 2;
+                setHeadingOffset(headingRad);
+            }
+        };
+
+        // Listen for the first reliable reading ONLY
+        window.addEventListener("deviceorientation", handleOrientation, { once: true });
+
+        return () => {
+            window.removeEventListener("deviceorientation", handleOrientation);
+        };
+    }, []);
+
+    // Effect 2: Camera Stream
     useEffect(() => {
         let stream: MediaStream | null = null;
 
@@ -125,7 +208,7 @@ export function MobileARScene(props: MobileARSceneProps) {
                     camera={{ position: [0, 0, 0], fov: 75, near: 0.1, far: 100000 }}
                     gl={{ alpha: true, antialias: true }} // Transparent canvas
                 >
-                    <MobileARContent {...props} />
+                    <MobileARContent {...props} headingOffset={headingOffset} />
                 </Canvas>
             </div>
 

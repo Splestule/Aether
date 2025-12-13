@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -33,7 +34,7 @@
         h1 {
             font-size: 2.5em;
             margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
         }
 
         .header-actions {
@@ -152,12 +153,12 @@
             box-shadow: 0 2px 6px rgba(15, 23, 42, 0.35);
         }
 
-        .toggle-switch input:checked + .toggle-slider {
+        .toggle-switch input:checked+.toggle-slider {
             background: rgba(198, 160, 232, 0.55);
             border-color: rgba(198, 160, 232, 0.85);
         }
 
-        .toggle-switch input:checked + .toggle-slider::before {
+        .toggle-switch input:checked+.toggle-slider::before {
             transform: translateX(22px);
             background-color: #0f172a;
         }
@@ -199,7 +200,7 @@
             z-index: 1000;
             text-align: center;
             min-width: 300px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
         }
 
         .stop-confirmation h3 {
@@ -270,7 +271,7 @@
             padding: 20px;
             flex: 1;
             min-width: 200px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .status-card h3 {
@@ -303,8 +304,15 @@
         }
 
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
         }
 
         .logs-container {
@@ -319,7 +327,7 @@
             backdrop-filter: blur(10px);
             border-radius: 15px;
             padding: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
         }
 
         .log-panel h2 {
@@ -364,7 +372,7 @@
             border-radius: 15px;
             padding: 20px;
             margin-top: 20px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
 
         .stats-grid {
@@ -417,10 +425,11 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <header>
-            <h1>VR Flight Tracker Dashboard</h1>
+            <h1>Aether Dashboard</h1>
             <p>Real-time monitoring and logs</p>
             <div class="header-actions">
                 <div class="debug-toggle">
@@ -489,14 +498,14 @@
 
         <div class="logs-container">
             <div class="log-panel">
-                <h2>📡  Server Logs</h2>
+                <h2>📡 Server Logs</h2>
                 <div class="log-content" id="server-logs">
                     <div class="log-line">Waiting for logs...</div>
                 </div>
             </div>
 
             <div class="log-panel">
-                <h2>💻  Client Logs</h2>
+                <h2>💻 Client Logs</h2>
                 <div class="log-content" id="client-logs">
                     <div class="log-line">Waiting for logs...</div>
                 </div>
@@ -504,7 +513,7 @@
         </div>
 
         <div class="stats-panel">
-            <h2>📊  Cache Statistics</h2>
+            <h2>📊 Cache Statistics</h2>
             <div class="stats-grid" id="cache-stats">
                 <div class="stat-item">
                     <div class="stat-label">Cache Size</div>
@@ -532,7 +541,7 @@
             const serverStatus = document.getElementById('server-status');
             const serverText = document.getElementById('server-text');
             const serverPort = document.getElementById('server-port');
-            
+
             if (stats.server.running) {
                 serverStatus.className = 'status-indicator running';
                 serverText.textContent = 'Running';
@@ -547,7 +556,7 @@
             const clientStatus = document.getElementById('client-status');
             const clientText = document.getElementById('client-text');
             const clientPort = document.getElementById('client-port');
-            
+
             if (stats.client.running) {
                 clientStatus.className = 'status-indicator running';
                 clientText.textContent = 'Running';
@@ -645,7 +654,7 @@
                 if (line.toLowerCase().includes('error')) className += ' error';
                 else if (line.toLowerCase().includes('warn')) className += ' warn';
                 else if (line.toLowerCase().includes('info')) className += ' info';
-                
+
                 return `<div class="${className}">${escapeHtml(line)}</div>`;
             }).join('');
 
@@ -768,7 +777,7 @@
             const overlay = document.createElement('div');
             overlay.className = 'overlay';
             overlay.id = 'stop-overlay';
-            
+
             const confirmation = document.createElement('div');
             confirmation.className = 'stop-confirmation';
             confirmation.innerHTML = `
@@ -780,7 +789,7 @@
                     <button class="stop-confirmation-button cancel" onclick="hideStopConfirmation()">Cancel</button>
                 </div>
             `;
-            
+
             document.body.appendChild(overlay);
             document.body.appendChild(confirmation);
         }
@@ -796,39 +805,39 @@
             const stopButton = document.getElementById('stop-button');
             stopButton.disabled = true;
             stopButton.innerHTML = '<span class="stop-button-icon">⏳</span><span>Stopping...</span>';
-            
+
             try {
-                const response = await fetch('/api/stop', { 
+                const response = await fetch('/api/stop', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     }
                 });
-                
+
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     // Stop auto-refresh
                     if (refreshInterval) {
                         clearInterval(refreshInterval);
                     }
-                    
+
                     // Update UI to show stopped status
                     document.getElementById('server-status').className = 'status-indicator stopped';
                     document.getElementById('server-text').textContent = 'Stopped';
                     document.getElementById('client-status').className = 'status-indicator stopped';
                     document.getElementById('client-text').textContent = 'Stopped';
-                    
+
                     // Show success message
                     hideStopConfirmation();
                     const overlay = document.createElement('div');
                     overlay.className = 'overlay';
                     overlay.id = 'success-overlay';
-                    
+
                     const success = document.createElement('div');
                     success.className = 'stop-confirmation';
                     success.innerHTML = `
@@ -836,10 +845,10 @@
                         <p>${data.message || 'All servers have been stopped successfully.'}</p>
                         <p style="font-size: 0.9em; opacity: 0.7;">This page will close in 3 seconds...</p>
                     `;
-                    
+
                     document.body.appendChild(overlay);
                     document.body.appendChild(success);
-                    
+
                     // Close page after 3 seconds
                     setTimeout(() => {
                         window.close();
@@ -849,7 +858,7 @@
                 }
             } catch (error) {
                 console.error('Error stopping servers:', error);
-                
+
                 // Show error in a more elegant way
                 hideStopConfirmation();
                 const overlay = document.createElement('div');
@@ -862,7 +871,7 @@
                     stopButton.disabled = false;
                     stopButton.innerHTML = '<span class="stop-button-icon">⏹</span><span>Stop Servers</span>';
                 };
-                
+
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'stop-confirmation error-confirmation';
                 errorDiv.innerHTML = `
@@ -873,12 +882,12 @@
                         <button class="stop-confirmation-button cancel" onclick="document.getElementById('error-overlay').click()">Close</button>
                     </div>
                 `;
-                
+
                 document.body.appendChild(overlay);
                 document.body.appendChild(errorDiv);
             }
         }
     </script>
 </body>
-</html>
 
+</html>

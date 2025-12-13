@@ -63,7 +63,7 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
     if (error.message) {
       return error.message;
     }
-    
+
     switch (error.type) {
       case 'opensky':
         if (error.statusCode === 503) {
@@ -101,7 +101,7 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
   return (
     <div
       className={clsx(
-        "fixed top-4 right-4 sm:top-6 sm:right-6 z-[10001] max-w-sm w-full sm:max-w-md transition-all duration-300",
+        "w-full relative transition-all duration-300",
         isDismissing ? "opacity-0 translate-x-full" : "opacity-100 translate-x-0"
       )}
       style={{
@@ -110,33 +110,33 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
     >
       <div
         className={clsx(
-          "vr-panel p-4 sm:p-5 border-2",
+          "vr-panel p-2.5 sm:p-5 border-2",
           getErrorColor()
         )}
       >
-        <div className="flex items-start gap-3 sm:gap-4">
-          <AlertTriangle className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" />
-          
+        <div className="flex items-start gap-2 sm:gap-4">
+          <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" />
+
           <div className="flex-1 min-w-0">
-            <h3 className="compass-title text-sm sm:text-base mb-1.5 sm:mb-2">
+            <h3 className="compass-title text-[10px] sm:text-base mb-1.5 sm:mb-2 leading-tight">
               {getErrorTitle()}
             </h3>
-            <p className="compass-subtle text-[10px] sm:text-[0.65rem] leading-relaxed mb-3 sm:mb-4">
+            <p className="hidden sm:block compass-subtle text-[10px] sm:text-[0.65rem] leading-relaxed mb-3 sm:mb-4">
               {getErrorMessage()}
             </p>
-            
+
             {error.details && (
-              <p className="compass-subtle text-[9px] sm:text-[0.55rem] text-white/40 mb-3 sm:mb-4 font-mono">
-                {error.details}
+              <p className="compass-subtle text-[9px] sm:text-[0.55rem] text-white/40 mb-2 sm:mb-4 font-mono break-all sm:break-normal">
+                {error.details.substring(0, 50)}{error.details.length > 50 ? '...' : ''}
               </p>
             )}
-            
-            <div className="flex items-center gap-2 sm:gap-3">
+
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
               {onRetry && (
                 <button
                   onClick={onRetry}
                   className={clsx(
-                    "vr-button text-[10px] sm:text-[0.6rem] px-3 py-1.5 sm:px-4 sm:py-2",
+                    "vr-button text-[9px] sm:text-[0.6rem] px-2 py-1 sm:px-4 sm:py-2",
                     "flex items-center gap-1.5 sm:gap-2"
                   )}
                 >
@@ -144,25 +144,25 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
                   <span>Retry</span>
                 </button>
               )}
-              
+
               {onDismiss && (
                 <button
                   onClick={onDismiss}
-                  className="compass-subtle text-[10px] sm:text-[0.6rem] hover:text-white/80 transition-colors"
+                  className="compass-subtle text-[9px] sm:text-[0.6rem] hover:text-white/80 transition-colors"
                 >
                   Dismiss
                 </button>
               )}
             </div>
           </div>
-          
+
           {onDismiss && (
             <button
               onClick={onDismiss}
-              className="group relative -mt-1 -mr-2 inline-flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-transparent text-white/50 transition-colors duration-300 hover:text-white focus:outline-none flex-shrink-0"
+              className="group relative -mt-1 -mr-1 sm:-mr-2 inline-flex h-5 w-5 sm:h-7 sm:w-7 items-center justify-center rounded-full bg-transparent text-white/50 transition-colors duration-300 hover:text-white focus:outline-none flex-shrink-0"
             >
               <span className="sr-only">Close notification</span>
-              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <X className="w-3 h-3 sm:w-4 sm:h-4" />
             </button>
           )}
         </div>

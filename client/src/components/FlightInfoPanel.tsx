@@ -15,6 +15,7 @@ import {
   formatAltitude,
   formatDistance,
 } from "@shared/src/utils.js";
+import { createPortal } from "react-dom";
 import { clsx } from "clsx";
 import { config } from "../config";
 
@@ -164,11 +165,11 @@ export function FlightInfoPanel({
     };
   }, [flight.callsign, showRoute]);
 
-  return (
+  return createPortal(
     <div
       className="flight-info-card fixed bottom-0 right-0 left-0 sm:bottom-auto sm:top-4 sm:left-auto sm:right-4 min-w-[280px] max-w-none sm:max-w-[360px] sm:min-w-[360px] sm:max-w-none p-3 sm:p-[24px_28px] max-h-[50vh] sm:max-h-none overflow-y-auto sm:overflow-visible"
       style={{
-        zIndex: 10000, // Ensure it appears above VR canvas
+        zIndex: 999999, // Ensure it appears above VR canvas
       }}
     >
       {/* Out of Range Warning */}
@@ -329,6 +330,7 @@ export function FlightInfoPanel({
           </button>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

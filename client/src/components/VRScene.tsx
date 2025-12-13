@@ -1191,9 +1191,9 @@ export function VRScene(props: VRSceneProps) {
   // Standard text style for AR button (matching default XRButton)
   const standardButtonStyle: React.CSSProperties = {
     position: 'absolute',
-    bottom: '20px',
-    left: 'calc(50% - 90px)', // Centered (180/2 = 90)
-    width: '180px',
+    bottom: '25px', // Changed from 20px to distinguish from default button
+    left: 'calc(50% - 80px)', // Centered (160/2 = 80)
+    width: '160px',
     padding: '12px 6px',
     border: '1px solid #fff',
     borderRadius: '4px',
@@ -1203,7 +1203,7 @@ export function VRScene(props: VRSceneProps) {
     textAlign: 'center',
     opacity: '0.5',
     outline: 'none',
-    zIndex: 99999, // High Z-Index to stay on top
+    zIndex: 50, // Lowered from 99999 to be below FlightInfoPanel
     cursor: 'pointer',
   };
 
@@ -1218,7 +1218,7 @@ export function VRScene(props: VRSceneProps) {
         <button
           style={{
             ...standardButtonStyle,
-            bottom: '65px', // Align with Aether logo (bottom-6 + half height)
+            bottom: '65px', // Align with Aether logo (manual preference)
             opacity: '1',
             cursor: 'pointer',
           }}
@@ -1238,9 +1238,13 @@ export function VRScene(props: VRSceneProps) {
         <XRButton
           mode="AR"
           sessionInit={sessionInit}
-          style={standardButtonStyle}
-        // We can't add data-attribute to XRButton potentially if it doesn't pass it down?
-        // But XRButton typically spreads props.
+          style={{
+            ...standardButtonStyle,
+            opacity: '1',
+          }}
+          // @ts-ignore - Pass whitelist attribute to protect from cleanup script
+          data-custom-ar-button="true"
+          className="custom-ar-button"
         >
           Enter AR
         </XRButton>
@@ -1256,6 +1260,7 @@ export function VRScene(props: VRSceneProps) {
         }}
         disabled
         data-custom-ar-button="true"
+        className="custom-ar-button"
       >
         AR unsupported
       </button>
@@ -1313,7 +1318,9 @@ export function VRScene(props: VRSceneProps) {
         </ARCanvas>
 
         {/* Single AR Button Source of Truth */}
-        {renderARButton()}
+        <div id="custom-ar-button-wrapper">
+          {renderARButton()}
+        </div>
       </div>
     </>
   );
@@ -1325,8 +1332,15 @@ function DeleteUnwantedButtons() {
     const cleanup = () => {
       const buttons = document.querySelectorAll('button');
       buttons.forEach(btn => {
-        // If the button is NOT one of ours (marked with data-custom-ar-button)
-        if (!btn.hasAttribute('data-custom-ar-button')) {
+        // If the button is NOT one of ours (marked with data-custom-ar-button or class or wrapper OR specific style)
+        const isOurs =
+          btn.hasAttribute('data-custom-ar-button') ||
+          btn.classList.contains('custom-ar-button') ||
+          btn.closest('#custom-ar-button-wrapper') ||
+          btn.style.bottom === '25px' ||
+          btn.style.bottom === '65px';
+
+        if (!isOurs) {
           const text = (btn.textContent || '').trim().toLowerCase();
           const isTarget =
             text === 'ar unsupported' ||
