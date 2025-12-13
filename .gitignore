@@ -60,3 +60,14 @@ coverage/
 # SDD and specs
 .sdd/
 specs/
+
+# Legacy / Local-only files
+Aether.app/
+VR Flight Tracker.app/
+create-app.sh
+monitor.sh
+start.command
+start-cloudflare.command
+start-cloudflare.sh
+client/src/components/VRWorldScene.tsx
+client/src/components/VRWorldContainer.tsx

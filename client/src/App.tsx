@@ -346,7 +346,6 @@ function App() {
           onFlightSelect={handleFlightSelect}
           followingFlight={followingFlight}
           cameraRef={cameraOrientationRef}
-          cameraRef={cameraOrientationRef}
         />
       )}
 

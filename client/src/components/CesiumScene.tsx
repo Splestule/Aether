@@ -42,7 +42,6 @@ interface CesiumSceneProps {
     onFlightSelect: (flight: ProcessedFlight | null) => void;
     followingFlight: ProcessedFlight | null;
     cameraRef?: React.MutableRefObject<{ heading: number; pitch: number } | null>;
-    cameraRef?: React.MutableRefObject<{ heading: number; pitch: number } | null>;
 }
 
 export function CesiumScene({

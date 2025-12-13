@@ -1,230 +1,146 @@
-# 🚀 VR Flight Tracker
+<div align="center">
+  <img src="client/public/aether-logo.png" alt="Aether Logo" width="180" />
+  <br />
 
-Real-time airplane visualization in VR space - a Flightradar24-like application designed for VR headsets (Meta Quest, WebXR compatible).
+  # Aether
+  ### Immersive Real-Time VR Flight Tracker
 
-## ✨ Features
-
-- **Interactive Map Selection**: Choose your viewing location on an interactive map
-- **Real-time Flight Data**: Live aircraft positions from OpenSky Network API
-- **3D VR Visualization**: See aircraft in 3D space around you in VR
-- **Flight Information**: Detailed flight data with airline, altitude, speed, and trajectory
-- **WebXR Support**: Compatible with Meta Quest and other WebXR devices
-- **Performance Optimized**: Efficient rendering with LOD, caching, and batching
-
-## 🏗️ Architecture
-
-- **Frontend**: React + Three.js + WebXR (VR support)
-- **Backend**: Node.js + Express + WebSocket
-- **APIs**: OpenSky Network (flight data) + Open-Elevation (altitude data)
-- **Caching**: In-memory caching with TTL
-- **Real-time**: WebSocket for live updates
-
-## 🚀 Quick Start
-
-### Prerequisites
-
-- Node.js 18+ 
-- npm or pnpm
-- VR headset (optional, works in desktop mode too)
-
-### Installation
-
-1. **Clone and install dependencies:**
-   ```bash
-   git clone <repository-url>
-   cd vr-flight-tracker
-   npm run install:all
-   ```
-
-2. **Set up environment variables:**
-   ```bash
-   cd server
-   cp env.example .env
-   # Edit .env if needed (defaults work for development)
-   ```
-
-3. **Start the development servers:**
-   ```bash
-   # From project root
-   npm run dev
-   ```
-
-   This will start:
-   - Backend server on http://localhost:8080
-   - Frontend client on http://localhost:3000
-
-### 🎮 Usage
-
-1. **Open the application** in your browser: http://localhost:3000
-2. **Select your location** by clicking on the interactive map
-3. **View flights** in 3D space around your selected location
-4. **Enter VR mode** (if you have a VR headset) by clicking the VR button
-5. **Click on aircraft** to see detailed flight information
-
-## 🛠️ Development
-
-### Project Structure
-
-```
-vr-flight-tracker/
-├── client/                 # React frontend with VR support
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── hooks/         # Custom React hooks
-│   │   └── App.tsx        # Main application
-│   └── package.json
-├── server/                # Node.js backend
-│   ├── src/
-│   │   ├── routes/        # API routes
-│   │   ├── services/      # Business logic
-│   │   └── index.ts       # Server entry point
-│   └── package.json
-├── shared/                # Shared types and utilities
-│   ├── types.ts          # TypeScript interfaces
-│   ├── utils.ts          # Utility functions
-│   └── package.json
-└── package.json          # Root package.json
-```
-
-### Available Scripts
-
-```bash
-# Development
-npm run dev              # Start both client and server
-npm run dev:client       # Start only frontend
-npm run dev:server       # Start only backend
-
-# Building
-npm run build            # Build both client and server
-npm run build:client     # Build only frontend
-npm run build:server     # Build only backend
-
-# Installation
-npm run install:all      # Install all dependencies
-```
-
-### API Endpoints
-
-- `GET /api/flights?lat=x&lon=y&radius=z` - Get flights in area
-- `GET /api/elevation?lat=x&lon=y` - Get elevation for coordinates
-- `GET /api/flights/:icao` - Get specific flight by ICAO code
-- `GET /api/cache/stats` - Get cache statistics
-- `DELETE /api/cache` - Clear cache
-- `WebSocket /ws` - Real-time flight updates
-
-## 🎯 VR Setup
-
-### Meta Quest Setup
-
-1. **Enable Developer Mode** on your Quest headset
-2. **Connect to your computer** via USB or WiFi
-3. **Open the app** in the Quest browser
-4. **Click "Enter VR"** to start the VR experience
-
-### WebXR Requirements
-
-- HTTPS connection (required for WebXR)
-- Compatible browser (Chrome, Edge, Firefox)
-- VR headset with WebXR support
-
-## 🔧 Configuration
-
-### Environment Variables
-
-Create a `.env` file in the `server/` directory:
-
-```env
-PORT=8080
-NODE_ENV=development
-CACHE_TTL=300
-RATE_LIMIT_MAX_REQUESTS=100
-
-# OpenSky OAuth2 (recommended for higher rate limits)
-OPENSKY_CLIENT_ID=your_client_id
-OPENSKY_CLIENT_SECRET=your_client_secret
-# Optional override (defaults to official OpenSky endpoint)
-OPENSKY_AUTH_URL=https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token
-```
-
-### VR Configuration
-
-Adjust VR settings in the client:
-
-```typescript
-const config = {
-  maxDistance: 100,        // km - max distance to show flights
-  updateInterval: 15000,   // ms - flight update frequency
-  maxFlights: 50,          // max number of flights to render
-  enableTrajectories: true // show flight paths
-}
-```
-
-## 📊 Performance
-
-- **Caching**: API responses cached for 15 seconds
-- **LOD**: Distance-based level of detail
-- **Batching**: Efficient 3D rendering
-- **Throttling**: API rate limiting
-- **Delta Updates**: Only changed data transmitted
-
-## 🚀 Deployment
-
-### Production Build
-
-```bash
-npm run build
-```
-
-### Docker Deployment
-
-The project now ships with dedicated containers for the backend and frontend plus a Compose file to run them together.
-
-```bash
-# Build + start both services
-docker compose up --build
-```
-
-For more scenarios (custom hosts, standalone images, environment variables) see `docs/docker.md`.
-
-### Environment Setup
-
-For production, set these environment variables:
-
-```env
-NODE_ENV=production
-PORT=8080
-CORS_ORIGIN=https://yourdomain.com
-```
-
-## 📝 License
-
-MIT License - see LICENSE file for details
-
-## 🙏 Acknowledgments
-
-- [OpenSky Network](https://opensky-network.org/) for flight data
-- [Open-Elevation](https://open-elevation.com/) for elevation data
-- [Three.js](https://threejs.org/) for 3D graphics
-- [React Three Fiber](https://docs.pmnd.rs/react-three-fiber) for React integration
-- [WebXR](https://immersiveweb.dev/) for VR support
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-1. **VR not working**: Ensure HTTPS and WebXR-compatible browser
-2. **No flights showing**: Check API connectivity and location selection
-3. **Performance issues**: Reduce maxDistance or maxFlights in config
-4. **WebSocket errors**: Check server is running on port 8080
-
-### Debug Mode
-
-Enable debug logging:
-
-```bash
-LOG_LEVEL=debug npm run dev
-```
+  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+  [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
+  [![React](https://img.shields.io/badge/React-18.0-61dafb.svg)](https://reactjs.org/)
+  [![WebXR](https://img.shields.io/badge/WebXR-Ready-orange.svg)](https://immersiveweb.dev/)
+  
+  <p align="center">
+    Experience live air traffic control from your living room. <br/>
+    Visualize real-time flight data in a stunning 3D environment using the power of the web.
+  </p>
+</div>
 
 ---
 
-**Happy flying in VR! ✈️🥽**
+## ✨ Overview
+
+**Aether** turns global air traffic data into a tangible reality. Built for both desktop and VR headsets (Meta Quest), it fetches live flight positions from the **OpenSky Network** and renders them in high-fidelity 3D. Whether you're a flight enthusiast or just love data visualization, Aether puts you in the center of the airspace.
+
+### Key Features
+
+*   **🥽 WebXR Immersive Mode**: Step into the map with full VR support for Meta Quest and compatible headsets.
+*   **✈️ Real-Time Tracking**: Live position updates via WebSocket for butter-smooth aircraft movement.
+*   **🌍 Photorealistic World**: Powered by CesiumJS and Google 3D Tiles (in limited zones) for realistic terrain.
+*   **🎯 Interactive Inspection**: "Laser point" at aircraft to reveal detailed telemetry (speed, altitude, airline, trajectory).
+*   **📍 Location Freedom**: Teleport anywhere in the world to monitor local airspace.
+
+## 🏗️ Architecture
+
+Aether is built on a modern full-stack architecture tailored for low-latency visualization.
+
+```mermaid
+graph TD
+    User((User)) -->|WebXR / Browser| Client[<b>Aether Client</b><br/>React + Three.js + Cesium]
+    Client <-->|WebSocket| Server[<b>Aether Server</b><br/>Node.js + Express]
+    Client -->|REST| Server
+    
+    subgraph Backend Services
+    Server -->|Polling| OpenSky[OpenSky Network API]
+    Server -->|Cache| InMem[In-Memory Cache]
+    end
+    
+    subgraph External Data
+    Client -.->|Terrain Data| Elevation[Open-Elevation API]
+    Client -.->|Tiles| Google3D[Google Photorealistic 3D Tiles]
+    end
+```
+
+### Tech Stack
+*   **Frontend**: React, Three.js (via React Three Fiber), CesiumJS, TailwindCSS.
+*   **Backend**: Node.js, Express, `ws` (WebSockets).
+*   **Data Sources**: OpenSky Network (Flights), Open-Elevation (Terrain).
+*   **DevOps**: Docker, Docker Compose.
+
+## 🚀 Getting Started
+
+### Prerequisites
+*   **Node.js** v18+
+*   **npm** or **pnpm**
+*   **Git**
+
+### Installation
+
+1.  **Clone the repository**
+    ```bash
+    git clone https://github.com/yourusername/vr-flight-tracker.git
+    cd vr-flight-tracker
+    ```
+
+2.  **Install dependencies**
+    ```bash
+    npm run install:all
+    ```
+
+3.  **Configure Environment**
+    Create a `.env` file in the `server/` directory. You can copy the example:
+    ```bash
+    cp server/env.example server/.env
+    ```
+    > **Note**: For higher rate limits, add your OpenSky credentials to `.env`.
+
+4.  **Launch Aether**
+    ```bash
+    npm run dev
+    ```
+    This spins up the backend on port `8080` and the frontend on port `3000`.
+
+### 🐳 Docker Usage
+
+Prefer containers? We got you.
+
+```bash
+docker compose up --build
+```
+Access the app at `http://localhost:3000`.
+
+## 🎮 Controls
+
+| Action | Desktop | VR Controller |
+| :--- | :--- | :--- |
+| **Move Camera** | Mouse Drag + WASD | Thumbstick |
+| **Select Flight** | Left Click | Laser Pointer + Trigger |
+| **Show Stats** | Hover | Hover |
+| **Change View** | UI Buttons | Wrist Menu |
+
+## 📂 Project Structure
+
+```text
+vr-flight-tracker/
+├── client/              # React application (Vite)
+│   ├── src/
+│   │   ├── components/  # 3D & UI Components
+│   │   └── hooks/       # Flight data logic
+├── server/              # Node.js Express API
+│   ├── src/             
+│   │   └── services/    # Data fetching & Caching
+├── shared/              # Types shared between Front/Back
+├── docker-compose.yml   # Container orchestration
+└── README.md            # You are here
+```
+
+## 🤝 Contributing
+
+This project is open source! Feel free to open issues or submit PRs.
+1.  Fork it
+2.  Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4.  Push to the branch (`git push origin feature/AmazingFeature`)
+5.  Open a Pull Request
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
+
+---
+
+<p align="center">
+  <b>Built with ❤️ by Eduard Šimon</b>
+  <br/>
+  <span style="font-size: 0.8em">Data provided by OpenSky Network</span>
+</p>
