@@ -1,8 +1,0 @@
-#!/bin/bash
-
-# Get the directory where the app bundle is located
-APP_DIR="$( cd "$( dirname "$( dirname "$( dirname "$( dirname "${BASH_SOURCE[0]}" )" )" )" )" && pwd )"
-cd "$APP_DIR" || exit 1
-
-# Execute the start.command script
-exec "$APP_DIR/start.command"
