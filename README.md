@@ -25,7 +25,7 @@
 
 *   **🥽 WebXR Immersive Mode**: Step into the map with full VR support for Meta Quest and compatible headsets.
 *   **✈️ Real-Time Tracking**: Live position updates via WebSocket for butter-smooth aircraft movement.
-*   **🌍 3D Geospatial Environment**: Powered by CesiumJS and Google 3D Tiles, rendering accurate terrain and building geometry on a global scale.
+*   **🌍 3D Geospatial Environment**: Powered by **Google Photorealistic 3D Tiles** for immersive cities and landscapes, layered over **Cesium World Terrain** for global accuracy.
 *   **🎯 Interactive Inspection**: "Laser point" at aircraft to reveal detailed telemetry (speed, altitude, airline, trajectory).
 *   **📍 Location Freedom**: Teleport anywhere in the world to monitor local airspace.
 
@@ -46,15 +46,16 @@ graph TD
     Client -->|REST| Server
     
     subgraph Backend Services
-    Server -->|Polling| OpenSky[OpenSky Network API]
     Server -->|Cache| InMem[In-Memory Cache]
     end
     
     subgraph External APIs
+    OpenSky[OpenSky Network API]
     Elevation[Open-Elevation API]
     Google3D[Google Photorealistic 3D Tiles]
     end
     
+    Server -->|Polling| OpenSky
     Client -.->|Terrain Data| Elevation
     Client -.->|Tiles| Google3D
 ```
@@ -76,8 +77,8 @@ graph TD
 
 1.  **Clone the repository**
     ```bash
-    git clone https://github.com/yourusername/vr-flight-tracker.git
-    cd vr-flight-tracker
+    git clone https://github.com/yourusername/Aether.git
+    cd Aether
     ```
 
 2.  **Install dependencies**
@@ -113,13 +114,13 @@ Access the app at `http://localhost:3000`.
 | :--- | :--- | :--- |
 | **Move Camera** | Mouse Drag | Thumbstick |
 | **Select Flight** | Left Click | Laser Pointer + Trigger |
-| **Calibrate Direction** | - | Left Controller Trigger + Rotate It |
+| **Calibrate Direction** | | Left Controller Trigger + Rotate It |
 | **Change Mode** | UI Buttons | UI Buttons (In browser) |
 
 ## 📂 Project Structure
 
 ```text
-vr-flight-tracker/
+Aether/
 ├── client/              # React application (Vite)
 │   ├── src/
 │   │   ├── components/  # 3D & UI Components
