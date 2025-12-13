@@ -2,10 +2,9 @@
   <img src="client/public/aether-logo.png" alt="Aether Logo" width="180" />
   <br />
 
-  # Aether
+  # Aether. Unlike any other.
   ### Immersive Real-Time VR Flight Tracker
 
-  [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
   [![React](https://img.shields.io/badge/React-18.0-61dafb.svg)](https://reactjs.org/)
   [![WebXR](https://img.shields.io/badge/WebXR-Ready-orange.svg)](https://immersiveweb.dev/)
@@ -20,15 +19,21 @@
 
 ## ✨ Overview
 
-**Aether** turns global air traffic data into a tangible reality. Built for both desktop and VR headsets (Meta Quest), it fetches live flight positions from the **OpenSky Network** and renders them in high-fidelity 3D. Whether you're a flight enthusiast or just love data visualization, Aether puts you in the center of the airspace.
+**Aether** turns global air traffic data into a tangible reality. Built for both desktop and VR headsets (Meta Quest etc.), it fetches live flight positions from the **OpenSky Network** and renders them in high-fidelity 3D. Whether you're a flight enthusiast or just love data visualization, Aether puts you in the center of the airspace.
 
 ### Key Features
 
 *   **🥽 WebXR Immersive Mode**: Step into the map with full VR support for Meta Quest and compatible headsets.
 *   **✈️ Real-Time Tracking**: Live position updates via WebSocket for butter-smooth aircraft movement.
-*   **🌍 Photorealistic World**: Powered by CesiumJS and Google 3D Tiles (in limited zones) for realistic terrain.
+*   **🌍 3D Geospatial Environment**: Powered by CesiumJS and Google 3D Tiles, rendering accurate terrain and building geometry on a global scale.
 *   **🎯 Interactive Inspection**: "Laser point" at aircraft to reveal detailed telemetry (speed, altitude, airline, trajectory).
 *   **📍 Location Freedom**: Teleport anywhere in the world to monitor local airspace.
+
+## 💡 Real-Life Use Cases
+
+*   **🛩️ Plane Spotting 2.0**: Identify the exact flight flying over your house in real-time AR/VR just by looking up.
+*   **🎓 Aviation Education**: Visualize flight corridors, approach paths, and air traffic density in a tangible 3D space.
+*   **🧘 immersive Relaxation**: Teleport to a busy airport like Heathrow or Haneda and watch the traffic flow from a "God Mode" perspective.
 
 ## 🏗️ Architecture
 
@@ -45,15 +50,18 @@ graph TD
     Server -->|Cache| InMem[In-Memory Cache]
     end
     
-    subgraph External Data
-    Client -.->|Terrain Data| Elevation[Open-Elevation API]
-    Client -.->|Tiles| Google3D[Google Photorealistic 3D Tiles]
+    subgraph External APIs
+    Elevation[Open-Elevation API]
+    Google3D[Google Photorealistic 3D Tiles]
     end
+    
+    Client -.->|Terrain Data| Elevation
+    Client -.->|Tiles| Google3D
 ```
 
 ### Tech Stack
 *   **Frontend**: React, Three.js (via React Three Fiber), CesiumJS, TailwindCSS.
-*   **Backend**: Node.js, Express, `ws` (WebSockets).
+*   **Backend**: Node.js, Express, WebSocket.
 *   **Data Sources**: OpenSky Network (Flights), Open-Elevation (Terrain).
 *   **DevOps**: Docker, Docker Compose.
 
@@ -103,10 +111,10 @@ Access the app at `http://localhost:3000`.
 
 | Action | Desktop | VR Controller |
 | :--- | :--- | :--- |
-| **Move Camera** | Mouse Drag + WASD | Thumbstick |
+| **Move Camera** | Mouse Drag | Thumbstick |
 | **Select Flight** | Left Click | Laser Pointer + Trigger |
-| **Show Stats** | Hover | Hover |
-| **Change View** | UI Buttons | Wrist Menu |
+| **Calibrate Direction** | - | Left Controller Trigger + Rotate It |
+| **Change Mode** | UI Buttons | UI Buttons (In browser) |
 
 ## 📂 Project Structure
 
@@ -124,18 +132,11 @@ vr-flight-tracker/
 └── README.md            # You are here
 ```
 
-## 🤝 Contributing
-
-This project is open source! Feel free to open issues or submit PRs.
-1.  Fork it
-2.  Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3.  Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4.  Push to the branch (`git push origin feature/AmazingFeature`)
-5.  Open a Pull Request
-
 ## 📄 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+**All Rights Reserved.**
+
+This software is proprietary and confidential. No part of this software may be copied, modified, distributed, or reverse engineered without the express written permission of the author.
 
 ---
 

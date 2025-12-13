@@ -2,6 +2,7 @@
   "name": "vr-flight-tracker",
   "version": "1.0.1",
   "description": "Real-time airplane visualization in VR space",
+  "license": "UNLICENSED",
   "private": true,
   "workspaces": [
     "client",

@@ -1,3 +1,8 @@
+// © 2025 Aether Flight Tracker - All Rights Reserved
+// Unauthorized copying of this file, via any medium is strictly prohibited
+// Proprietary and confidential
+// Author: Eduard Šimon
+
 import { useState, useEffect, useCallback, useRef } from "react";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import { VRScene } from "./components/VRScene";
