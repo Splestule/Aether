@@ -72,4 +72,3 @@ start-cloudflare.sh
 client/src/components/VRWorldScene.tsx
 client/src/components/VRWorldContainer.tsx
 .cursorrules
-.agent/rules
