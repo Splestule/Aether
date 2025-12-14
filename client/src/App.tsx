@@ -298,8 +298,8 @@ function App() {
   // Toggle Follow Mode
   const handleToggleFollow = () => {
     if (followingFlight) {
-      // Stop following
-      setFollowingFlight(null);
+      // Stop following AND Deselect (closes panel, returns to map)
+      handleFlightSelect(null);
     } else if (selectedFlight) {
       // Start following
       setFollowingFlight(selectedFlight);
@@ -320,6 +320,14 @@ function App() {
 
   // Check if selected flight is out of range (not in current flights list)
   const isOutOfRange = selectedFlight ? !flights.some(f => f.id === selectedFlight.id) : false;
+
+  // Auto-deselect if following a flight that goes out of range
+  useEffect(() => {
+    if (followingFlight && isOutOfRange) {
+      // Stop following and deselect
+      handleFlightSelect(null);
+    }
+  }, [followingFlight, isOutOfRange]);
 
   return (
     <div className="h-screen w-screen relative">
@@ -482,7 +490,7 @@ function App() {
         {selectedFlight && (
           <FlightInfoPanel
             flight={selectedFlight}
-            onClose={() => setSelectedFlight(null)}
+            onClose={() => handleFlightSelect(null)}
             showRoute={isRouteEnabled}
             isFollowing={followingFlight?.id === selectedFlight.id}
             onToggleFollow={viewMode === 'cesium' ? handleToggleFollow : undefined}
