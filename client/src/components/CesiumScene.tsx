@@ -24,6 +24,7 @@ import {
     EasingFunction,
     Transforms,
     JulianDate,
+    HeadingPitchRoll,
 } from "cesium";
 
 import { ProcessedFlight, UserLocation } from "@shared/src/types";
@@ -64,7 +65,54 @@ export function CesiumScene({
         flightsRef.current = flights;
     }, [flights]);
 
-    // EXTRAPOLATION LOOP (Every 2 seconds)
+    // 2.5 LANDING VIEW AUTOMATION
+    useEffect(() => {
+        if (!viewerRef.current || !followingFlight) return;
+        const viewer = viewerRef.current;
+
+        // Check Live Status
+        const liveFlight = flightsRef.current.find(f => f.id === followingFlight.id);
+        const currentFlightData = liveFlight || followingFlight;
+
+        if (currentFlightData.onGround) {
+            // Only trigger if we aren't already viewing the landing
+            if (!isLandingViewTriggered.current) {
+                console.log("[CesiumScene] Flight Landed! Switching to Top-Down View.");
+                isLandingViewTriggered.current = true;
+
+                // 1. Stop Tracking (Break Anchor)
+                viewer.trackedEntity = undefined;
+
+                // 2. Fly to Top-Down View
+                const entity = viewer.entities.getById(currentFlightData.id);
+                // Or Ghost?
+                const ghost = viewer.entities.getById(currentFlightData.id + "-ghost");
+                const targetPos = ghost?.position?.getValue(viewer.clock.currentTime) || entity?.position?.getValue(viewer.clock.currentTime);
+
+                if (targetPos) {
+                    const transform = Transforms.eastNorthUpToFixedFrame(targetPos);
+                    const localOffset = new Cartesian3(0, 0, 75000); // 75km up
+                    const dest = Matrix4.multiplyByPoint(transform, localOffset, new Cartesian3());
+
+                    viewer.camera.flyTo({
+                        destination: dest,
+                        orientation: {
+                            heading: 0, // North Up
+                            pitch: CesiumMath.toRadians(-90), // Straight Down
+                            roll: 0
+                        },
+                        duration: 3.0,
+                        easingFunction: EasingFunction.CUBIC_IN_OUT
+                    });
+                }
+            }
+        } else {
+            // Reset trigger if active again
+            isLandingViewTriggered.current = false;
+        }
+    }, [followingFlight, flights]); // Check on flight updates
+
+    // 3. FOLLOW FLIGHT LOGIC (Freelook Enabled)
     useEffect(() => {
         if (!viewerRef.current) return;
 
@@ -113,10 +161,38 @@ export function CesiumScene({
                 // Update Entity Directly (Teleport)
                 entity.position = newPos as any;
 
+                // UPDATE ORIENTATION (Required for viewFrom to work as "Behind")
+                const hpr = new HeadingPitchRoll(headingRad - CesiumMath.PI_OVER_TWO, 0, 0);
+                // Note: Cesium Heading 0=East? No, 0=North usually.
+                // But ENU frame: X=East, Y=North.
+                // Transforms.headingPitchRollQuaternion uses Local Frame.
+                // Usually Heading 0 = X axis (East).
+                // Our data: 0=North. So offset by -90 degrees (-PI/2).
+
+                const orientation = Transforms.headingPitchRollQuaternion(newPos, hpr);
+                entity.orientation = orientation as any;
+
+                // Set ViewFrom (Follow Camera Offset)
+                // Only if it's the following flight? No, set it always or only when selected?
+                // Setting it here overrides user orbit if they are tracking?
+                // NO. viewFrom is only used when trackedEntity is FIRST set.
+                // However, if we update it constantly, it might be ignored or jitter.
+                // Better to set it ONCE in the useEffect logic, but we need the Entity to have Orientation for "Behind" to mean "Tail".
+
+                // We set 'viewFrom' on the entity definition or lazily.
+                if (!entity.viewFrom) {
+                    entity.viewFrom = new ConstantProperty(new Cartesian3(0, -2500, 1200)); // Back 2.5km, Up 1.2km (Higher Elevation)
+                }
+
                 // Update Ghost
                 const ghost = viewer.entities.getById(flight.id + "-ghost");
                 if (ghost) {
                     ghost.position = newPos as any;
+                    ghost.orientation = orientation as any; // Sync Orientation
+
+                    if (!ghost.viewFrom) {
+                        ghost.viewFrom = new ConstantProperty(new Cartesian3(0, -2500, 1200)); // Back 2.5km, Up 1.2km
+                    }
                 }
             });
 
@@ -281,132 +357,80 @@ export function CesiumScene({
         updateCameraPosition();
     }, []); // RUN ONCE: Never re-run to prevent camera snapping/resetting
 
-    // 3. FOLLOW FLIGHT LOGIC
+    // 3. FOLLOW FLIGHT LOGIC (Freelook Enabled)
     useEffect(() => {
         if (!viewerRef.current) return;
 
         const viewer = viewerRef.current;
         const scene = viewer.scene;
+        const controller = scene.screenSpaceCameraController;
 
-        // Function to update camera position
-        const updateCamera = () => {
-            if (!followingFlight) return;
+        if (followingFlight) {
+            console.log(`[CesiumScene] Tracking Flight: ${followingFlight.id}`);
 
-            // FIND LIVE FLIGHT DATA
-            // The followingFlight prop might be stale (snapshot). 
-            // We need the latest position from the flights array.
-            const liveFlight = flightsRef.current.find(f => f.id === followingFlight.id);
-            const currentFlightData = liveFlight || followingFlight; // Use live data if available, otherwise the prop's data.
+            // 1. Configure Inputs for "Pivot" Mode (Strict Orbit)
+            controller.enableInputs = true;
 
-            // Get smoothed plane position from entity
-            const entity = viewer.entities.getById(followingFlight.id);
-            const planePos = entity?.position?.getValue(viewer.clock.currentTime);
+            // ENABLE ORBIT
+            controller.enableRotate = true; // Left Click Drag (Orbit around center)
+            controller.enableTilt = true;   // Middle/Right Click Drag (Orbit Vertical)
 
-            if (!planePos) return; // Wait for entity
+            // DISABLE EVERYTHING ELSE
+            controller.enableZoom = false;      // Disable Zoom (User Request: Fixed Distance)
+            controller.enableTranslate = false; // Disable Pan (Keep Anchor Centered)
+            controller.enableLook = false;      // Disable Look (Prevents turning head away from anchor)
 
-            // Calculate heading (convert to radians)
-            // 0 = North (Y+), 90 = East (X+)
-            // Cesium heading: 0 = North, 90 = East
-            const headingRad = CesiumMath.toRadians(currentFlightData.heading);
-
-            if (currentFlightData.onGround) {
-                // LANDING VIEW: High above, looking straight down
-                // Only trigger once to allow smooth transition
-                if (!isLandingViewTriggered.current) {
-                    isLandingViewTriggered.current = true;
-
-                    // Position: Directly above the plane at 75,000m (User Request)
-                    const transform = Transforms.eastNorthUpToFixedFrame(planePos);
-                    const localOffset = new Cartesian3(0, 0, 75000); // 75km up
-                    const targetPos = Matrix4.multiplyByPoint(transform, localOffset, new Cartesian3());
-
-                    viewer.camera.flyTo({
-                        destination: targetPos,
-                        orientation: {
-                            heading: 0, // North Up
-                            pitch: CesiumMath.toRadians(-90), // Straight Down
-                            roll: 0
-                        },
-                        duration: 3.0, // Smooth 3s transition
-                        easingFunction: EasingFunction.CUBIC_IN_OUT
-                    });
-                }
-                // Stop updating camera frame-by-frame once landed
-                return;
+            // 2. Set Tracked Entity (Native Cesium Follow)
+            // TRACK THE GHOST (Point Only) to ensure Camera centers on the Plane, not the Line midpoint.
+            const ghost = viewer.entities.getById(followingFlight.id + "-ghost");
+            if (ghost) {
+                viewer.trackedEntity = ghost;
+            } else {
+                console.warn("Ghost entity not found, tracking main entity.");
+                const entity = viewer.entities.getById(followingFlight.id);
+                if (entity) viewer.trackedEntity = entity;
             }
 
-            // Reset trigger if we go back to flying (unlikely but good for state safety)
-            isLandingViewTriggered.current = false;
+            // NOTE: We do NOT set Viewer.camera.setView() manually anymore.
+            // This allows the user to rotate/zoom (Freelook) while the camera stays attached to the plane.
 
-            // FOLLOW VIEW: Behind and Above
-            // Behind: Opposite to heading
-            const distanceBehind = 1000; // meters
-            const heightAbove = 400; // meters
-
-            const offsetX = -Math.sin(headingRad) * distanceBehind;
-            const offsetY = -Math.cos(headingRad) * distanceBehind;
-
-            // We need to convert this local offset to Earth-Fixed coordinates (ECEF)
-            // Use a local frame at the plane's position
-            const transform = Transforms.eastNorthUpToFixedFrame(planePos);
-
-            // Offset in local frame (x=East, y=North, z=Up)
-            const localOffset = new Cartesian3(offsetX, offsetY, heightAbove);
-
-            // Transform to world coordinates
-            const targetPos = Matrix4.multiplyByPoint(transform, localOffset, new Cartesian3());
-
-            // Set camera
-            viewer.camera.setView({
-                destination: targetPos,
-                orientation: {
-                    heading: headingRad, // Look in the direction of the plane
-                    pitch: CesiumMath.toRadians(-25), // Look down more to center plane (was -20)
-                    roll: 0
-                }
-            });
-        };
-
-        // Add or remove event listener
-        if (followingFlight) {
-            scene.postRender.addEventListener(updateCamera);
-            // Disable default controls while following?
-            scene.screenSpaceCameraController.enableInputs = false;
         } else {
-            scene.screenSpaceCameraController.enableInputs = true;
+            console.log("[CesiumScene] Stopping Track. returning to User.");
 
-            // RETURN TO MAP: Restore camera to user location
-            // We only do this if we were previously following (implied by this effect running when followingFlight changes to null)
-            // However, this effect runs on mount too. We need to be careful.
-            // Actually, if followingFlight is null, we just want to ensure we are at a good spot?
-            // No, only if the user explicitly clicked "Return".
-            // But we don't know *why* it's null here.
+            // 1. Stop Tracking
+            viewer.trackedEntity = undefined;
 
-            // Let's assume if this effect runs and followingFlight is null, we should reset IF we are not already at user location?
-            // Better: Just reset to user location. It's safe.
+            // 2. Disable Inputs (Restore "Street View" / Look Only Mode)
+            controller.enableRotate = false;
+            controller.enableTilt = false;
+            controller.enableTranslate = false;
+            controller.enableZoom = false;
 
+            // Restore "Look" for Map Mode
+            controller.enableLook = true;
+
+            // 3. Fly Back to User
             const destination = Cartesian3.fromDegrees(
                 userLocation.longitude,
                 userLocation.latitude,
-                (userLocation.altitude || 0) + 150 // Closer to ground (was 1000)
+                (userLocation.altitude || 0) + 150
             );
 
             viewer.camera.flyTo({
                 destination: destination,
                 orientation: {
                     heading: CesiumMath.toRadians(0),
-                    pitch: CesiumMath.toRadians(-10), // Look at horizon (was -45)
+                    pitch: CesiumMath.toRadians(-10),
                     roll: 0
                 },
-                duration: 1.5 // Smooth fly back
+                duration: 1.5
             });
         }
 
-        return () => {
-            scene.postRender.removeEventListener(updateCamera);
-            scene.screenSpaceCameraController.enableInputs = true;
-        };
-    }, [followingFlight, userLocation]); // Add userLocation to dependency for flyTo. flights is accessed via ref.
+        // Cleanup? 
+        // Nothing drastic needed as re-running the effect handles the switch.
+
+    }, [followingFlight, userLocation]);
 
     // Handle flight selection
     const handleSelect = (flight: ProcessedFlight) => {
@@ -713,8 +737,8 @@ export function CesiumScene({
 
                 // VR Formula (Scaled up for 2D Screen):
                 // Base Size: 480m (80% of 600) normally
-                // Follow Mode: 100m (50% of 200) to be unobtrusive
-                const baseSize = followingFlight ? 100 : 480;
+                // Follow Mode: 300m (User Request: 3x Bigger)
+                const baseSize = followingFlight ? 300 : 480;
 
                 // Distance Multiplier: Slightly larger for very far planes (>50km)
                 const distanceMultiplier = distanceKm > 50 ? Math.min(1.5, 1 + (distanceKm - 50) / 100) : 1;
@@ -733,8 +757,14 @@ export function CesiumScene({
 
                 const pixelSize = (sphereSizeMeters / distanceMeters) * (screenHeight / (2 * Math.tan(fov / 2)));
 
-                // Clamp to reasonable limits (e.g. min 15px so it's always visible, max 200px)
-                return Math.max(15, Math.min(200, pixelSize));
+                // Follow Mode Override: Fixed Large Size (Anchor)
+                if (followingFlight && flight.id === followingFlight.id) {
+                    if (flight.onGround) return 37; // Half size for Landing View (High Altitude)
+                    return 75; // Use a fixed big size for the anchor
+                }
+
+                // Clamp to reasonable limits (e.g. min 15px so it's always visible, max 500px)
+                return Math.max(15, Math.min(500, pixelSize));
             };
 
             const pixelSizeProperty = new CallbackProperty(getPixelSize, false);
