@@ -299,7 +299,8 @@ function App() {
   const handleToggleFollow = () => {
     if (followingFlight) {
       // Stop following AND Deselect (closes panel, returns to map)
-      handleFlightSelect(null);
+      setFollowingFlight(null);
+      setSelectedFlight(null);
     } else if (selectedFlight) {
       // Start following
       setFollowingFlight(selectedFlight);
