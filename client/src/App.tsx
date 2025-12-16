@@ -217,6 +217,10 @@ function App() {
     setIsLoading(true);
     setUserLocation(location);
     clearFlights();
+    setSelectedFlight(null);
+    setFollowingFlight(null);
+    setViewMode('vr');
+    cameraOrientationRef.current = null;
 
     try {
       // Get flights via REST API
@@ -405,6 +409,8 @@ function App() {
               setUserLocation(null);
               clearFlights();
               setSelectedFlight(null);
+              setFollowingFlight(null);
+              cameraOrientationRef.current = null;
             }}
             onRefreshFlights={refreshFlights}
             isRouteEnabled={isRouteEnabled}
