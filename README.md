@@ -133,6 +133,12 @@ Aether/
 └── README.md            # You are here
 ```
 
+## 📚 Documentation
+
+For more detailed information about the project:
+
+- **[REST API Usage Examples](docs/rest-api-usage.md)** - Real-world examples of how the REST API is used in the application, including flight data fetching, elevation queries, trajectory visualization, and more.
+
 ## 📄 License
 
 **All Rights Reserved.**
