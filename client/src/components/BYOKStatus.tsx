@@ -27,7 +27,6 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
   const [rateLimitInfo, setRateLimitInfo] = useState<RateLimitInfo | null>(null);
   const [remaining, setRemaining] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [lastApiCallTime, setLastApiCallTime] = useState<number | null>(null);
 
   const fetchRateLimitInfo = async () => {
     try {
@@ -61,7 +60,6 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
       if (args[0] && typeof args[0] === 'string' && 
           args[0].includes('/api/') && 
           !args[0].includes('/api/rate-limit/status')) {
-        setLastApiCallTime(Date.now());
         const remainingHeader = response.headers.get('ratelimit-remaining');
         if (remainingHeader !== null) {
           setRemaining(parseInt(remainingHeader, 10));

@@ -17,7 +17,6 @@ import { config, checkBYOKStatus, getSessionToken } from "./config";
 import { ParticleField } from "./components/ParticleField";
 import { CesiumScene } from "./components/CesiumScene";
 import { BYOKSettings } from "./components/BYOKSettings";
-import { BYOKStatus } from "./components/BYOKStatus";
 
 
 function App() {
