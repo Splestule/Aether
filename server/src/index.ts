@@ -18,6 +18,8 @@ import { FlightService } from './services/flightService.js'
 import { ElevationService } from './services/elevationService.js'
 import { CacheService } from './services/cacheService.js'
 import { OpenSkyAuthService } from './services/openSkyAuthService.js'
+import { BYKAuthService } from './services/bykAuthService.js'
+import { BYKSessionService } from './services/bykSessionService.js'
 import { AviationStackService } from './services/aviationStackService.js'
 import { logger } from './logger.js'
 
@@ -53,14 +55,36 @@ const allowedOrigins =
     ? [...defaultProdOrigins, ...extraOrigins]
     : [...defaultDevOrigins, ...extraOrigins]
 
+// Check if BYK is enabled
+const isBYKEnabled = process.env.BYK === 'true'
+
 // Initialize services
 const cacheService = new CacheService()
 const elevationService = new ElevationService()
-const openSkyAuthService = new OpenSkyAuthService(
-  process.env.OPENSKY_CLIENT_ID,
-  process.env.OPENSKY_CLIENT_SECRET,
-  process.env.OPENSKY_AUTH_URL
-)
+
+// Initialize BYK services if enabled
+let bykSessionService: BYKSessionService | undefined
+let bykAuthService: BYKAuthService | undefined
+let openSkyAuthService: OpenSkyAuthService | BYKAuthService
+
+if (isBYKEnabled) {
+  bykSessionService = new BYKSessionService()
+  bykAuthService = new BYKAuthService(
+    process.env.OPENSKY_CLIENT_ID,
+    process.env.OPENSKY_CLIENT_SECRET,
+    process.env.OPENSKY_AUTH_URL,
+    bykSessionService
+  )
+  openSkyAuthService = bykAuthService
+  logger.action('BYK enabled', 'Bring Your Own Key feature is enabled')
+} else {
+  openSkyAuthService = new OpenSkyAuthService(
+    process.env.OPENSKY_CLIENT_ID,
+    process.env.OPENSKY_CLIENT_SECRET,
+    process.env.OPENSKY_AUTH_URL
+  )
+}
+
 const flightService = new FlightService(cacheService, openSkyAuthService)
 const aviationStackService = new AviationStackService(cacheService)
 
@@ -82,9 +106,23 @@ app.use(express.json({ limit: '10mb' }))
 app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 
 // Rate limiting
+// BYK-aware rate limiting: 10 req/min without session, normal limits with session
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 600, // allow up to 600 requests per window
+  max: (req) => {
+    // If BYK is enabled, check for session token
+    if (isBYKEnabled && bykSessionService) {
+      const sessionToken = req.headers['x-session-token'] as string | undefined
+      if (sessionToken && bykSessionService.hasValidSession(sessionToken)) {
+        // User has valid session, use normal limits
+        return 600
+      }
+      // No session or invalid session, use limited rate (10 req/min = 150 req/15min)
+      return 150
+    }
+    // BYK not enabled, use normal limits
+    return 600
+  },
   standardHeaders: true,
   legacyHeaders: false,
   message: 'Too many requests from this IP, please try again later.',
@@ -135,7 +173,15 @@ app.get('/health', (req, res) => {
 })
 
 // Setup routes
-setupRoutes(app, { flightService, elevationService, cacheService, openSkyAuthService, aviationStackService })
+setupRoutes(app, { 
+  flightService, 
+  elevationService, 
+  cacheService, 
+  openSkyAuthService, 
+  aviationStackService,
+  bykSessionService,
+  isBYKEnabled 
+})
 
 // Setup WebSocket
 setupWebSocket(wss, { flightService, cacheService })
@@ -168,16 +214,22 @@ server.listen(PORT, HOST, () => {
 
 
 // Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.action('SIGTERM received', 'SIGTERM received, shutting down gracefully')
+process.on('SIGINT', () => {
+  logger.action('SIGINT received', 'SIGINT received, shutting down gracefully')
+  if (bykSessionService) {
+    bykSessionService.destroy()
+  }
   server.close(() => {
     logger.action('Server closed', 'Server closed')
     process.exit(0)
   })
 })
 
-process.on('SIGINT', () => {
-  logger.action('SIGINT received', 'SIGINT received, shutting down gracefully')
+process.on('SIGTERM', () => {
+  logger.action('SIGTERM received', 'SIGTERM received, shutting down gracefully')
+  if (bykSessionService) {
+    bykSessionService.destroy()
+  }
   server.close(() => {
     logger.action('Server closed', 'Server closed')
     process.exit(0)

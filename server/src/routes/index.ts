@@ -1,8 +1,10 @@
-import { Express } from 'express'
+import { Express, Request } from 'express'
 import { FlightService } from '../services/flightService'
 import { ElevationService } from '../services/elevationService'
 import { CacheService } from '../services/cacheService'
 import { OpenSkyAuthService } from '../services/openSkyAuthService'
+import { BYKAuthService } from '../services/bykAuthService.js'
+import { BYKSessionService } from '../services/bykSessionService.js'
 import { AviationStackService } from '../services/aviationStackService.js'
 import { logger } from '../logger.js'
 
@@ -10,8 +12,20 @@ interface Services {
   flightService: FlightService
   elevationService: ElevationService
   cacheService: CacheService
-  openSkyAuthService?: OpenSkyAuthService
+  openSkyAuthService?: OpenSkyAuthService | BYKAuthService
   aviationStackService?: AviationStackService
+  bykSessionService?: BYKSessionService
+  isBYKEnabled?: boolean
+}
+
+/**
+ * Extract session token from request headers
+ */
+function getSessionToken(req: Request): string | undefined {
+  return (req.headers['x-session-token'] as string) || 
+         (req.headers['authorization']?.startsWith('Bearer ') 
+           ? req.headers['authorization'].substring(7) 
+           : undefined)
 }
 
 export function setupRoutes(app: Express, services: Services) {
@@ -21,6 +35,8 @@ export function setupRoutes(app: Express, services: Services) {
     cacheService,
     openSkyAuthService,
     aviationStackService,
+    bykSessionService,
+    isBYKEnabled,
   } = services
 
   // Flights API
@@ -44,10 +60,12 @@ export function setupRoutes(app: Express, services: Services) {
         })
       }
 
+      const sessionToken = getSessionToken(req)
       const flights = await flightService.getFlightsInArea(
         latitude,
         longitude,
-        radiusKm
+        radiusKm,
+        sessionToken
       )
 
       // Check if there was an OpenSky error (stored in flightService)
@@ -149,7 +167,8 @@ export function setupRoutes(app: Express, services: Services) {
   app.get('/api/cache/stats', (req, res) => {
     try {
       const cacheStats = cacheService.getStats()
-      const flightStats = flightService.getStats()
+      const sessionToken = getSessionToken(req)
+      const flightStats = flightService.getStats(sessionToken)
 
       res.json({
         success: true,
@@ -220,7 +239,8 @@ export function setupRoutes(app: Express, services: Services) {
         altitude,
       }
 
-      const trajectory = await flightService.getFlightTrajectory(icao, userLocation)
+      const sessionToken = getSessionToken(req)
+      const trajectory = await flightService.getFlightTrajectory(icao, userLocation, sessionToken)
 
       res.json({
         success: true,
@@ -248,7 +268,8 @@ export function setupRoutes(app: Express, services: Services) {
         })
       }
 
-      const flight = await flightService.getFlightByIcao(icao)
+      const sessionToken = getSessionToken(req)
+      const flight = await flightService.getFlightByIcao(icao, sessionToken)
 
       if (!flight) {
         return res.status(404).json({ 
@@ -271,7 +292,12 @@ export function setupRoutes(app: Express, services: Services) {
   })
 
   app.post('/api/opensky/reconnect', async (req, res) => {
-    if (!openSkyAuthService || !openSkyAuthService.hasCredentials()) {
+    const sessionToken = getSessionToken(req)
+    const authService = isBYKEnabled && bykSessionService && sessionToken
+      ? (openSkyAuthService as BYKAuthService)
+      : (openSkyAuthService as OpenSkyAuthService)
+
+    if (!authService || !authService.hasCredentials(sessionToken)) {
       return res.status(400).json({
         success: false,
         message: 'OpenSky OAuth credentials are not configured.',
@@ -279,7 +305,10 @@ export function setupRoutes(app: Express, services: Services) {
     }
 
     try {
-      const header = await openSkyAuthService.getAuthorizationHeader({ forceRefresh: true })
+      const header = isBYKEnabled && sessionToken
+        ? await (authService as BYKAuthService).getAuthorizationHeader(sessionToken, { forceRefresh: true })
+        : await (authService as OpenSkyAuthService).getAuthorizationHeader({ forceRefresh: true })
+      
       if (header) {
         return res.json({
           success: true,
@@ -299,5 +328,114 @@ export function setupRoutes(app: Express, services: Services) {
       })
     }
   })
+
+  // BYK API Routes
+  if (isBYKEnabled && bykSessionService) {
+    // POST /api/opensky/credentials - Submit user credentials and get session token
+    app.post('/api/opensky/credentials', async (req, res) => {
+      try {
+        const { clientId, clientSecret } = req.body
+
+        if (!clientId || !clientSecret) {
+          return res.status(400).json({
+            success: false,
+            error: 'Missing required fields: clientId, clientSecret',
+          })
+        }
+
+        // Validate credentials by attempting to get a token
+        const bykAuthService = openSkyAuthService as BYKAuthService
+        const isValid = await bykAuthService.validateCredentials(clientId, clientSecret)
+
+        if (!isValid) {
+          return res.status(401).json({
+            success: false,
+            error: 'Invalid OpenSky credentials',
+          })
+        }
+
+        // Create session
+        const sessionToken = bykSessionService.createSession(clientId, clientSecret)
+
+        res.json({
+          success: true,
+          sessionToken,
+          message: 'Credentials validated and session created',
+        })
+      } catch (error) {
+        logger.error('E-API-009', 'Failed to create BYK session', error)
+        res.status(500).json({
+          success: false,
+          error: 'Failed to create session',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // GET /api/opensky/status - Get BYK status and session info
+    app.get('/api/opensky/status', (req, res) => {
+      try {
+        const sessionToken = getSessionToken(req)
+        const hasSession = sessionToken ? bykSessionService.hasValidSession(sessionToken) : false
+
+        res.json({
+          success: true,
+          bykEnabled: true,
+          hasSession,
+          sessionActive: hasSession,
+        })
+      } catch (error) {
+        logger.error('E-API-010', 'Failed to get BYK status', error)
+        res.status(500).json({
+          success: false,
+          error: 'Failed to get status',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+
+    // DELETE /api/opensky/credentials - Remove user session
+    app.delete('/api/opensky/credentials', (req, res) => {
+      try {
+        const sessionToken = getSessionToken(req)
+
+        if (!sessionToken) {
+          return res.status(400).json({
+            success: false,
+            error: 'No session token provided',
+          })
+        }
+
+        const deleted = bykSessionService.deleteSession(sessionToken)
+        
+        // Clean up auth service instance
+        if (deleted && openSkyAuthService instanceof BYKAuthService) {
+          openSkyAuthService.cleanupSession(sessionToken)
+        }
+
+        res.json({
+          success: true,
+          message: 'Session deleted successfully',
+        })
+      } catch (error) {
+        logger.error('E-API-011', 'Failed to delete BYK session', error)
+        res.status(500).json({
+          success: false,
+          error: 'Failed to delete session',
+          message: error instanceof Error ? error.message : 'Unknown error',
+        })
+      }
+    })
+  } else {
+    // GET /api/opensky/status - Return BYK disabled status
+    app.get('/api/opensky/status', (_req, res) => {
+      res.json({
+        success: true,
+        bykEnabled: false,
+        hasSession: false,
+        sessionActive: false,
+      })
+    })
+  }
 
 }

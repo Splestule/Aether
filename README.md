@@ -99,6 +99,48 @@ graph TD
     ```
     This spins up the backend on port `8080` and the frontend on port `3000`.
 
+### 🔑 Bring Your Own Key (BYK)
+
+Aether supports a "Bring Your Own Key" (BYK) feature that allows users to provide their own OpenSky Network credentials for enhanced API access.
+
+#### Enabling BYK
+
+To enable BYK mode, set the `BYK` environment variable to `true` in your server `.env` file:
+
+```bash
+BYK=true
+```
+
+When `BYK=false` (default), the app behaves exactly as before, using only server-configured credentials.
+
+#### How It Works
+
+When BYK is enabled:
+
+- **Without User Credentials**: Users have limited API access (10 requests per minute)
+- **With User Credentials**: Users get full API access (same quota as server credentials)
+
+Users can provide their OpenSky credentials through the frontend interface. Credentials are:
+- Validated before being accepted
+- Stored securely in a session token (expires after 24 hours)
+- Never logged or exposed in server logs
+- Transmitted over HTTPS (recommended for production)
+
+#### Security Considerations
+
+- Session tokens are cryptographically secure (UUID v4)
+- Credentials are validated before session creation
+- Sessions automatically expire after 24 hours
+- Use HTTPS in production for secure credential transmission
+- Rate limiting prevents abuse
+
+#### User Experience
+
+When BYK is enabled, users will see an "OpenSky Credentials" option in the location selector screen. They can:
+- Enter their OpenSky Client ID and Client Secret
+- View their current session status
+- Remove their credentials at any time
+
 ### 🐳 Docker Usage
 
 Prefer containers? We got you.

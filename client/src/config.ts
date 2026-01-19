@@ -64,6 +64,65 @@ export const config = {
   }
 };
 
+/**
+ * Check if BYK (Bring Your Own Key) is enabled on the server
+ */
+export async function checkBYKStatus(): Promise<{
+  bykEnabled: boolean
+  hasSession: boolean
+  sessionActive: boolean
+}> {
+  try {
+    const response = await fetch(`${config.apiUrl}/api/opensky/status`)
+    if (response.ok) {
+      const data = await response.json()
+      return {
+        bykEnabled: data.bykEnabled ?? false,
+        hasSession: data.hasSession ?? false,
+        sessionActive: data.sessionActive ?? false,
+      }
+    }
+    return { bykEnabled: false, hasSession: false, sessionActive: false }
+  } catch (error) {
+    console.warn('Failed to check BYK status:', error)
+    return { bykEnabled: false, hasSession: false, sessionActive: false }
+  }
+}
+
+/**
+ * Get session token from localStorage
+ */
+export function getSessionToken(): string | null {
+  try {
+    return localStorage.getItem('byk_session_token')
+  } catch (error) {
+    console.warn('Failed to get session token from localStorage:', error)
+    return null
+  }
+}
+
+/**
+ * Save session token to localStorage
+ */
+export function saveSessionToken(token: string): void {
+  try {
+    localStorage.setItem('byk_session_token', token)
+  } catch (error) {
+    console.error('Failed to save session token to localStorage:', error)
+  }
+}
+
+/**
+ * Remove session token from localStorage
+ */
+export function removeSessionToken(): void {
+  try {
+    localStorage.removeItem('byk_session_token')
+  } catch (error) {
+    console.warn('Failed to remove session token from localStorage:', error)
+  }
+}
+
 // Log configuration on load
 console.log('🚀 Flight Tracker Config:', {
   hostname: window.location.hostname,

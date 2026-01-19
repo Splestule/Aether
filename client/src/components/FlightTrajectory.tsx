@@ -62,9 +62,15 @@ export function FlightTrajectory({
   const fetchTrajectory = useCallback(async () => {
     setIsLoading(true);
     try {
+      const sessionToken = localStorage.getItem('byk_session_token');
+      const headers: HeadersInit = {};
+      if (sessionToken) {
+        headers['X-Session-Token'] = sessionToken;
+      }
       const response = await fetch(
         `${config.apiUrl}/api/flights/${flight.icao24}/trajectory?lat=${userLocation.latitude
-        }&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`
+        }&lon=${userLocation.longitude}&alt=${userLocation.altitude || 0}`,
+        { headers }
       );
 
       if (response.ok) {

@@ -13,9 +13,10 @@ import { ErrorNotification, ErrorNotificationData } from "./components/ErrorNoti
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useFlights } from "./hooks/useFlights";
 import { UserLocation, ProcessedFlight } from "@shared/src/types";
-import { config } from "./config";
+import { config, checkBYKStatus, getSessionToken } from "./config";
 import { ParticleField } from "./components/ParticleField";
 import { CesiumScene } from "./components/CesiumScene";
+import { BYKSettings } from "./components/BYKSettings";
 
 
 function App() {
@@ -30,9 +31,30 @@ function App() {
   const [viewMode, setViewMode] = useState<'vr' | 'cesium' | 'vr-world'>('vr');
   const [followingFlight, setFollowingFlight] = useState<ProcessedFlight | null>(null);
   const [errorNotification, setErrorNotification] = useState<ErrorNotificationData | null>(null);
+  const [bykEnabled, setBykEnabled] = useState(false);
+  const [showBYKSettings, setShowBYKSettings] = useState(false);
 
   // Ref to store camera orientation when switching views
   const cameraOrientationRef = useRef<{ heading: number; pitch: number } | null>(null);
+
+  // Check BYK status on mount
+  useEffect(() => {
+    checkBYKStatus().then((status) => {
+      setBykEnabled(status.bykEnabled);
+    });
+  }, []);
+
+  // Helper function to get headers with session token
+  const getHeaders = (): HeadersInit => {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+    };
+    const sessionToken = getSessionToken();
+    if (sessionToken) {
+      headers['X-Session-Token'] = sessionToken;
+    }
+    return headers;
+  };
 
   // Load default coefficients from localStorage or use 1.0
   const loadDefaultCoefficients = () => {
@@ -118,8 +140,14 @@ function App() {
 
     setIsLoading(true);
     try {
+      const sessionToken = getSessionToken();
+      const headers: HeadersInit = {};
+      if (sessionToken) {
+        headers['X-Session-Token'] = sessionToken;
+      }
       const response = await fetch(
-        `${config.apiUrl}/api/flights?lat=${userLocation.latitude}&lon=${userLocation.longitude}&radius=${config.vr.maxDistance}`
+        `${config.apiUrl}/api/flights?lat=${userLocation.latitude}&lon=${userLocation.longitude}&radius=${config.vr.maxDistance}`,
+        { headers }
       );
 
       if (response.ok) {
@@ -224,8 +252,14 @@ function App() {
 
     try {
       // Get flights via REST API
+      const sessionToken = getSessionToken();
+      const headers: HeadersInit = {};
+      if (sessionToken) {
+        headers['X-Session-Token'] = sessionToken;
+      }
       const response = await fetch(
-        `${config.apiUrl}/api/flights?lat=${location.latitude}&lon=${location.longitude}&radius=${config.vr.maxDistance}`
+        `${config.apiUrl}/api/flights?lat=${location.latitude}&lon=${location.longitude}&radius=${config.vr.maxDistance}`,
+        { headers }
       );
 
       if (response.ok) {
@@ -396,6 +430,23 @@ function App() {
                 </div>
               </div>
               <LocationSelector onLocationSelect={handleLocationSelect} />
+              
+              {/* BYK Settings */}
+              {bykEnabled && (
+                <div className="mt-4">
+                  <button
+                    onClick={() => setShowBYKSettings(!showBYKSettings)}
+                    className="vr-button w-full text-sm"
+                  >
+                    {showBYKSettings ? 'Hide' : 'Show'} OpenSky Credentials
+                  </button>
+                  {showBYKSettings && (
+                    <div className="mt-4">
+                      <BYKSettings onClose={() => setShowBYKSettings(false)} />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
