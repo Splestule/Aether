@@ -40,8 +40,15 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
         const data = await response.json();
         if (data.success) {
           setRateLimitInfo(data);
-          // Initialize remaining to limit if not set
-          if (remaining === null) {
+          // Try to get remaining from response headers
+          const remainingHeader = response.headers.get('ratelimit-remaining');
+          if (remainingHeader !== null) {
+            const remainingValue = parseInt(remainingHeader, 10);
+            if (!isNaN(remainingValue)) {
+              setRemaining(remainingValue);
+            }
+          } else if (remaining === null) {
+            // Initialize remaining to limit if not set and no header available
             setRemaining(data.limit);
           }
         }
@@ -51,18 +58,23 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
     }
   };
 
-  // Track API calls to estimate remaining
+  // Track API calls to update remaining count from response headers
   useEffect(() => {
     const originalFetch = window.fetch;
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
-      // Check if this is an API call (not rate-limit/status)
+      // Check if this is an API call (not rate-limit/status or opensky/status)
       if (args[0] && typeof args[0] === 'string' && 
           args[0].includes('/api/') && 
-          !args[0].includes('/api/rate-limit/status')) {
+          !args[0].includes('/api/rate-limit/status') &&
+          !args[0].includes('/api/opensky/status')) {
+        // Get remaining from response headers
         const remainingHeader = response.headers.get('ratelimit-remaining');
         if (remainingHeader !== null) {
-          setRemaining(parseInt(remainingHeader, 10));
+          const remainingValue = parseInt(remainingHeader, 10);
+          if (!isNaN(remainingValue)) {
+            setRemaining(remainingValue);
+          }
         }
       }
       return response;
@@ -77,9 +89,12 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
   useEffect(() => {
     if (!rateLimitInfo || !rateLimitInfo.isLimited) return;
 
+    let lastRefresh = Date.now();
     const updateTimer = setInterval(() => {
-      // Refresh rate limit info every 30 seconds to get updated reset time
-      if (Date.now() % 30000 < 1000) {
+      // Refresh rate limit info every 10 seconds to get updated remaining count
+      const now = Date.now();
+      if (now - lastRefresh >= 10000) {
+        lastRefresh = now;
         fetchRateLimitInfo();
       }
     }, 1000);
@@ -95,6 +110,10 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
         setStatus(newStatus);
         if (newStatus.byokEnabled && !newStatus.sessionActive) {
           await fetchRateLimitInfo();
+        } else if (newStatus.byokEnabled && newStatus.sessionActive) {
+          // Clear rate limit info when session is active
+          setRateLimitInfo(null);
+          setRemaining(null);
         }
       } catch (error) {
         console.warn('Failed to check BYOK status:', error);

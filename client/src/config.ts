@@ -73,7 +73,12 @@ export async function checkBYOKStatus(): Promise<{
   sessionActive: boolean
 }> {
   try {
-    const response = await fetch(`${config.apiUrl}/api/opensky/status`)
+    const sessionToken = getSessionToken()
+    const headers: HeadersInit = {}
+    if (sessionToken) {
+      headers['X-Session-Token'] = sessionToken
+    }
+    const response = await fetch(`${config.apiUrl}/api/opensky/status`, { headers })
     if (response.ok) {
       const data = await response.json()
       return {
