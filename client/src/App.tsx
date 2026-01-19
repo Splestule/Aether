@@ -44,18 +44,6 @@ function App() {
     });
   }, []);
 
-  // Helper function to get headers with session token
-  const getHeaders = (): HeadersInit => {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-    };
-    const sessionToken = getSessionToken();
-    if (sessionToken) {
-      headers['X-Session-Token'] = sessionToken;
-    }
-    return headers;
-  };
-
   // Load default coefficients from localStorage or use 1.0
   const loadDefaultCoefficients = () => {
     try {
