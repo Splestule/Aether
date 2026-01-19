@@ -12,7 +12,7 @@ interface SessionData {
   expiresAt: number
 }
 
-export class BYKSessionService {
+export class BYOKSessionService {
   private sessions: Map<string, SessionData> = new Map()
   private readonly sessionTTL = 24 * 60 * 60 * 1000 // 24 hours in milliseconds
   private cleanupInterval: NodeJS.Timeout | null = null
@@ -90,7 +90,7 @@ export class BYKSessionService {
     }
 
     if (cleaned > 0) {
-      console.log(`Cleaned up ${cleaned} expired BYK sessions`)
+      console.log(`Cleaned up ${cleaned} expired BYOK sessions`)
     }
   }
 

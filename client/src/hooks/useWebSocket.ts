@@ -12,7 +12,7 @@ interface UseWebSocketOptions {
 
 export function useWebSocket(
   url: string,
-  options: UseWebSocketOptions = {}
+  options: UseWebSocketOptions & { sessionToken?: string } = {}
 ) {
   const {
     onMessage,
@@ -21,6 +21,7 @@ export function useWebSocket(
     onClose,
     reconnectInterval = 5000,
     maxReconnectAttempts = 5,
+    sessionToken,
   } = options
 
   const [isConnected, setIsConnected] = useState(false)
@@ -35,7 +36,13 @@ export function useWebSocket(
     }
 
     try {
-      const ws = new WebSocket(url)
+      // Append session token to URL if provided
+      let wsUrl = url
+      if (sessionToken) {
+        const separator = url.includes('?') ? '&' : '?'
+        wsUrl = `${url}${separator}sessionToken=${encodeURIComponent(sessionToken)}`
+      }
+      const ws = new WebSocket(wsUrl)
       wsRef.current = ws
 
       ws.onopen = () => {
@@ -75,7 +82,7 @@ export function useWebSocket(
       setError('Failed to create WebSocket connection')
       console.error('WebSocket connection error:', err)
     }
-  }, [url, onMessage, onError, onOpen, onClose, reconnectInterval, maxReconnectAttempts])
+  }, [url, sessionToken, onMessage, onError, onOpen, onClose, reconnectInterval, maxReconnectAttempts])
 
   const disconnect = useCallback(() => {
     if (reconnectTimeoutRef.current) {

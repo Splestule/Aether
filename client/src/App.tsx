@@ -13,10 +13,11 @@ import { ErrorNotification, ErrorNotificationData } from "./components/ErrorNoti
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useFlights } from "./hooks/useFlights";
 import { UserLocation, ProcessedFlight } from "@shared/src/types";
-import { config, checkBYKStatus, getSessionToken } from "./config";
+import { config, checkBYOKStatus, getSessionToken } from "./config";
 import { ParticleField } from "./components/ParticleField";
 import { CesiumScene } from "./components/CesiumScene";
-import { BYKSettings } from "./components/BYKSettings";
+import { BYOKSettings } from "./components/BYOKSettings";
+import { BYOKStatus } from "./components/BYOKStatus";
 
 
 function App() {
@@ -31,16 +32,16 @@ function App() {
   const [viewMode, setViewMode] = useState<'vr' | 'cesium' | 'vr-world'>('vr');
   const [followingFlight, setFollowingFlight] = useState<ProcessedFlight | null>(null);
   const [errorNotification, setErrorNotification] = useState<ErrorNotificationData | null>(null);
-  const [bykEnabled, setBykEnabled] = useState(false);
-  const [showBYKSettings, setShowBYKSettings] = useState(false);
+  const [byokEnabled, setByokEnabled] = useState(false);
+  const [showBYOKSettings, setShowBYOKSettings] = useState(false);
 
   // Ref to store camera orientation when switching views
   const cameraOrientationRef = useRef<{ heading: number; pitch: number } | null>(null);
 
-  // Check BYK status on mount
+  // Check BYOK status on mount
   useEffect(() => {
-    checkBYKStatus().then((status) => {
-      setBykEnabled(status.bykEnabled);
+    checkBYOKStatus().then((status) => {
+      setByokEnabled(status.byokEnabled);
     });
   }, []);
 
@@ -202,7 +203,9 @@ function App() {
     recalculatePositions(userLocation, heightCoefficient, distanceCoefficient);
   }, [userLocation, heightCoefficient, distanceCoefficient, recalculatePositions, flights.length]);
 
+  const sessionToken = getSessionToken()
   const { isConnected, sendMessage } = useWebSocket(config.wsUrl, {
+    sessionToken: sessionToken || undefined,
     onOpen: () => {
       console.log("WebSocket connected - ready to receive messages");
       // Try to subscribe right away if we have a location
@@ -419,18 +422,18 @@ function App() {
               </div>
               <LocationSelector onLocationSelect={handleLocationSelect} />
               
-              {/* BYK Settings */}
-              {bykEnabled && (
+              {/* BYOK Settings */}
+              {byokEnabled && (
                 <div className="mt-4">
                   <button
-                    onClick={() => setShowBYKSettings(!showBYKSettings)}
+                    onClick={() => setShowBYOKSettings(!showBYOKSettings)}
                     className="vr-button w-full text-sm"
                   >
-                    {showBYKSettings ? 'Hide' : 'Show'} OpenSky Credentials
+                    {showBYOKSettings ? 'Hide' : 'Show'} OpenSky Credentials
                   </button>
-                  {showBYKSettings && (
+                  {showBYOKSettings && (
                     <div className="mt-4">
-                      <BYKSettings onClose={() => setShowBYKSettings(false)} />
+                      <BYOKSettings onClose={() => setShowBYOKSettings(false)} />
                     </div>
                   )}
                 </div>
@@ -441,20 +444,26 @@ function App() {
 
         {/* VR Controls - Show in both VR and Cesium (Real World) modes */}
         {userLocation && (viewMode === 'vr' || viewMode === 'cesium') && (
-          <VRControls
-            flightCount={flights.length}
-            isLoading={isLoading}
-            onBackToLocation={() => {
-              setUserLocation(null);
-              clearFlights();
-              setSelectedFlight(null);
-              setFollowingFlight(null);
-              cameraOrientationRef.current = null;
-            }}
-            onRefreshFlights={refreshFlights}
-            isRouteEnabled={isRouteEnabled}
-            onToggleRoute={() => setIsRouteEnabled((prev) => !prev)}
-          />
+          <>
+            <VRControls
+              flightCount={flights.length}
+              isLoading={isLoading}
+              onBackToLocation={() => {
+                setUserLocation(null);
+                clearFlights();
+                setSelectedFlight(null);
+                setFollowingFlight(null);
+                cameraOrientationRef.current = null;
+              }}
+              onRefreshFlights={refreshFlights}
+              isRouteEnabled={isRouteEnabled}
+              onToggleRoute={() => setIsRouteEnabled((prev) => !prev)}
+            />
+            {/* BYOK Status Indicator - positioned below VRControls */}
+            <div className="absolute top-[14rem] left-2 sm:top-[22rem] sm:left-6 z-[9998] w-40 sm:w-64">
+              <BYOKStatus />
+            </div>
+          </>
         )}
 
         {/* View Mode Toggle */}

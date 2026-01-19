@@ -15,6 +15,7 @@ interface ClientConnection {
   id: string
   lastPing: number
   subscriptions: Set<string>
+  sessionToken?: string
 }
 
 export function setupWebSocket(wss: WebSocketServer, services: Services) {
@@ -29,12 +30,17 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
   wss.on('connection', (ws: WebSocket, request: IncomingMessage) => {
     logger.debug('WebSocket connection from', request.socket.remoteAddress)
 
+    // Extract session token from query params
+    const url = new URL(request.url || '', `http://${request.headers.host}`)
+    const sessionToken = url.searchParams.get('sessionToken') || undefined
+
     const clientId = `client_${++clientIdCounter}`
     const client: ClientConnection = {
       ws,
       id: clientId,
       lastPing: Date.now(),
       subscriptions: new Set(),
+      sessionToken,
     }
 
     clients.set(clientId, client)
@@ -136,7 +142,8 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
       const flights = await flightService.getFlightsInArea(
         parseFloat(latitude),
         parseFloat(longitude),
-        parseFloat(radius)
+        parseFloat(radius),
+        client.sessionToken
       )
 
       // Send flight updates to all subscribed clients
@@ -209,8 +216,15 @@ export function setupWebSocket(wss: WebSocketServer, services: Services) {
 
     // For demo purposes, we'll update with a default location
     // In a real implementation, you'd track each client's location
+    // Use the first client's session token if available
+    const firstClient = subscribedClients[0]
     try {
-      const flights = await flightService.getFlightsInArea(50.0755, 14.4378, 100) // Prague
+      const flights = await flightService.getFlightsInArea(
+        50.0755, 
+        14.4378, 
+        100,
+        firstClient?.sessionToken
+      ) // Prague
 
       const updateMessage: FlightUpdateMessage = {
         type: 'flight_update',

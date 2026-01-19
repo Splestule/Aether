@@ -62,7 +62,7 @@ export function FlightTrajectory({
   const fetchTrajectory = useCallback(async () => {
     setIsLoading(true);
     try {
-      const sessionToken = localStorage.getItem('byk_session_token');
+      const sessionToken = localStorage.getItem('byok_session_token');
       const headers: HeadersInit = {};
       if (sessionToken) {
         headers['X-Session-Token'] = sessionToken;

@@ -4,14 +4,14 @@
 // Author: Eduard Šimon
 
 import { OpenSkyAuthService } from './openSkyAuthService.js'
-import { BYKSessionService } from './bykSessionService.js'
+import { BYOKSessionService } from './byokSessionService.js'
 
 /**
- * BYK Auth Service manages OpenSky authentication for both server and user sessions.
+ * BYOK Auth Service manages OpenSky authentication for both server and user sessions.
  * When a session token is provided, it uses user credentials from the session.
  * Otherwise, it falls back to server credentials.
  */
-export class BYKAuthService {
+export class BYOKAuthService {
   private sessionAuthServices: Map<string, OpenSkyAuthService> = new Map()
   private readonly serverAuthService: OpenSkyAuthService
 
@@ -19,7 +19,7 @@ export class BYKAuthService {
     serverClientId?: string,
     serverClientSecret?: string,
     serverAuthUrl?: string,
-    private sessionService?: BYKSessionService
+    private sessionService?: BYOKSessionService
   ) {
     // Create server auth service (always available)
     this.serverAuthService = new OpenSkyAuthService(

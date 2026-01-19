@@ -6,11 +6,11 @@
 import { useState, useEffect } from "react";
 import { config, saveSessionToken, removeSessionToken, getSessionToken } from "../config";
 
-interface BYKSettingsProps {
+interface BYOKSettingsProps {
   onClose?: () => void;
 }
 
-export function BYKSettings({ onClose }: BYKSettingsProps) {
+export function BYOKSettings({ onClose }: BYOKSettingsProps) {
   const [clientId, setClientId] = useState("");
   const [clientSecret, setClientSecret] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);

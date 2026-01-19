@@ -19,7 +19,7 @@ export function VRControls({
   onToggleRoute,
 }: VRControlsProps) {
   return (
-    <div className="absolute top-2 left-2 sm:top-6 sm:left-6 flex flex-col gap-2 sm:gap-4 text-white z-[9999] w-40 sm:w-64">
+    <div className="absolute top-2 left-2 sm:top-6 sm:left-6 flex flex-col gap-2 sm:gap-4 text-white z-[9999] w-40 sm:w-64 pointer-events-auto">
       {/* Connection Status - removed */}
       {/* <div className="vr-panel p-3">
         <div className="flex items-center space-x-2">

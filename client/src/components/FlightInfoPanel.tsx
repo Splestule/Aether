@@ -96,7 +96,7 @@ export function FlightInfoPanel({
 
         const params = new URLSearchParams({ callsign });
         const url = `${config.apiUrl}/api/flights/route?${params.toString()}`;
-        const sessionToken = localStorage.getItem('byk_session_token');
+        const sessionToken = localStorage.getItem('byok_session_token');
         const headers: HeadersInit = {};
         if (sessionToken) {
           headers['X-Session-Token'] = sessionToken;

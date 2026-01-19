@@ -65,10 +65,10 @@ export const config = {
 };
 
 /**
- * Check if BYK (Bring Your Own Key) is enabled on the server
+ * Check if BYOK (Bring Your Own Key) is enabled on the server
  */
-export async function checkBYKStatus(): Promise<{
-  bykEnabled: boolean
+export async function checkBYOKStatus(): Promise<{
+  byokEnabled: boolean
   hasSession: boolean
   sessionActive: boolean
 }> {
@@ -77,15 +77,15 @@ export async function checkBYKStatus(): Promise<{
     if (response.ok) {
       const data = await response.json()
       return {
-        bykEnabled: data.bykEnabled ?? false,
+        byokEnabled: data.byokEnabled ?? false,
         hasSession: data.hasSession ?? false,
         sessionActive: data.sessionActive ?? false,
       }
     }
-    return { bykEnabled: false, hasSession: false, sessionActive: false }
+    return { byokEnabled: false, hasSession: false, sessionActive: false }
   } catch (error) {
-    console.warn('Failed to check BYK status:', error)
-    return { bykEnabled: false, hasSession: false, sessionActive: false }
+    console.warn('Failed to check BYOK status:', error)
+    return { byokEnabled: false, hasSession: false, sessionActive: false }
   }
 }
 
@@ -94,7 +94,7 @@ export async function checkBYKStatus(): Promise<{
  */
 export function getSessionToken(): string | null {
   try {
-    return localStorage.getItem('byk_session_token')
+    return localStorage.getItem('byok_session_token')
   } catch (error) {
     console.warn('Failed to get session token from localStorage:', error)
     return null
@@ -106,7 +106,7 @@ export function getSessionToken(): string | null {
  */
 export function saveSessionToken(token: string): void {
   try {
-    localStorage.setItem('byk_session_token', token)
+    localStorage.setItem('byok_session_token', token)
   } catch (error) {
     console.error('Failed to save session token to localStorage:', error)
   }
@@ -117,7 +117,7 @@ export function saveSessionToken(token: string): void {
  */
 export function removeSessionToken(): void {
   try {
-    localStorage.removeItem('byk_session_token')
+    localStorage.removeItem('byok_session_token')
   } catch (error) {
     console.warn('Failed to remove session token from localStorage:', error)
   }

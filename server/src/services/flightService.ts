@@ -4,7 +4,7 @@ import { processFlightData } from '@vr-flight-tracker/shared'
 import { CacheService } from './cacheService.js'
 import { DemoService } from './demoService.js'
 import { OpenSkyAuthService } from './openSkyAuthService.js'
-import { BYKAuthService } from './bykAuthService.js'
+import { BYOKAuthService } from './byokAuthService.js'
 import { logger } from '../logger.js'
 
 export class FlightService {
@@ -20,7 +20,7 @@ export class FlightService {
 
   constructor(
     private cacheService: CacheService,
-    private authService?: OpenSkyAuthService | BYKAuthService
+    private authService?: OpenSkyAuthService | BYOKAuthService
   ) {
     this.demoService = new DemoService()
   }
@@ -200,8 +200,8 @@ export class FlightService {
             const headers: Record<string, string> = {
               'User-Agent': 'VR-Flight-Tracker/1.0',
             }
-            // Use BYK auth service if session token provided, otherwise use regular auth
-            const authHeader = sessionToken && this.authService instanceof BYKAuthService
+            // Use BYOK auth service if session token provided, otherwise use regular auth
+            const authHeader = sessionToken && this.authService instanceof BYOKAuthService
               ? await this.authService.getAuthorizationHeader(sessionToken, { forceRefresh: authAttempt > 0 })
               : await (this.authService as OpenSkyAuthService)?.getAuthorizationHeader({ forceRefresh: authAttempt > 0 })
             if (authHeader) {
@@ -248,7 +248,7 @@ export class FlightService {
             if (
               axios.isAxiosError(error) &&
               error.response?.status === 401 &&
-              (sessionToken && this.authService instanceof BYKAuthService
+              (sessionToken && this.authService instanceof BYOKAuthService
                 ? this.authService.hasCredentials(sessionToken)
                 : (this.authService as OpenSkyAuthService)?.hasCredentials()) &&
               authAttempt < this.AUTH_RETRY_LIMIT - 1
@@ -257,7 +257,7 @@ export class FlightService {
                 'OpenSky auth retry',
                 'OpenSky authentication failed (401), retrying with fresh token'
               )
-              if (sessionToken && this.authService instanceof BYKAuthService) {
+              if (sessionToken && this.authService instanceof BYOKAuthService) {
                 this.authService.invalidateToken(sessionToken)
               } else {
                 (this.authService as OpenSkyAuthService)?.invalidateToken()
@@ -331,8 +331,8 @@ export class FlightService {
           let authAttempt = 0
           while (authAttempt < this.AUTH_RETRY_LIMIT) {
             try {
-              // Use BYK auth service if session token provided, otherwise use regular auth
-              const authHeader = sessionToken && this.authService instanceof BYKAuthService
+              // Use BYOK auth service if session token provided, otherwise use regular auth
+              const authHeader = sessionToken && this.authService instanceof BYOKAuthService
                 ? await this.authService.getAuthorizationHeader(sessionToken, { forceRefresh: authAttempt > 0 })
                 : await (this.authService as OpenSkyAuthService)?.getAuthorizationHeader({ forceRefresh: authAttempt > 0 })
               if (authHeader) {
@@ -448,7 +448,7 @@ export class FlightService {
               if (
                 axios.isAxiosError(error) &&
                 error.response?.status === 401 &&
-                (sessionToken && this.authService instanceof BYKAuthService
+                (sessionToken && this.authService instanceof BYOKAuthService
                   ? this.authService.hasCredentials(sessionToken)
                   : (this.authService as OpenSkyAuthService)?.hasCredentials()) &&
                 authAttempt < this.AUTH_RETRY_LIMIT - 1
@@ -457,7 +457,7 @@ export class FlightService {
                   'OpenSky auth retry',
                   'OpenSky authentication failed (401) for tracks API, retrying with fresh token'
                 )
-                if (sessionToken && this.authService instanceof BYKAuthService) {
+                if (sessionToken && this.authService instanceof BYOKAuthService) {
                   this.authService.invalidateToken(sessionToken)
                 } else {
                   (this.authService as OpenSkyAuthService)?.invalidateToken()
@@ -529,13 +529,13 @@ export class FlightService {
     cacheMisses: number
     totalRequests: number
     openskyAuthentication: 'authenticated' | 'anonymous'
-    openskyAuthDetails?: ReturnType<OpenSkyAuthService['getStatus']> | ReturnType<BYKAuthService['getStatus']>
+    openskyAuthDetails?: ReturnType<OpenSkyAuthService['getStatus']> | ReturnType<BYOKAuthService['getStatus']>
   } {
     const stats = this.cacheService.getStats()
-    const hasCreds = sessionToken && this.authService instanceof BYKAuthService
+    const hasCreds = sessionToken && this.authService instanceof BYOKAuthService
       ? this.authService.hasCredentials(sessionToken)
       : (this.authService as OpenSkyAuthService)?.hasCredentials() ?? false
-    const authDetails = sessionToken && this.authService instanceof BYKAuthService
+    const authDetails = sessionToken && this.authService instanceof BYOKAuthService
       ? this.authService.getStatus(sessionToken)
       : (this.authService as OpenSkyAuthService)?.getStatus()
     

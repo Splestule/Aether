@@ -18,8 +18,8 @@ import { FlightService } from './services/flightService.js'
 import { ElevationService } from './services/elevationService.js'
 import { CacheService } from './services/cacheService.js'
 import { OpenSkyAuthService } from './services/openSkyAuthService.js'
-import { BYKAuthService } from './services/bykAuthService.js'
-import { BYKSessionService } from './services/bykSessionService.js'
+import { BYOKAuthService } from './services/byokAuthService.js'
+import { BYOKSessionService } from './services/byokSessionService.js'
 import { AviationStackService } from './services/aviationStackService.js'
 import { logger } from './logger.js'
 
@@ -55,28 +55,28 @@ const allowedOrigins =
     ? [...defaultProdOrigins, ...extraOrigins]
     : [...defaultDevOrigins, ...extraOrigins]
 
-// Check if BYK is enabled
-const isBYKEnabled = process.env.BYK === 'true'
+// Check if BYOK is enabled
+const isBYOKEnabled = process.env.BYOK === 'true'
 
 // Initialize services
 const cacheService = new CacheService()
 const elevationService = new ElevationService()
 
-// Initialize BYK services if enabled
-let bykSessionService: BYKSessionService | undefined
-let bykAuthService: BYKAuthService | undefined
-let openSkyAuthService: OpenSkyAuthService | BYKAuthService
+// Initialize BYOK services if enabled
+let byokSessionService: BYOKSessionService | undefined
+let byokAuthService: BYOKAuthService | undefined
+let openSkyAuthService: OpenSkyAuthService | BYOKAuthService
 
-if (isBYKEnabled) {
-  bykSessionService = new BYKSessionService()
-  bykAuthService = new BYKAuthService(
+if (isBYOKEnabled) {
+  byokSessionService = new BYOKSessionService()
+  byokAuthService = new BYOKAuthService(
     process.env.OPENSKY_CLIENT_ID,
     process.env.OPENSKY_CLIENT_SECRET,
     process.env.OPENSKY_AUTH_URL,
-    bykSessionService
+    byokSessionService
   )
-  openSkyAuthService = bykAuthService
-  logger.action('BYK enabled', 'Bring Your Own Key feature is enabled')
+  openSkyAuthService = byokAuthService
+  logger.action('BYOK enabled', 'Bring Your Own Key feature is enabled')
 } else {
   openSkyAuthService = new OpenSkyAuthService(
     process.env.OPENSKY_CLIENT_ID,
@@ -110,17 +110,17 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }))
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: (req) => {
-    // If BYK is enabled, check for session token
-    if (isBYKEnabled && bykSessionService) {
+    // If BYOK is enabled, check for session token
+    if (isBYOKEnabled && byokSessionService) {
       const sessionToken = req.headers['x-session-token'] as string | undefined
-      if (sessionToken && bykSessionService.hasValidSession(sessionToken)) {
+      if (sessionToken && byokSessionService.hasValidSession(sessionToken)) {
         // User has valid session, use normal limits
         return 600
       }
       // No session or invalid session, use limited rate (10 req/min = 150 req/15min)
       return 150
     }
-    // BYK not enabled, use normal limits
+    // BYOK not enabled, use normal limits
     return 600
   },
   standardHeaders: true,
@@ -179,8 +179,8 @@ setupRoutes(app, {
   cacheService, 
   openSkyAuthService, 
   aviationStackService,
-  bykSessionService,
-  isBYKEnabled 
+  byokSessionService,
+  isBYOKEnabled 
 })
 
 // Setup WebSocket
@@ -216,8 +216,8 @@ server.listen(PORT, HOST, () => {
 // Graceful shutdown
 process.on('SIGINT', () => {
   logger.action('SIGINT received', 'SIGINT received, shutting down gracefully')
-  if (bykSessionService) {
-    bykSessionService.destroy()
+  if (byokSessionService) {
+    byokSessionService.destroy()
   }
   server.close(() => {
     logger.action('Server closed', 'Server closed')
@@ -227,8 +227,8 @@ process.on('SIGINT', () => {
 
 process.on('SIGTERM', () => {
   logger.action('SIGTERM received', 'SIGTERM received, shutting down gracefully')
-  if (bykSessionService) {
-    bykSessionService.destroy()
+  if (byokSessionService) {
+    byokSessionService.destroy()
   }
   server.close(() => {
     logger.action('Server closed', 'Server closed')

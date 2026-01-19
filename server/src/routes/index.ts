@@ -3,8 +3,8 @@ import { FlightService } from '../services/flightService'
 import { ElevationService } from '../services/elevationService'
 import { CacheService } from '../services/cacheService'
 import { OpenSkyAuthService } from '../services/openSkyAuthService'
-import { BYKAuthService } from '../services/bykAuthService.js'
-import { BYKSessionService } from '../services/bykSessionService.js'
+import { BYOKAuthService } from '../services/byokAuthService.js'
+import { BYOKSessionService } from '../services/byokSessionService.js'
 import { AviationStackService } from '../services/aviationStackService.js'
 import { logger } from '../logger.js'
 
@@ -12,10 +12,10 @@ interface Services {
   flightService: FlightService
   elevationService: ElevationService
   cacheService: CacheService
-  openSkyAuthService?: OpenSkyAuthService | BYKAuthService
+  openSkyAuthService?: OpenSkyAuthService | BYOKAuthService
   aviationStackService?: AviationStackService
-  bykSessionService?: BYKSessionService
-  isBYKEnabled?: boolean
+  byokSessionService?: BYOKSessionService
+  isBYOKEnabled?: boolean
 }
 
 /**
@@ -35,8 +35,8 @@ export function setupRoutes(app: Express, services: Services) {
     cacheService,
     openSkyAuthService,
     aviationStackService,
-    bykSessionService,
-    isBYKEnabled,
+    byokSessionService,
+    isBYOKEnabled,
   } = services
 
   // Flights API
@@ -293,8 +293,8 @@ export function setupRoutes(app: Express, services: Services) {
 
   app.post('/api/opensky/reconnect', async (req, res) => {
     const sessionToken = getSessionToken(req)
-    const authService = isBYKEnabled && bykSessionService && sessionToken
-      ? (openSkyAuthService as BYKAuthService)
+    const authService = isBYOKEnabled && byokSessionService && sessionToken
+      ? (openSkyAuthService as BYOKAuthService)
       : (openSkyAuthService as OpenSkyAuthService)
 
     if (!authService || !authService.hasCredentials(sessionToken)) {
@@ -305,8 +305,8 @@ export function setupRoutes(app: Express, services: Services) {
     }
 
     try {
-      const header = isBYKEnabled && sessionToken
-        ? await (authService as BYKAuthService).getAuthorizationHeader(sessionToken, { forceRefresh: true })
+      const header = isBYOKEnabled && sessionToken
+        ? await (authService as BYOKAuthService).getAuthorizationHeader(sessionToken, { forceRefresh: true })
         : await (authService as OpenSkyAuthService).getAuthorizationHeader({ forceRefresh: true })
       
       if (header) {
@@ -329,8 +329,8 @@ export function setupRoutes(app: Express, services: Services) {
     }
   })
 
-  // BYK API Routes
-  if (isBYKEnabled && bykSessionService) {
+  // BYOK API Routes
+  if (isBYOKEnabled && byokSessionService) {
     // POST /api/opensky/credentials - Submit user credentials and get session token
     app.post('/api/opensky/credentials', async (req, res) => {
       try {
@@ -344,8 +344,8 @@ export function setupRoutes(app: Express, services: Services) {
         }
 
         // Validate credentials by attempting to get a token
-        const bykAuthService = openSkyAuthService as BYKAuthService
-        const isValid = await bykAuthService.validateCredentials(clientId, clientSecret)
+        const byokAuthService = openSkyAuthService as BYOKAuthService
+        const isValid = await byokAuthService.validateCredentials(clientId, clientSecret)
 
         if (!isValid) {
           return res.status(401).json({
@@ -355,7 +355,7 @@ export function setupRoutes(app: Express, services: Services) {
         }
 
         // Create session
-        const sessionToken = bykSessionService.createSession(clientId, clientSecret)
+        const sessionToken = byokSessionService.createSession(clientId, clientSecret)
 
         res.json({
           success: true,
@@ -363,7 +363,7 @@ export function setupRoutes(app: Express, services: Services) {
           message: 'Credentials validated and session created',
         })
       } catch (error) {
-        logger.error('E-API-009', 'Failed to create BYK session', error)
+        logger.error('E-API-009', 'Failed to create BYOK session', error)
         res.status(500).json({
           success: false,
           error: 'Failed to create session',
@@ -372,20 +372,20 @@ export function setupRoutes(app: Express, services: Services) {
       }
     })
 
-    // GET /api/opensky/status - Get BYK status and session info
+    // GET /api/opensky/status - Get BYOK status and session info
     app.get('/api/opensky/status', (req, res) => {
       try {
         const sessionToken = getSessionToken(req)
-        const hasSession = sessionToken ? bykSessionService.hasValidSession(sessionToken) : false
+        const hasSession = sessionToken ? byokSessionService.hasValidSession(sessionToken) : false
 
         res.json({
           success: true,
-          bykEnabled: true,
+          byokEnabled: true,
           hasSession,
           sessionActive: hasSession,
         })
       } catch (error) {
-        logger.error('E-API-010', 'Failed to get BYK status', error)
+        logger.error('E-API-010', 'Failed to get BYOK status', error)
         res.status(500).json({
           success: false,
           error: 'Failed to get status',
@@ -406,10 +406,10 @@ export function setupRoutes(app: Express, services: Services) {
           })
         }
 
-        const deleted = bykSessionService.deleteSession(sessionToken)
+        const deleted = byokSessionService.deleteSession(sessionToken)
         
         // Clean up auth service instance
-        if (deleted && openSkyAuthService instanceof BYKAuthService) {
+        if (deleted && openSkyAuthService instanceof BYOKAuthService) {
           openSkyAuthService.cleanupSession(sessionToken)
         }
 
@@ -418,7 +418,7 @@ export function setupRoutes(app: Express, services: Services) {
           message: 'Session deleted successfully',
         })
       } catch (error) {
-        logger.error('E-API-011', 'Failed to delete BYK session', error)
+        logger.error('E-API-011', 'Failed to delete BYOK session', error)
         res.status(500).json({
           success: false,
           error: 'Failed to delete session',
@@ -427,11 +427,11 @@ export function setupRoutes(app: Express, services: Services) {
       }
     })
   } else {
-    // GET /api/opensky/status - Return BYK disabled status
+    // GET /api/opensky/status - Return BYOK disabled status
     app.get('/api/opensky/status', (_req, res) => {
       res.json({
         success: true,
-        bykEnabled: false,
+        byokEnabled: false,
         hasSession: false,
         sessionActive: false,
       })
