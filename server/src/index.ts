@@ -97,8 +97,8 @@ app.use(helmet({
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
 }))
 
 app.use(compression())
@@ -130,6 +130,10 @@ const limiter = rateLimit({
     const path = req.path || ''
     // Allow frequent internal polling endpoints (e.g. dashboard health checks)
     if (path === '/cache/stats' || path === '/cache/stats/') {
+      return true
+    }
+    // Skip rate limiting for rate limit status endpoint
+    if (path === '/api/rate-limit/status' || path === '/api/rate-limit/status/') {
       return true
     }
     // Allow local loopback traffic (dashboard + client) more leniency

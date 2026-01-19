@@ -1,5 +1,6 @@
 import { Plane } from "lucide-react";
 import { clsx } from "clsx";
+import { BYOKStatus } from "./BYOKStatus";
 
 interface VRControlsProps {
   flightCount: number;
@@ -87,6 +88,9 @@ export function VRControls({
           <span className="sm:hidden whitespace-nowrap">← Map</span>
         </button>
       )}
+
+      {/* BYOK Status Indicator */}
+      <BYOKStatus />
 
       {/* Loading Indicator */}
       {isLoading && (

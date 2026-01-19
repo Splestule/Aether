@@ -39,6 +39,40 @@ export function setupRoutes(app: Express, services: Services) {
     isBYOKEnabled,
   } = services
 
+  // Rate limit status endpoint - must be defined early to be accessible
+  app.get('/api/rate-limit/status', (req, res) => {
+    try {
+      const sessionToken = getSessionToken(req)
+      const isLimited = isBYOKEnabled && byokSessionService && 
+        (!sessionToken || !byokSessionService.hasValidSession(sessionToken))
+      
+      // Calculate rate limit info based on BYOK status
+      const limit = isLimited ? 150 : 600 // 150 for limited (10/min = 150/15min), 600 for full
+      const windowMs = 15 * 60 * 1000 // 15 minutes
+      
+      // Note: express-rate-limit doesn't expose current usage directly
+      // We'll return the limit and window, client can track usage
+      const now = Date.now()
+      const resetTime = now + windowMs
+
+      res.json({
+        success: true,
+        isLimited,
+        limit,
+        windowMs,
+        resetTime: new Date(resetTime).toISOString(),
+        resetTimestamp: resetTime,
+      })
+    } catch (error) {
+      logger.error('E-API-012', 'Failed to get rate limit status', error)
+      res.status(500).json({
+        success: false,
+        error: 'Failed to get rate limit status',
+        message: error instanceof Error ? error.message : 'Unknown error',
+      })
+    }
+  })
+
   // Flights API
   app.get('/api/flights', async (req, res) => {
     try {

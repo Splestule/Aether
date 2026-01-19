@@ -444,26 +444,20 @@ function App() {
 
         {/* VR Controls - Show in both VR and Cesium (Real World) modes */}
         {userLocation && (viewMode === 'vr' || viewMode === 'cesium') && (
-          <>
-            <VRControls
-              flightCount={flights.length}
-              isLoading={isLoading}
-              onBackToLocation={() => {
-                setUserLocation(null);
-                clearFlights();
-                setSelectedFlight(null);
-                setFollowingFlight(null);
-                cameraOrientationRef.current = null;
-              }}
-              onRefreshFlights={refreshFlights}
-              isRouteEnabled={isRouteEnabled}
-              onToggleRoute={() => setIsRouteEnabled((prev) => !prev)}
-            />
-            {/* BYOK Status Indicator - positioned below VRControls */}
-            <div className="absolute top-[14rem] left-2 sm:top-[22rem] sm:left-6 z-[9998] w-40 sm:w-64">
-              <BYOKStatus />
-            </div>
-          </>
+          <VRControls
+            flightCount={flights.length}
+            isLoading={isLoading}
+            onBackToLocation={() => {
+              setUserLocation(null);
+              clearFlights();
+              setSelectedFlight(null);
+              setFollowingFlight(null);
+              cameraOrientationRef.current = null;
+            }}
+            onRefreshFlights={refreshFlights}
+            isRouteEnabled={isRouteEnabled}
+            onToggleRoute={() => setIsRouteEnabled((prev) => !prev)}
+          />
         )}
 
         {/* View Mode Toggle */}
