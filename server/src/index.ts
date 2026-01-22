@@ -98,7 +98,8 @@ app.use(cors({
   origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Session-Token'],
+  exposedHeaders: ['RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset', 'RateLimit-Policy']
 }))
 
 app.use(compression())
@@ -136,9 +137,13 @@ const limiter = rateLimit({
     if (path === '/api/rate-limit/status' || path === '/api/rate-limit/status/') {
       return true
     }
-    // Allow local loopback traffic (dashboard + client) more leniency
-    const ip = req.ip || ''
-    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
+    // In production, allow local loopback traffic more leniency
+    // In development, we want rate limiting to work for testing
+    if (process.env.NODE_ENV === 'production') {
+      const ip = req.ip || ''
+      return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1'
+    }
+    return false
   },
 })
 app.use('/api', limiter)
@@ -177,14 +182,14 @@ app.get('/health', (req, res) => {
 })
 
 // Setup routes
-setupRoutes(app, { 
-  flightService, 
-  elevationService, 
-  cacheService, 
-  openSkyAuthService, 
+setupRoutes(app, {
+  flightService,
+  elevationService,
+  cacheService,
+  openSkyAuthService,
   aviationStackService,
   byokSessionService,
-  isBYOKEnabled 
+  isBYOKEnabled
 })
 
 // Setup WebSocket
