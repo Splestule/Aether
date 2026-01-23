@@ -101,8 +101,6 @@ graph TD
     cp server/env.example server/.env
     ```
 
-    > **Note**: For higher rate limits, add your OpenSky credentials to `.env`.
-
 4.  **Launch Aether**
     ```bash
     npm run dev
@@ -155,13 +153,34 @@ When BYOK is enabled, users will see an "OpenSky Credentials" option in the loca
 
 ### 🐳 Docker Usage
 
-Prefer containers? We got you.
-
 ```bash
+# Build and start all services
 docker compose up --build
+
+# Or run in detached mode
+docker compose up -d --build
 ```
 
-Access the app at `http://localhost:3000`.
+**Services:**
+| Service | URL | Port |
+|---------|-----|------|
+| Frontend | http://localhost:4173 | 4173 |
+| Backend API | http://localhost:8080 | 8080 |
+
+**Environment Variables:**
+
+Create a `.env` file in the project root to configure:
+
+```bash
+# OpenSky credentials
+OPENSKY_USERNAME=your_username
+OPENSKY_PASSWORD=your_password
+```
+
+**Stop containers:**
+```bash
+docker compose down
+```
 
 ## 🎮 Controls
 
