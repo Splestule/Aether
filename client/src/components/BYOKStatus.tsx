@@ -64,10 +64,10 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
       // Check if this is an API call (not rate-limit/status or opensky/status)
-      if (args[0] && typeof args[0] === 'string' && 
-          args[0].includes('/api/') && 
-          !args[0].includes('/api/rate-limit/status') &&
-          !args[0].includes('/api/opensky/status')) {
+      if (args[0] && typeof args[0] === 'string' &&
+        args[0].includes('/api/') &&
+        !args[0].includes('/api/rate-limit/status') &&
+        !args[0].includes('/api/opensky/status')) {
         // Get remaining from response headers
         const remainingHeader = response.headers.get('ratelimit-remaining');
         if (remainingHeader !== null) {
@@ -108,12 +108,9 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
       try {
         const newStatus = await checkBYOKStatus();
         setStatus(newStatus);
-        if (newStatus.byokEnabled && !newStatus.sessionActive) {
+        // Fetch rate limit info for both limited mode (no session) and full mode (with session)
+        if (newStatus.byokEnabled) {
           await fetchRateLimitInfo();
-        } else if (newStatus.byokEnabled && newStatus.sessionActive) {
-          // Clear rate limit info when session is active
-          setRateLimitInfo(null);
-          setRemaining(null);
         }
       } catch (error) {
         console.warn('Failed to check BYOK status:', error);
@@ -123,7 +120,7 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
     };
 
     updateStatus();
-    
+
     // Check status periodically
     const interval = setInterval(() => {
       updateStatus();
@@ -139,37 +136,27 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
     return null;
   }
 
-  // Show status based on session
-  if (status.sessionActive) {
-    return (
-      <div className={`vr-button justify-center cursor-default hover:bg-[rgba(26,26,26,0.92)] hover:border-white/60 hover:text-white text-[10px] sm:text-[0.65rem] px-2.5 py-2 sm:px-5 sm:py-3 w-full ${className}`}>
-        <span className="text-green-400 text-sm sm:text-base">✓</span>
-        <span className="text-white text-xs sm:text-sm font-medium whitespace-nowrap">
-          <span className="hidden sm:inline">Credentials Connected</span>
-          <span className="sm:hidden">Connected</span>
-        </span>
-      </div>
-    );
-  }
-
-  // Limited mode - BYOK enabled but no session
-  const limit = rateLimitInfo?.limit ?? 150;
+  // Calculate rate limit values (150 for limited, 600 for verified)
+  const limit = rateLimitInfo?.limit ?? (status.sessionActive ? 600 : 150);
   const resetTimestamp = rateLimitInfo?.resetTimestamp;
   const currentRemaining = remaining ?? limit;
   const percentage = limit > 0 ? (currentRemaining / limit) * 100 : 0;
-  
+
+  // Determine status mode for display
+  const isConnected = status.sessionActive;
+
   // Calculate time until reset
   const getResetTimeText = (): string => {
     if (!resetTimestamp) return '';
     const resetDate = new Date(resetTimestamp);
     const now = new Date();
     const diffMs = resetDate.getTime() - now.getTime();
-    
+
     if (diffMs <= 0) return 'Resets now';
-    
+
     const minutes = Math.floor(diffMs / 60000);
     const seconds = Math.floor((diffMs % 60000) / 1000);
-    
+
     if (minutes > 0) {
       return `Resets in ${minutes}m ${seconds}s`;
     }
@@ -179,13 +166,24 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
   return (
     <div className={`vr-button justify-center cursor-default hover:bg-[rgba(26,26,26,0.92)] hover:border-white/60 hover:text-white text-[10px] sm:text-[0.65rem] px-2.5 py-2 sm:px-5 sm:py-3 w-full flex flex-col gap-1.5 sm:gap-2 ${className}`}>
       <div className="flex items-center gap-2 justify-center w-full">
-        <span className="text-orange-400 text-sm sm:text-base">⚠</span>
+        <span className={`${isConnected ? 'text-green-400' : 'text-orange-400'} text-sm sm:text-base`}>
+          {isConnected ? '✓' : '⚠'}
+        </span>
         <span className="text-white text-xs sm:text-sm font-medium whitespace-nowrap">
-          <span className="hidden sm:inline">Limited Mode</span>
-          <span className="sm:hidden">Limited</span>
+          {isConnected ? (
+            <>
+              <span className="hidden sm:inline">Credentials Connected</span>
+              <span className="sm:hidden">Connected</span>
+            </>
+          ) : (
+            <>
+              <span className="hidden sm:inline">Limited Mode</span>
+              <span className="sm:hidden">Limited</span>
+            </>
+          )}
         </span>
       </div>
-      
+
       {/* Progress Bar */}
       <div className="w-full px-1 sm:px-2">
         <div className="flex items-center justify-between mb-1">
@@ -200,7 +198,7 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
         </div>
         <div className="w-full h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">
           <div
-            className="h-full bg-orange-400/60 transition-all duration-300"
+            className={`h-full ${isConnected ? 'bg-green-400/60' : 'bg-orange-400/60'} transition-all duration-300`}
             style={{ width: `${Math.max(0, Math.min(100, percentage))}%` }}
           />
         </div>
