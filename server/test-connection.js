@@ -18,7 +18,9 @@ dotenv.config({ path: join(__dirname, '.env') });
 
 const SERVER_URL = process.env.SERVER_URL || 'http://localhost:8080';
 const OPENSKY_API_URL = process.env.OPENSKY_API_URL || 'https://opensky-network.org/api/states/all';
-const OPENSKY_AUTH_URL = process.env.OPENSKY_AUTH_URL || 'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
+const OPENSKY_AUTH_URL =
+  process.env.OPENSKY_AUTH_URL ||
+  'https://auth.opensky-network.org/auth/realms/opensky-network/protocol/openid-connect/token';
 
 // Test coordinates (Prague, Czech Republic)
 const TEST_LAT = 50.0755;
@@ -63,14 +65,14 @@ function logInfo(message) {
 
 async function testServerHealth() {
   logSection('1. Testing Server Health');
-  
+
   try {
     const startTime = Date.now();
     const response = await axios.get(`${SERVER_URL}/health`, {
       timeout: 5000,
     });
     const duration = Date.now() - startTime;
-    
+
     if (response.status === 200) {
       logSuccess(`Server is running (${duration}ms)`);
       logInfo(`Status: ${response.data.status}`);
@@ -95,10 +97,12 @@ async function testServerHealth() {
 
 async function testFlightsEndpoint() {
   logSection('2. Testing Flights API Endpoint');
-  
+
   try {
-    logInfo(`Testing: ${SERVER_URL}/api/flights?lat=${TEST_LAT}&lon=${TEST_LON}&radius=${TEST_RADIUS}`);
-    
+    logInfo(
+      `Testing: ${SERVER_URL}/api/flights?lat=${TEST_LAT}&lon=${TEST_LON}&radius=${TEST_RADIUS}`
+    );
+
     const startTime = Date.now();
     const response = await axios.get(`${SERVER_URL}/api/flights`, {
       params: {
@@ -109,12 +113,12 @@ async function testFlightsEndpoint() {
       timeout: 30000, // 30 seconds for flight data
     });
     const duration = Date.now() - startTime;
-    
+
     if (response.status === 200 && response.data.success) {
       logSuccess(`Flights endpoint responded successfully (${duration}ms)`);
       logInfo(`Flights returned: ${response.data.count || response.data.data?.length || 0}`);
       logInfo(`Timestamp: ${new Date(response.data.timestamp).toISOString()}`);
-      
+
       if (response.data.data && response.data.data.length > 0) {
         const sampleFlight = response.data.data[0];
         logInfo(`Sample flight: ${sampleFlight.callsign || 'N/A'} (${sampleFlight.icao24})`);
@@ -148,11 +152,13 @@ async function testFlightsEndpoint() {
 
 async function testOpenSkyDirect() {
   logSection('3. Testing OpenSky Network API (Direct)');
-  
+
   try {
     logInfo(`Testing: ${OPENSKY_API_URL}`);
-    logInfo(`Using bounding box: lat ${TEST_LAT-1} to ${TEST_LAT+1}, lon ${TEST_LON-1} to ${TEST_LON+1}`);
-    
+    logInfo(
+      `Using bounding box: lat ${TEST_LAT - 1} to ${TEST_LAT + 1}, lon ${TEST_LON - 1} to ${TEST_LON + 1}`
+    );
+
     const startTime = Date.now();
     const response = await axios.get(OPENSKY_API_URL, {
       params: {
@@ -167,14 +173,14 @@ async function testOpenSkyDirect() {
       },
     });
     const duration = Date.now() - startTime;
-    
+
     if (response.status === 200) {
       logSuccess(`OpenSky API responded (${duration}ms)`);
-      
+
       if (response.data && response.data.states) {
         const flightCount = Array.isArray(response.data.states) ? response.data.states.length : 0;
         logInfo(`Flights in response: ${flightCount}`);
-        
+
         if (flightCount > 0) {
           const sampleState = response.data.states[0];
           logInfo(`Sample flight: ${sampleState[1] || 'N/A'} (${sampleState[0]})`);
@@ -222,26 +228,26 @@ async function testOpenSkyDirect() {
 
 async function testOpenSkyAuth() {
   logSection('4. Testing OpenSky Authentication');
-  
+
   const clientId = process.env.OPENSKY_CLIENT_ID;
   const clientSecret = process.env.OPENSKY_CLIENT_SECRET;
-  
+
   if (!clientId || !clientSecret) {
     logWarning('OpenSky credentials not configured');
     logInfo('Set OPENSKY_CLIENT_ID and OPENSKY_CLIENT_SECRET in .env file');
     logInfo('Note: Anonymous access may have rate limits');
     return null;
   }
-  
+
   logInfo('Credentials found, testing authentication...');
-  
+
   try {
     const params = new URLSearchParams({
       grant_type: 'client_credentials',
       client_id: clientId,
       client_secret: clientSecret,
     });
-    
+
     const startTime = Date.now();
     const response = await axios.post(OPENSKY_AUTH_URL, params, {
       headers: {
@@ -250,7 +256,7 @@ async function testOpenSkyAuth() {
       timeout: 10000,
     });
     const duration = Date.now() - startTime;
-    
+
     if (response.status === 200 && response.data.access_token) {
       logSuccess(`Authentication successful (${duration}ms)`);
       logInfo(`Token expires in: ${response.data.expires_in || 'unknown'} seconds`);
@@ -278,26 +284,26 @@ async function testOpenSkyAuth() {
 
 async function testCacheStats() {
   logSection('5. Testing Cache Statistics');
-  
+
   try {
     const response = await axios.get(`${SERVER_URL}/api/cache/stats`, {
       timeout: 5000,
     });
-    
+
     if (response.status === 200 && response.data.success) {
       logSuccess('Cache stats endpoint accessible');
       const stats = response.data.data;
-      
+
       if (stats.cache) {
         logInfo(`Cache hits: ${stats.cache.hits}`);
         logInfo(`Cache misses: ${stats.cache.misses}`);
         logInfo(`Cache size: ${stats.cache.size || 'N/A'}`);
       }
-      
+
       if (stats.flight) {
         logInfo(`Total requests: ${stats.flight.totalRequests || 'N/A'}`);
         logInfo(`OpenSky auth: ${stats.flight.openskyAuthentication || 'N/A'}`);
-        
+
         if (stats.flight.openskyAuthDetails) {
           const authDetails = stats.flight.openskyAuthDetails;
           logInfo(`Credentials configured: ${authDetails.credentialsConfigured ? 'Yes' : 'No'}`);
@@ -330,11 +336,11 @@ async function runDiagnostics() {
   log('╔══════════════════════════════════════════════════════════════╗', 'bright');
   log('║     VR Flight Tracker - Connection Diagnostic Tool          ║', 'bright');
   log('╚══════════════════════════════════════════════════════════════╝', 'bright');
-  
+
   logInfo(`Server URL: ${SERVER_URL}`);
   logInfo(`OpenSky API: ${OPENSKY_API_URL}`);
   logInfo(`Test coordinates: ${TEST_LAT}, ${TEST_LON} (radius: ${TEST_RADIUS}km)`);
-  
+
   const results = {
     serverHealth: false,
     flightsEndpoint: false,
@@ -342,23 +348,23 @@ async function runDiagnostics() {
     openskyAuth: null,
     cacheStats: false,
   };
-  
+
   // Run tests
   results.serverHealth = await testServerHealth();
-  
+
   if (results.serverHealth) {
     results.flightsEndpoint = await testFlightsEndpoint();
     results.cacheStats = await testCacheStats();
   } else {
     logWarning('Skipping server-dependent tests (server not accessible)');
   }
-  
+
   results.openskyDirect = await testOpenSkyDirect();
   results.openskyAuth = await testOpenSkyAuth();
-  
+
   // Summary
   logSection('Diagnostic Summary');
-  
+
   const allTests = [
     ['Server Health', results.serverHealth],
     ['Flights API Endpoint', results.flightsEndpoint],
@@ -366,7 +372,7 @@ async function runDiagnostics() {
     ['OpenSky Authentication', results.openskyAuth],
     ['Cache Statistics', results.cacheStats],
   ];
-  
+
   allTests.forEach(([name, result]) => {
     if (result === null) {
       logWarning(`${name}: Not tested (optional)`);
@@ -376,9 +382,9 @@ async function runDiagnostics() {
       logError(`${name}: FAIL`);
     }
   });
-  
+
   console.log('\n');
-  
+
   // Recommendations
   if (!results.serverHealth) {
     logSection('Recommendations');
@@ -403,24 +409,13 @@ async function runDiagnostics() {
       logInfo('Note: Using anonymous OpenSky access (may have rate limits)');
     }
   }
-  
+
   console.log('\n');
 }
 
 // Run diagnostics
-runDiagnostics().catch(error => {
+runDiagnostics().catch((error) => {
   logError(`Fatal error: ${error.message}`);
   console.error(error);
   process.exit(1);
 });
-
-
-
-
-
-
-
-
-
-
-

@@ -3,16 +3,16 @@
 // Proprietary and confidential
 // Author: Eduard Šimon
 
-import { useState, useEffect } from "react";
-import { config, saveSessionToken, removeSessionToken, getSessionToken } from "../config";
+import { useState, useEffect } from 'react';
+import { config, saveSessionToken, removeSessionToken, getSessionToken } from '../config';
 
 interface BYOKSettingsProps {
   onClose?: () => void;
 }
 
 export function BYOKSettings({ onClose }: BYOKSettingsProps) {
-  const [clientId, setClientId] = useState("");
-  const [clientSecret, setClientSecret] = useState("");
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -68,8 +68,8 @@ export function BYOKSettings({ onClose }: BYOKSettingsProps) {
         saveSessionToken(data.sessionToken);
         setSuccess('Credentials validated and saved successfully!');
         setHasSession(true);
-        setClientId("");
-        setClientSecret("");
+        setClientId('');
+        setClientSecret('');
         // Refresh page after a short delay to apply new session
         setTimeout(() => {
           window.location.reload();
@@ -149,8 +149,8 @@ export function BYOKSettings({ onClose }: BYOKSettingsProps) {
       </div>
 
       <p className="text-sm text-white/80 mb-4">
-        Provide your own OpenSky Network credentials to get full API access. 
-        Without credentials, you'll have limited access (10 requests/minute).
+        Provide your own OpenSky Network credentials to get full API access. Without credentials,
+        you'll have limited access (10 requests/minute).
       </p>
 
       {hasSession ? (
@@ -228,8 +228,8 @@ export function BYOKSettings({ onClose }: BYOKSettingsProps) {
 
       <div className="text-xs text-white/60 mt-4 pt-4 border-t border-white/10">
         <p>
-          Your credentials are stored securely in a session token. 
-          Sessions expire after 24 hours for security.
+          Your credentials are stored securely in a session token. Sessions expire after 24 hours
+          for security.
         </p>
       </div>
     </div>

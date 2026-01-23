@@ -1,23 +1,11 @@
-import {
-  Plane,
-  MapPin,
-  Gauge,
-  Navigation,
-  Clock,
-  ArrowUp,
-  X,
-} from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import { ProcessedFlight } from "@shared/src/types.js";
-import type { FlightRouteInfo } from "@shared/src/types.js";
-import {
-  formatSpeed,
-  formatAltitude,
-  formatDistance,
-} from "@shared/src/utils.js";
-import { createPortal } from "react-dom";
-import { clsx } from "clsx";
-import { config } from "../config";
+import { Plane, MapPin, Gauge, Navigation, Clock, ArrowUp, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { ProcessedFlight } from '@shared/src/types.js';
+import type { FlightRouteInfo } from '@shared/src/types.js';
+import { formatSpeed, formatAltitude, formatDistance } from '@shared/src/utils.js';
+import { createPortal } from 'react-dom';
+import { clsx } from 'clsx';
+import { config } from '../config';
 
 interface FlightInfoPanelProps {
   flight: ProcessedFlight;
@@ -38,12 +26,12 @@ export function FlightInfoPanel({
 }: FlightInfoPanelProps) {
   const [routeInfo, setRouteInfo] = useState<FlightRouteInfo | null>(null);
   const [routeStatus, setRouteStatus] = useState<
-    "idle" | "loading" | "success" | "empty" | "error" | "disabled"
-  >("idle");
+    'idle' | 'loading' | 'success' | 'empty' | 'error' | 'disabled'
+  >('idle');
   const routeCacheRef = useRef<Map<string, FlightRouteInfo>>(new Map());
 
   const formatHeading = (heading: number): string => {
-    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     const index = Math.round(heading / 45) % 8;
     return `${heading.toFixed(0)}° ${directions[index]}`;
   };
@@ -58,31 +46,31 @@ export function FlightInfoPanel({
     return `${minutes}m ago`;
   };
 
-  const getEndpointCode = (endpoint: FlightRouteInfo["origin"]): string => {
-    if (!endpoint) return "UNK";
+  const getEndpointCode = (endpoint: FlightRouteInfo['origin']): string => {
+    if (!endpoint) return 'UNK';
     const code = endpoint.iata?.trim() || endpoint.icao?.trim();
-    return code?.toUpperCase() || "UNK";
+    return code?.toUpperCase() || 'UNK';
   };
 
   useEffect(() => {
-    const callsign = flight.callsign?.replace(/\s+/g, "").toUpperCase();
+    const callsign = flight.callsign?.replace(/\s+/g, '').toUpperCase();
 
     if (!showRoute) {
       setRouteInfo(null);
-      setRouteStatus("disabled");
+      setRouteStatus('disabled');
       return;
     }
 
     if (!callsign) {
       setRouteInfo(null);
-      setRouteStatus("empty");
+      setRouteStatus('empty');
       return;
     }
 
     const cachedRoute = routeCacheRef.current.get(callsign);
     if (cachedRoute) {
       setRouteInfo(cachedRoute);
-      setRouteStatus("success");
+      setRouteStatus('success');
       return;
     }
 
@@ -91,7 +79,7 @@ export function FlightInfoPanel({
 
     const fetchRoute = async () => {
       try {
-        setRouteStatus("loading");
+        setRouteStatus('loading');
         setRouteInfo(null);
 
         const params = new URLSearchParams({ callsign });
@@ -109,7 +97,7 @@ export function FlightInfoPanel({
         if (!response.ok) {
           if (response.status === 404) {
             if (isMounted) {
-              setRouteStatus("empty");
+              setRouteStatus('empty');
               setRouteInfo(null);
             }
             return;
@@ -117,20 +105,18 @@ export function FlightInfoPanel({
 
           const errorBody = await response
             .json()
-            .catch(() => ({ error: "Unable to retrieve flight route" }));
+            .catch(() => ({ error: 'Unable to retrieve flight route' }));
 
           throw new Error(
-            errorBody?.error ||
-            errorBody?.message ||
-            "Unable to retrieve flight route"
+            errorBody?.error || errorBody?.message || 'Unable to retrieve flight route'
           );
         }
 
-        const contentType = response.headers.get("content-type") ?? "";
-        if (!contentType.includes("application/json")) {
+        const contentType = response.headers.get('content-type') ?? '';
+        if (!contentType.includes('application/json')) {
           const fallback = await response.text();
           throw new Error(
-            `Unexpected response format (${contentType || "unknown"}): ${fallback.slice(0, 120)}`
+            `Unexpected response format (${contentType || 'unknown'}): ${fallback.slice(0, 120)}`
           );
         }
 
@@ -139,7 +125,7 @@ export function FlightInfoPanel({
 
         if (!data) {
           if (isMounted) {
-            setRouteStatus("empty");
+            setRouteStatus('empty');
             setRouteInfo(null);
           }
           return;
@@ -149,16 +135,16 @@ export function FlightInfoPanel({
 
         if (isMounted) {
           setRouteInfo(data);
-          setRouteStatus("success");
+          setRouteStatus('success');
         }
       } catch (error) {
         if (controller.signal.aborted) {
           return;
         }
 
-        console.error("Failed to fetch route info", error);
+        console.error('Failed to fetch route info', error);
         if (isMounted) {
-          setRouteStatus("error");
+          setRouteStatus('error');
         }
       }
     };
@@ -174,8 +160,8 @@ export function FlightInfoPanel({
   return createPortal(
     <div
       className={clsx(
-        "fixed bottom-0 right-0 left-0 sm:bottom-auto sm:top-4 sm:left-auto sm:right-4 min-w-[280px] max-w-none sm:max-w-[360px] sm:min-w-[360px] sm:max-w-none p-3 sm:p-[24px_28px] max-h-[50vh] sm:max-h-none overflow-y-auto sm:overflow-visible text-white",
-        isFollowing ? "sm:flight-info-card" : "flight-info-card"
+        'fixed bottom-0 right-0 left-0 sm:bottom-auto sm:top-4 sm:left-auto sm:right-4 min-w-[280px] max-w-none sm:max-w-[360px] sm:min-w-[360px] sm:max-w-none p-3 sm:p-[24px_28px] max-h-[50vh] sm:max-h-none overflow-y-auto sm:overflow-visible text-white',
+        isFollowing ? 'sm:flight-info-card' : 'flight-info-card'
       )}
       style={{
         zIndex: 999999, // Ensure it appears above VR canvas
@@ -188,12 +174,17 @@ export function FlightInfoPanel({
         </div>
       )}
 
-      <div className={clsx("flex items-center justify-between mb-3 sm:mb-6", isFollowing && "hidden sm:flex")}>
+      <div
+        className={clsx(
+          'flex items-center justify-between mb-3 sm:mb-6',
+          isFollowing && 'hidden sm:flex'
+        )}
+      >
         <h3 className="compass-title text-sm sm:text-xl">Flight Details</h3>
         <button
           onClick={onClose}
           className="group relative -mt-1 -mr-2 inline-flex h-7 w-7 sm:h-10 sm:w-10 items-center justify-center rounded-full bg-transparent text-white/70 transition-colors duration-300 hover:text-[#c6a0e8] focus:outline-none"
-          style={{ marginLeft: "auto" }}
+          style={{ marginLeft: 'auto' }}
         >
           <span className="sr-only">Close panel</span>
           <X className="w-3.5 h-3.5 sm:w-5 sm:h-5" />
@@ -201,7 +192,7 @@ export function FlightInfoPanel({
       </div>
 
       <div className="space-y-3 sm:space-y-5">
-        <div className={clsx("space-y-3 sm:space-y-5", isFollowing && "hidden sm:block")}>
+        <div className={clsx('space-y-3 sm:space-y-5', isFollowing && 'hidden sm:block')}>
           {/* Flight Info */}
           <div className="flex items-center gap-2 sm:gap-3">
             <Plane className="w-3.5 h-3.5 sm:w-5 sm:h-5 text-[#c6a0e8]/80 flex-shrink-0" />
@@ -221,17 +212,18 @@ export function FlightInfoPanel({
             <div className="text-[10px] sm:text-sm space-y-0.5 sm:space-y-1">
               <div className="compass-subtle text-[10px] sm:text-[0.6rem]">Route</div>
               <div className="font-semibold tracking-[0.24em] sm:tracking-[0.30em] uppercase text-[10px] sm:text-sm">
-                {!showRoute && "Route unavailable"}
-                {showRoute && routeStatus === "loading" && "Loading route..."}
-                {showRoute && routeStatus === "success" &&
+                {!showRoute && 'Route unavailable'}
+                {showRoute && routeStatus === 'loading' && 'Loading route...'}
+                {showRoute &&
+                  routeStatus === 'success' &&
                   routeInfo &&
                   `${getEndpointCode(routeInfo.origin)} → ${getEndpointCode(
                     routeInfo.destination
                   )}`}
                 {showRoute &&
-                  routeStatus !== "loading" &&
-                  routeStatus !== "success" &&
-                  "Route unavailable"}
+                  routeStatus !== 'loading' &&
+                  routeStatus !== 'success' &&
+                  'Route unavailable'}
               </div>
             </div>
           </div>
@@ -250,8 +242,7 @@ export function FlightInfoPanel({
             <div className="text-[10px] sm:text-sm space-y-0.5 sm:space-y-1">
               <div className="compass-subtle text-[10px] sm:text-[0.6rem]">Position</div>
               <div className="font-semibold tracking-[0.16em] sm:tracking-[0.18em] text-[10px] sm:text-sm">
-                {flight.gps.latitude.toFixed(4)},{" "}
-                {flight.gps.longitude.toFixed(4)}
+                {flight.gps.latitude.toFixed(4)}, {flight.gps.longitude.toFixed(4)}
               </div>
             </div>
           </div>
@@ -310,11 +301,11 @@ export function FlightInfoPanel({
             <span className="compass-subtle text-[10px] sm:text-[0.6rem]">Status</span>
             <span
               className={clsx(
-                "ml-1.5 sm:ml-3 font-semibold tracking-[0.16em] sm:tracking-[0.18em] uppercase text-[10px] sm:text-sm",
-                flight.onGround ? "text-white/50" : "text-[#c6a0e8]"
+                'ml-1.5 sm:ml-3 font-semibold tracking-[0.16em] sm:tracking-[0.18em] uppercase text-[10px] sm:text-sm',
+                flight.onGround ? 'text-white/50' : 'text-[#c6a0e8]'
               )}
             >
-              {flight.onGround ? "On Ground" : "In Flight"}
+              {flight.onGround ? 'On Ground' : 'In Flight'}
             </span>
           </div>
 
@@ -331,13 +322,13 @@ export function FlightInfoPanel({
           <button
             onClick={onToggleFollow}
             className={clsx(
-              "w-auto sm:w-full mx-auto block px-6 sm:px-0 py-2 sm:py-3 mt-2 sm:mt-4 rounded text-[10px] sm:text-sm font-bold tracking-[0.16em] sm:tracking-[0.2em] uppercase transition-colors duration-300",
+              'w-auto sm:w-full mx-auto block px-6 sm:px-0 py-2 sm:py-3 mt-2 sm:mt-4 rounded text-[10px] sm:text-sm font-bold tracking-[0.16em] sm:tracking-[0.2em] uppercase transition-colors duration-300',
               isFollowing
-                ? "bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/50"
-                : "bg-[#c6a0e8]/20 hover:bg-[#c6a0e8]/30 text-[#c6a0e8] border border-[#c6a0e8]/50"
+                ? 'bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-500/50'
+                : 'bg-[#c6a0e8]/20 hover:bg-[#c6a0e8]/30 text-[#c6a0e8] border border-[#c6a0e8]/50'
             )}
           >
-            {isFollowing ? "Return to Map" : "Follow Flight"}
+            {isFollowing ? 'Return to Map' : 'Follow Flight'}
           </button>
         )}
       </div>

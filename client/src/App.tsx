@@ -3,29 +3,26 @@
 // Proprietary and confidential
 // Author: Eduard Šimon
 
-import { useState, useEffect, useCallback, useRef } from "react";
-import "cesium/Build/Cesium/Widgets/widgets.css";
-import { VRScene } from "./components/VRScene";
-import { LocationSelector } from "./components/LocationSelector";
-import { FlightInfoPanel } from "./components/FlightInfoPanel";
-import { VRControls } from "./components/VRControls";
-import { ErrorNotification, ErrorNotificationData } from "./components/ErrorNotification";
-import { useWebSocket } from "./hooks/useWebSocket";
-import { useFlights } from "./hooks/useFlights";
-import { UserLocation, ProcessedFlight } from "@shared/src/types";
-import { config, checkBYOKStatus, getSessionToken } from "./config";
-import { ParticleField } from "./components/ParticleField";
-import { CesiumScene } from "./components/CesiumScene";
-import { BYOKSettings } from "./components/BYOKSettings";
-
+import { useState, useEffect, useCallback, useRef } from 'react';
+import 'cesium/Build/Cesium/Widgets/widgets.css';
+import { VRScene } from './components/VRScene';
+import { LocationSelector } from './components/LocationSelector';
+import { FlightInfoPanel } from './components/FlightInfoPanel';
+import { VRControls } from './components/VRControls';
+import { ErrorNotification, ErrorNotificationData } from './components/ErrorNotification';
+import { useWebSocket } from './hooks/useWebSocket';
+import { useFlights } from './hooks/useFlights';
+import { UserLocation, ProcessedFlight } from '@shared/src/types';
+import { config, checkBYOKStatus, getSessionToken } from './config';
+import { ParticleField } from './components/ParticleField';
+import { CesiumScene } from './components/CesiumScene';
+import { BYOKSettings } from './components/BYOKSettings';
 
 function App() {
-  console.log("App component rendering");
+  console.log('App component rendering');
 
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [selectedFlight, setSelectedFlight] = useState<ProcessedFlight | null>(
-    null
-  );
+  const [selectedFlight, setSelectedFlight] = useState<ProcessedFlight | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isRouteEnabled, setIsRouteEnabled] = useState(false);
   const [viewMode, setViewMode] = useState<'vr' | 'cesium' | 'vr-world'>('vr');
@@ -161,7 +158,7 @@ function App() {
         handleApiError(response);
       }
     } catch (error) {
-      console.error("Failed to refresh flights:", error);
+      console.error('Failed to refresh flights:', error);
       setErrorNotification({
         type: 'network',
         message: 'Failed to connect to server',
@@ -198,33 +195,36 @@ function App() {
   // Recalculate positions when coefficients change
   useEffect(() => {
     if (!userLocation || flights.length === 0) return;
-    console.log('Recalculating positions with coefficients:', { heightCoefficient, distanceCoefficient });
+    console.log('Recalculating positions with coefficients:', {
+      heightCoefficient,
+      distanceCoefficient,
+    });
     recalculatePositions(userLocation, heightCoefficient, distanceCoefficient);
   }, [userLocation, heightCoefficient, distanceCoefficient, recalculatePositions, flights.length]);
 
-  const sessionToken = getSessionToken()
+  const sessionToken = getSessionToken();
   const { isConnected, sendMessage } = useWebSocket(config.wsUrl, {
     sessionToken: sessionToken || undefined,
     onOpen: () => {
-      console.log("WebSocket connected - ready to receive messages");
+      console.log('WebSocket connected - ready to receive messages');
       // Try to subscribe right away if we have a location
       if (userLocation) {
         sendMessage({
-          type: "subscribe_flights",
+          type: 'subscribe_flights',
           data: {},
           timestamp: Date.now(),
         });
       }
     },
     onClose: () => {
-      console.log("WebSocket disconnected");
+      console.log('WebSocket disconnected');
     },
     onError: (error) => {
-      console.error("WebSocket connection error:", error);
+      console.error('WebSocket connection error:', error);
     },
     onMessage: (data) => {
-      console.log("Received WebSocket message:", data);
-      if (data.type === "flight_update") {
+      console.log('Received WebSocket message:', data);
+      if (data.type === 'flight_update') {
         updateFlights(data.data);
       }
     },
@@ -276,13 +276,13 @@ function App() {
 
           if (isConnected) {
             sendMessage({
-              type: "subscribe_flights",
+              type: 'subscribe_flights',
               data: {},
               timestamp: Date.now(),
             });
 
             sendMessage({
-              type: "request_flights",
+              type: 'request_flights',
               data: {
                 latitude: location.latitude,
                 longitude: location.longitude,
@@ -292,18 +292,14 @@ function App() {
             });
           }
         } else {
-          console.warn("No flight data received");
+          console.warn('No flight data received');
         }
       } else {
-        console.error(
-          "Failed to fetch flights:",
-          response.status,
-          response.statusText
-        );
+        console.error('Failed to fetch flights:', response.status, response.statusText);
         handleApiError(response);
       }
     } catch (error) {
-      console.error("Failed to request flights:", error);
+      console.error('Failed to request flights:', error);
       setErrorNotification({
         type: 'network',
         message: 'Failed to connect to server',
@@ -348,7 +344,7 @@ function App() {
   // Legacy AR button logic removed - handled in VRScene.tsx
 
   // Check if selected flight is out of range (not in current flights list)
-  const isOutOfRange = selectedFlight ? !flights.some(f => f.id === selectedFlight.id) : false;
+  const isOutOfRange = selectedFlight ? !flights.some((f) => f.id === selectedFlight.id) : false;
 
   // Auto-deselect if following a flight that goes out of range
   useEffect(() => {
@@ -391,8 +387,6 @@ function App() {
         />
       )}
 
-
-
       {/* Compass - shows direction user is looking */}
       {userLocation && (
         <div
@@ -420,7 +414,7 @@ function App() {
                 </div>
               </div>
               <LocationSelector onLocationSelect={handleLocationSelect} />
-              
+
               {/* BYOK Settings */}
               {byokEnabled && (
                 <div className="mt-4">
@@ -469,7 +463,7 @@ function App() {
                 alt="Aether logo"
                 className="h-8 w-8 sm:h-[58px] sm:w-[58px] object-contain"
                 style={{
-                  filter: "drop-shadow(0 18px 32px rgba(56, 189, 248, 0.32))",
+                  filter: 'drop-shadow(0 18px 32px rgba(56, 189, 248, 0.32))',
                 }}
                 draggable={false}
               />
@@ -477,11 +471,11 @@ function App() {
                 className="hidden sm:inline-block"
                 style={{
                   fontFamily: '"Unbounded", "Stack Sans Notch", "Gabarito", sans-serif',
-                  fontSize: "1.75rem",
-                  letterSpacing: "0.12em",
-                  textTransform: "none",
-                  color: "#ffffff",
-                  textShadow: "0 8px 24px rgba(15, 23, 42, 0.85)",
+                  fontSize: '1.75rem',
+                  letterSpacing: '0.12em',
+                  textTransform: 'none',
+                  color: '#ffffff',
+                  textShadow: '0 8px 24px rgba(15, 23, 42, 0.85)',
                   lineHeight: 1,
                 }}
               >
@@ -496,7 +490,7 @@ function App() {
                 alt="Aether logo"
                 className="h-12 w-12 object-contain"
                 style={{
-                  filter: "drop-shadow(0 4px 12px rgba(56, 189, 248, 0.3))",
+                  filter: 'drop-shadow(0 4px 12px rgba(56, 189, 248, 0.3))',
                 }}
                 draggable={false}
               />
@@ -506,19 +500,21 @@ function App() {
             <div className="flex flex-col gap-2 w-full">
               <button
                 onClick={() => setViewMode('vr')}
-                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${viewMode === 'vr'
-                  ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
-                  : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
-                  }`}
+                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${
+                  viewMode === 'vr'
+                    ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
+                    : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
+                }`}
               >
                 Passthrough View
               </button>
               <button
                 onClick={() => setViewMode('cesium')}
-                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${viewMode === 'cesium'
-                  ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
-                  : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
-                  }`}
+                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${
+                  viewMode === 'cesium'
+                    ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
+                    : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
+                }`}
               >
                 Virtual Environment
               </button>
@@ -532,7 +528,6 @@ function App() {
           </div>
         )}
         {/* Back button removed - now handled by VRControls */}
-
 
         {/* Flight Info Panel */}
         {selectedFlight && (
@@ -548,28 +543,31 @@ function App() {
 
         {/* Error Notification */}
 
-
         {/* Loading Indicator - removed, using the one in VRControls (left side) */}
         {/* Debug Info - removed */}
       </div>
 
       {/* Made by + OpenSky citation footer - only show on homepage */}
-      {
-        !userLocation && (
-          <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none">
-            <p className="text-[10px] sm:text-sm">
-              Made by Eduard Šimon of Gymnázium Žďár nad Sázavou ©
+      {!userLocation && (
+        <div className="fixed bottom-0 sm:bottom-2 left-1/2 -translate-x-1/2 z-[10002] text-white/80 px-4 text-center w-[100%] sm:w-auto sm:max-w-screen-lg pointer-events-none">
+          <p className="text-[10px] sm:text-sm">
+            Made by Eduard Šimon of Gymnázium Žďár nad Sázavou ©
+          </p>
+          <div className="mt-2 text-[6.5px] sm:text-[9px] text-white/70">
+            <p className="text-[7.5px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
+            <p>
+              Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias
+              Wilhelm.
             </p>
-            <div className="mt-2 text-[6.5px] sm:text-[9px] text-white/70">
-              <p className="text-[7.5px] sm:text-[11px] text-white/80">Data from OpenSky Network</p>
-              <p>Matthias Schäfer, Martin Strohmeier, Vincent Lenders, Ivan Martinovic and Matthias Wilhelm.</p>
-              <p>"Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research".</p>
-              <p className="whitespace-normal sm:whitespace-nowrap">In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing in Sensor Networks (IPSN), pages 83-94, April 2014.</p>
-            </div>
+            <p>"Bringing Up OpenSky: A Large-scale ADS-B Sensor Network for Research".</p>
+            <p className="whitespace-normal sm:whitespace-nowrap">
+              In Proceedings of the 13th IEEE/ACM International Symposium on Information Processing
+              in Sensor Networks (IPSN), pages 83-94, April 2014.
+            </p>
           </div>
-        )
-      }
-    </div >
+        </div>
+      )}
+    </div>
   );
 }
 

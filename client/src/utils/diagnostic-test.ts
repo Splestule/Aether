@@ -32,19 +32,28 @@ function log(message: string, style: keyof typeof styles = 'reset') {
 }
 
 export async function runFlightDiagnostics(): Promise<void> {
-  console.log('\n%c╔══════════════════════════════════════════════════════════════╗', 'font-weight: bold');
-  console.log('%c║     VR Flight Tracker - Client Diagnostic Tool              ║', 'font-weight: bold');
-  console.log('%c╚══════════════════════════════════════════════════════════════╝', 'font-weight: bold');
-  
+  console.log(
+    '\n%c╔══════════════════════════════════════════════════════════════╗',
+    'font-weight: bold'
+  );
+  console.log(
+    '%c║     VR Flight Tracker - Client Diagnostic Tool              ║',
+    'font-weight: bold'
+  );
+  console.log(
+    '%c╚══════════════════════════════════════════════════════════════╝',
+    'font-weight: bold'
+  );
+
   const results: DiagnosticResult[] = [];
   const config = (window as any).__FLIGHT_TRACKER_CONFIG__ || {
     apiUrl: 'http://localhost:8080',
     wsUrl: 'ws://localhost:8080',
   };
-  
+
   log(`API URL: ${config.apiUrl}`, 'info');
   log(`WebSocket URL: ${config.wsUrl}`, 'info');
-  
+
   // Test 1: Server Health
   console.log('\n%c[1] Testing Server Health', 'font-weight: bold');
   try {
@@ -52,7 +61,7 @@ export async function runFlightDiagnostics(): Promise<void> {
     const response = await fetch(`${config.apiUrl}/health`);
     const duration = performance.now() - startTime;
     const data = await response.json();
-    
+
     if (response.ok) {
       results.push({
         test: 'Server Health',
@@ -77,13 +86,13 @@ export async function runFlightDiagnostics(): Promise<void> {
     });
     log(`✗ Server connection failed: ${error.message}`, 'error');
   }
-  
+
   // Test 2: Flights API
   console.log('\n%c[2] Testing Flights API', 'font-weight: bold');
   const testLat = 50.0755; // Prague
   const testLon = 14.4378;
   const testRadius = 100;
-  
+
   try {
     log(`Testing: /api/flights?lat=${testLat}&lon=${testLon}&radius=${testRadius}`, 'info');
     const startTime = performance.now();
@@ -92,7 +101,7 @@ export async function runFlightDiagnostics(): Promise<void> {
     );
     const duration = performance.now() - startTime;
     const data = await response.json();
-    
+
     if (response.ok && data.success) {
       const flightCount = data.count || data.data?.length || 0;
       results.push({
@@ -107,7 +116,7 @@ export async function runFlightDiagnostics(): Promise<void> {
       });
       log(`✓ Flights API working (${Math.round(duration)}ms)`, 'success');
       log(`  Flights returned: ${flightCount}`, 'info');
-      
+
       if (flightCount > 0 && data.data?.[0]) {
         const sample = data.data[0];
         log(`  Sample: ${sample.callsign || 'N/A'} (${sample.icao24})`, 'info');
@@ -134,7 +143,7 @@ export async function runFlightDiagnostics(): Promise<void> {
     });
     log(`✗ Flights API request failed: ${error.message}`, 'error');
   }
-  
+
   // Test 3: WebSocket Connection
   console.log('\n%c[3] Testing WebSocket Connection', 'font-weight: bold');
   try {
@@ -144,21 +153,21 @@ export async function runFlightDiagnostics(): Promise<void> {
         ws.close();
         resolve(false);
       }, 5000);
-      
+
       ws.onopen = () => {
         clearTimeout(timeout);
         ws.close();
         resolve(true);
       };
-      
+
       ws.onerror = () => {
         clearTimeout(timeout);
         resolve(false);
       };
     });
-    
+
     const wsConnected = await wsTestPromise;
-    
+
     if (wsConnected) {
       results.push({
         test: 'WebSocket',
@@ -182,13 +191,13 @@ export async function runFlightDiagnostics(): Promise<void> {
     });
     log(`✗ WebSocket test error: ${error.message}`, 'error');
   }
-  
+
   // Test 4: Cache Stats
   console.log('\n%c[4] Testing Cache Statistics', 'font-weight: bold');
   try {
     const response = await fetch(`${config.apiUrl}/api/cache/stats`);
     const data = await response.json();
-    
+
     if (response.ok && data.success) {
       results.push({
         test: 'Cache Stats',
@@ -197,16 +206,19 @@ export async function runFlightDiagnostics(): Promise<void> {
         details: data.data,
       });
       log(`✓ Cache stats accessible`, 'success');
-      
+
       if (data.data?.cache) {
         log(`  Cache hits: ${data.data.cache.hits}`, 'info');
         log(`  Cache misses: ${data.data.cache.misses}`, 'info');
       }
-      
+
       if (data.data?.flight) {
         log(`  OpenSky auth: ${data.data.flight.openskyAuthentication || 'N/A'}`, 'info');
         if (data.data.flight.openskyAuthDetails?.lastAuthErrorAt) {
-          log(`  ⚠ Last auth error: ${new Date(data.data.flight.openskyAuthDetails.lastAuthErrorAt).toISOString()}`, 'warning');
+          log(
+            `  ⚠ Last auth error: ${new Date(data.data.flight.openskyAuthDetails.lastAuthErrorAt).toISOString()}`,
+            'warning'
+          );
         }
       }
     } else {
@@ -225,50 +237,59 @@ export async function runFlightDiagnostics(): Promise<void> {
     });
     log(`✗ Cache stats request failed: ${error.message}`, 'error');
   }
-  
+
   // Summary
-  console.log('\n%c═══════════════════════════════════════════════════════════════', 'font-weight: bold');
+  console.log(
+    '\n%c═══════════════════════════════════════════════════════════════',
+    'font-weight: bold'
+  );
   console.log('%cDiagnostic Summary', 'font-weight: bold');
-  console.log('%c═══════════════════════════════════════════════════════════════', 'font-weight: bold');
-  
-  const passed = results.filter(r => r.success).length;
+  console.log(
+    '%c═══════════════════════════════════════════════════════════════',
+    'font-weight: bold'
+  );
+
+  const passed = results.filter((r) => r.success).length;
   const total = results.length;
-  
-  results.forEach(result => {
+
+  results.forEach((result) => {
     if (result.success) {
       log(`✓ ${result.test}: PASS`, 'success');
     } else {
       log(`✗ ${result.test}: FAIL - ${result.message}`, 'error');
     }
   });
-  
-  console.log(`\n%cResults: ${passed}/${total} tests passed`, passed === total ? 'color: green; font-weight: bold;' : 'color: orange; font-weight: bold;');
-  
+
+  console.log(
+    `\n%cResults: ${passed}/${total} tests passed`,
+    passed === total ? 'color: green; font-weight: bold;' : 'color: orange; font-weight: bold;'
+  );
+
   // Recommendations
   if (passed < total) {
     console.log('\n%cRecommendations:', 'font-weight: bold');
-    
-    if (!results.find(r => r.test === 'Server Health')?.success) {
+
+    if (!results.find((r) => r.test === 'Server Health')?.success) {
       log('1. Check if server is running (cd server && npm run dev)', 'warning');
     }
-    
-    if (!results.find(r => r.test === 'Flights API')?.success) {
+
+    if (!results.find((r) => r.test === 'Flights API')?.success) {
       log('2. Check server logs for errors', 'warning');
       log('3. Test OpenSky API connectivity (run server test-connection script)', 'warning');
     }
-    
-    if (!results.find(r => r.test === 'WebSocket')?.success) {
+
+    if (!results.find((r) => r.test === 'WebSocket')?.success) {
       log('4. Check WebSocket URL configuration', 'warning');
     }
   } else {
     log('\n✓ All tests passed! System should be working correctly.', 'success');
   }
-  
+
   console.log('\n');
-  
+
   // Store results globally for inspection
   (window as any).__FLIGHT_DIAGNOSTIC_RESULTS__ = results;
-  
+
   return Promise.resolve();
 }
 
@@ -278,14 +299,3 @@ if (typeof window !== 'undefined') {
   console.log('%cFlight Diagnostics Available', 'color: blue; font-weight: bold;');
   console.log('Run: runFlightDiagnostics()');
 }
-
-
-
-
-
-
-
-
-
-
-

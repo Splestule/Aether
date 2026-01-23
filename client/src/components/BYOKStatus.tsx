@@ -3,8 +3,8 @@
 // Proprietary and confidential
 // Author: Eduard Šimon
 
-import { useEffect, useState } from "react";
-import { checkBYOKStatus, getSessionToken, config } from "../config";
+import { useEffect, useState } from 'react';
+import { checkBYOKStatus, getSessionToken, config } from '../config';
 
 interface BYOKStatusProps {
   className?: string;
@@ -18,7 +18,7 @@ interface RateLimitInfo {
   resetTime: string;
 }
 
-export function BYOKStatus({ className = "" }: BYOKStatusProps) {
+export function BYOKStatus({ className = '' }: BYOKStatusProps) {
   const [status, setStatus] = useState<{
     byokEnabled: boolean;
     hasSession: boolean;
@@ -64,10 +64,13 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
     window.fetch = async (...args) => {
       const response = await originalFetch(...args);
       // Check if this is an API call (not rate-limit/status or opensky/status)
-      if (args[0] && typeof args[0] === 'string' &&
+      if (
+        args[0] &&
+        typeof args[0] === 'string' &&
         args[0].includes('/api/') &&
         !args[0].includes('/api/rate-limit/status') &&
-        !args[0].includes('/api/opensky/status')) {
+        !args[0].includes('/api/opensky/status')
+      ) {
         // Get remaining from response headers
         const remainingHeader = response.headers.get('ratelimit-remaining');
         if (remainingHeader !== null) {
@@ -164,9 +167,13 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
   };
 
   return (
-    <div className={`vr-button justify-center cursor-default hover:bg-[rgba(26,26,26,0.92)] hover:border-white/60 hover:text-white text-[10px] sm:text-[0.65rem] px-2.5 py-2 sm:px-5 sm:py-3 w-full flex flex-col gap-1.5 sm:gap-2 ${className}`}>
+    <div
+      className={`vr-button justify-center cursor-default hover:bg-[rgba(26,26,26,0.92)] hover:border-white/60 hover:text-white text-[10px] sm:text-[0.65rem] px-2.5 py-2 sm:px-5 sm:py-3 w-full flex flex-col gap-1.5 sm:gap-2 ${className}`}
+    >
       <div className="flex items-center gap-2 justify-center w-full">
-        <span className={`${isConnected ? 'text-green-400' : 'text-orange-400'} text-sm sm:text-base`}>
+        <span
+          className={`${isConnected ? 'text-green-400' : 'text-orange-400'} text-sm sm:text-base`}
+        >
           {isConnected ? '✓' : '⚠'}
         </span>
         <span className="text-white text-xs sm:text-sm font-medium whitespace-nowrap">
@@ -191,9 +198,7 @@ export function BYOKStatus({ className = "" }: BYOKStatusProps) {
             {currentRemaining}/{limit}
           </span>
           {resetTimestamp && (
-            <span className="text-[8px] sm:text-[0.55rem] text-white/70">
-              {getResetTimeText()}
-            </span>
+            <span className="text-[8px] sm:text-[0.55rem] text-white/70">{getResetTimeText()}</span>
           )}
         </div>
         <div className="w-full h-1.5 sm:h-2 bg-white/10 rounded-full overflow-hidden">

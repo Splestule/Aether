@@ -23,23 +23,23 @@ export interface FlightData {
 export interface OpenSkyResponse {
   time: number;
   states: [
-    string,     // icao24
-    string,     // callsign
-    string,     // origin_country
-    number,     // time_position
-    number,     // last_contact
-    number,     // longitude
-    number,     // latitude
-    number,     // geo_altitude
-    boolean,    // on_ground
-    number,     // velocity
-    number,     // true_track
-    number,     // vertical_rate
-    number[],   // sensors
-    number,     // baro_altitude
-    string,     // squawk
-    boolean,    // spi
-    number      // position_source
+    string, // icao24
+    string, // callsign
+    string, // origin_country
+    number, // time_position
+    number, // last_contact
+    number, // longitude
+    number, // latitude
+    number, // geo_altitude
+    boolean, // on_ground
+    number, // velocity
+    number, // true_track
+    number, // vertical_rate
+    number[], // sensors
+    number, // baro_altitude
+    string, // squawk
+    boolean, // spi
+    number, // position_source
   ][];
 }
 
@@ -150,7 +150,18 @@ export interface ElevationResponse {
 
 // WebSocket message types
 export interface WSMessage {
-  type: 'flight_update' | 'flight_add' | 'flight_remove' | 'error' | 'connection' | 'subscription' | 'ping' | 'pong' | 'request_flights' | 'subscribe_flights' | 'unsubscribe_flights';
+  type:
+    | 'flight_update'
+    | 'flight_add'
+    | 'flight_remove'
+    | 'error'
+    | 'connection'
+    | 'subscription'
+    | 'ping'
+    | 'pong'
+    | 'request_flights'
+    | 'subscribe_flights'
+    | 'unsubscribe_flights';
   data: any;
   timestamp: number;
 }

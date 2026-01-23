@@ -1,4 +1,4 @@
-version: "3.9"
+version: '3.9'
 
 services:
   server:
@@ -14,7 +14,7 @@ services:
       OPENSKY_API_URL: ${OPENSKY_API_URL:-https://opensky-network.org/api/states/all}
       OPENSKY_TRACKS_API_URL: ${OPENSKY_TRACKS_API_URL:-https://opensky-network.org/api/tracks/all}
     ports:
-      - "8080:8080"
+      - '8080:8080'
     restart: unless-stopped
 
   client:
@@ -27,6 +27,5 @@ services:
     depends_on:
       - server
     ports:
-      - "4173:80"
+      - '4173:80'
     restart: unless-stopped
-

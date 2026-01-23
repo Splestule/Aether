@@ -3,8 +3,8 @@
 // Proprietary and confidential
 // Author: Eduard Šimon
 
-import { OpenSkyAuthService } from './openSkyAuthService.js'
-import { BYOKSessionService } from './byokSessionService.js'
+import { OpenSkyAuthService } from './openSkyAuthService.js';
+import { BYOKSessionService } from './byokSessionService.js';
 
 /**
  * BYOK Auth Service manages OpenSky authentication for both server and user sessions.
@@ -12,8 +12,8 @@ import { BYOKSessionService } from './byokSessionService.js'
  * Otherwise, it falls back to server credentials.
  */
 export class BYOKAuthService {
-  private sessionAuthServices: Map<string, OpenSkyAuthService> = new Map()
-  private readonly serverAuthService: OpenSkyAuthService
+  private sessionAuthServices: Map<string, OpenSkyAuthService> = new Map();
+  private readonly serverAuthService: OpenSkyAuthService;
 
   constructor(
     serverClientId?: string,
@@ -26,7 +26,7 @@ export class BYOKAuthService {
       serverClientId,
       serverClientSecret,
       serverAuthUrl
-    )
+    );
   }
 
   /**
@@ -40,27 +40,24 @@ export class BYOKAuthService {
   ): Promise<Record<string, string> | null> {
     // If no session token, use server credentials
     if (!sessionToken || !this.sessionService) {
-      return this.serverAuthService.getAuthorizationHeader(options)
+      return this.serverAuthService.getAuthorizationHeader(options);
     }
 
     // Check if session is valid
-    const session = this.sessionService.getSession(sessionToken)
+    const session = this.sessionService.getSession(sessionToken);
     if (!session) {
       // Session invalid or expired, fall back to server credentials
-      return this.serverAuthService.getAuthorizationHeader(options)
+      return this.serverAuthService.getAuthorizationHeader(options);
     }
 
     // Get or create auth service for this session
-    let authService = this.sessionAuthServices.get(sessionToken)
+    let authService = this.sessionAuthServices.get(sessionToken);
     if (!authService) {
-      authService = new OpenSkyAuthService(
-        session.clientId,
-        session.clientSecret
-      )
-      this.sessionAuthServices.set(sessionToken, authService)
+      authService = new OpenSkyAuthService(session.clientId, session.clientSecret);
+      this.sessionAuthServices.set(sessionToken, authService);
     }
 
-    return authService.getAuthorizationHeader(options)
+    return authService.getAuthorizationHeader(options);
   }
 
   /**
@@ -68,16 +65,16 @@ export class BYOKAuthService {
    */
   hasCredentials(sessionToken?: string): boolean {
     if (!sessionToken || !this.sessionService) {
-      return this.serverAuthService.hasCredentials()
+      return this.serverAuthService.hasCredentials();
     }
 
-    const session = this.sessionService.getSession(sessionToken)
+    const session = this.sessionService.getSession(sessionToken);
     if (!session) {
-      return this.serverAuthService.hasCredentials()
+      return this.serverAuthService.hasCredentials();
     }
 
     // Session exists, credentials are available
-    return true
+    return true;
   }
 
   /**
@@ -85,15 +82,15 @@ export class BYOKAuthService {
    */
   getStatus(sessionToken?: string) {
     if (!sessionToken || !this.sessionService) {
-      return this.serverAuthService.getStatus()
+      return this.serverAuthService.getStatus();
     }
 
-    const session = this.sessionService.getSession(sessionToken)
+    const session = this.sessionService.getSession(sessionToken);
     if (!session) {
-      return this.serverAuthService.getStatus()
+      return this.serverAuthService.getStatus();
     }
 
-    const authService = this.sessionAuthServices.get(sessionToken)
+    const authService = this.sessionAuthServices.get(sessionToken);
     if (!authService) {
       return {
         credentialsConfigured: true,
@@ -101,10 +98,10 @@ export class BYOKAuthService {
         lastAuthErrorAt: null,
         lastAuthErrorMessage: null,
         tokenExpiresAt: null,
-      }
+      };
     }
 
-    return authService.getStatus()
+    return authService.getStatus();
   }
 
   /**
@@ -112,13 +109,13 @@ export class BYOKAuthService {
    */
   invalidateToken(sessionToken?: string): void {
     if (!sessionToken || !this.sessionService) {
-      this.serverAuthService.invalidateToken()
-      return
+      this.serverAuthService.invalidateToken();
+      return;
     }
 
-    const authService = this.sessionAuthServices.get(sessionToken)
+    const authService = this.sessionAuthServices.get(sessionToken);
     if (authService) {
-      authService.invalidateToken()
+      authService.invalidateToken();
     }
   }
 
@@ -126,7 +123,7 @@ export class BYOKAuthService {
    * Clean up auth service for a deleted session
    */
   cleanupSession(sessionToken: string): void {
-    this.sessionAuthServices.delete(sessionToken)
+    this.sessionAuthServices.delete(sessionToken);
   }
 
   /**
@@ -134,11 +131,11 @@ export class BYOKAuthService {
    */
   async validateCredentials(clientId: string, clientSecret: string): Promise<boolean> {
     try {
-      const testAuthService = new OpenSkyAuthService(clientId, clientSecret)
-      await testAuthService.getAuthorizationHeader()
-      return true
+      const testAuthService = new OpenSkyAuthService(clientId, clientSecret);
+      await testAuthService.getAuthorizationHeader();
+      return true;
     } catch (error) {
-      return false
+      return false;
     }
   }
 }

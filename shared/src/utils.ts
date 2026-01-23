@@ -26,7 +26,7 @@ export function gpsToVRCoordinates(
     flightLat,
     flightLon
   );
-  
+
   // Calculate bearing (azimuth) in degrees
   const bearing = calculateBearing(
     userLocation.latitude,
@@ -47,8 +47,8 @@ export function gpsToVRCoordinates(
   // Swap X and Z to fix central symmetry through origin
   // X should represent North-South: cos(bearing) gives North component
   // Z should represent East-West: sin(bearing) gives East component
-  const x = distanceM * Math.cos(bearingRad) * distanceCoefficient;   // North-South (positive = North)
-  const z = distanceM * Math.sin(bearingRad) * distanceCoefficient;    // East-West (positive = East)
+  const x = distanceM * Math.cos(bearingRad) * distanceCoefficient; // North-South (positive = North)
+  const z = distanceM * Math.sin(bearingRad) * distanceCoefficient; // East-West (positive = East)
   // Apply scaling factor to make planes appear lower to the ground for better real-world alignment
   const altitudeDifference = flightAlt - (userLocation.altitude || 0);
   const y = altitudeDifference * heightCoefficient;
@@ -59,12 +59,7 @@ export function gpsToVRCoordinates(
 /**
  * Calculate distance between two GPS points using Haversine formula
  */
-export function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371; // Earth's radius in kilometers
   const dLat = (lat2 - lat1) * (Math.PI / 180);
   const dLon = (lon2 - lon1) * (Math.PI / 180);
@@ -81,21 +76,15 @@ export function calculateDistance(
 /**
  * Calculate bearing between two GPS points
  */
-export function calculateBearing(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
+export function calculateBearing(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const dLon = (lon2 - lon1) * (Math.PI / 180);
   const lat1Rad = lat1 * (Math.PI / 180);
   const lat2Rad = lat2 * (Math.PI / 180);
-  
+
   const y = Math.sin(dLon) * Math.cos(lat2Rad);
   const x =
-    Math.cos(lat1Rad) * Math.sin(lat2Rad) -
-    Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
-  
+    Math.cos(lat1Rad) * Math.sin(lat2Rad) - Math.sin(lat1Rad) * Math.cos(lat2Rad) * Math.cos(dLon);
+
   let bearing = Math.atan2(y, x) * (180 / Math.PI);
   return (bearing + 360) % 360;
 }
@@ -115,10 +104,10 @@ export function calculateElevation(
     flightLat,
     flightLon
   );
-  
+
   const heightDiff = flightAlt - userLocation.altitude;
   const elevation = Math.atan(heightDiff / (distance * 1000)) * (180 / Math.PI);
-  
+
   return Math.max(0, elevation); // Don't show flights below horizon
 }
 
@@ -160,12 +149,7 @@ export function processFlightData(
     distanceCoefficient
   );
 
-  const elevation = calculateElevation(
-    userLocation,
-    flight.latitude,
-    flight.longitude,
-    altitude
-  );
+  const elevation = calculateElevation(userLocation, flight.latitude, flight.longitude, altitude);
 
   const azimuth = calculateBearing(
     userLocation.latitude,
@@ -200,29 +184,29 @@ export function processFlightData(
  */
 function getAirlineFromCallsign(callsign: string): string {
   if (!callsign) return 'Unknown';
-  
+
   // Common airline prefixes
   const airlinePrefixes: { [key: string]: string } = {
-    'LH': 'Lufthansa',
-    'BA': 'British Airways',
-    'AF': 'Air France',
-    'KL': 'KLM',
-    'LX': 'Swiss',
-    'OS': 'Austrian',
-    'SN': 'Brussels Airlines',
-    'EW': 'Eurowings',
-    'FR': 'Ryanair',
-    'U2': 'easyJet',
-    'W6': 'Wizz Air',
-    'TK': 'Turkish Airlines',
-    'SU': 'Aeroflot',
-    'LO': 'LOT Polish Airlines',
-    'OK': 'Czech Airlines',
-    'JP': 'Adria Airways',
-    'OU': 'Croatia Airlines',
-    'JU': 'Air Serbia',
-    'RO': 'Tarom',
-    'FB': 'Bulgaria Air',
+    LH: 'Lufthansa',
+    BA: 'British Airways',
+    AF: 'Air France',
+    KL: 'KLM',
+    LX: 'Swiss',
+    OS: 'Austrian',
+    SN: 'Brussels Airlines',
+    EW: 'Eurowings',
+    FR: 'Ryanair',
+    U2: 'easyJet',
+    W6: 'Wizz Air',
+    TK: 'Turkish Airlines',
+    SU: 'Aeroflot',
+    LO: 'LOT Polish Airlines',
+    OK: 'Czech Airlines',
+    JP: 'Adria Airways',
+    OU: 'Croatia Airlines',
+    JU: 'Air Serbia',
+    RO: 'Tarom',
+    FB: 'Bulgaria Air',
   };
 
   const prefix = callsign.substring(0, 2);
@@ -259,8 +243,7 @@ export function extrapolatePosition(
   const distanceTraveled = flight.velocity * secondsAhead;
   const headingRad = (flight.heading * Math.PI) / 180;
 
-  const latChange =
-    (distanceTraveled * Math.cos(headingRad)) / METERS_PER_DEGREE_LAT;
+  const latChange = (distanceTraveled * Math.cos(headingRad)) / METERS_PER_DEGREE_LAT;
   const latRad = (flight.gps.latitude * Math.PI) / 180;
   const cosLat = Math.cos(latRad);
   const lonChange =
@@ -280,26 +263,11 @@ export function extrapolatePosition(
     distanceCoefficient
   );
 
-  const distance = calculateDistance(
-    userLocation.latitude,
-    userLocation.longitude,
-    newLat,
-    newLon
-  );
+  const distance = calculateDistance(userLocation.latitude, userLocation.longitude, newLat, newLon);
 
-  const elevation = calculateElevation(
-    userLocation,
-    newLat,
-    newLon,
-    altitude
-  );
+  const elevation = calculateElevation(userLocation, newLat, newLon, altitude);
 
-  const azimuth = calculateBearing(
-    userLocation.latitude,
-    userLocation.longitude,
-    newLat,
-    newLon
-  );
+  const azimuth = calculateBearing(userLocation.latitude, userLocation.longitude, newLat, newLon);
 
   return {
     gps: {
@@ -314,10 +282,7 @@ export function extrapolatePosition(
   };
 }
 
-export function isTrajectoryRefreshDue(
-  flight: ProcessedFlight,
-  intervalMs: number
-): boolean {
+export function isTrajectoryRefreshDue(flight: ProcessedFlight, intervalMs: number): boolean {
   if (!flight.lastTrajectoryRefresh) {
     return true;
   }

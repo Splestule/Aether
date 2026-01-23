@@ -1,5 +1,5 @@
-const isLocalhost = window.location.hostname === 'localhost' ||
-  window.location.hostname === '127.0.0.1';
+const isLocalhost =
+  window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 
 const isCloudflare = window.location.hostname.includes('trycloudflare.com');
 
@@ -61,36 +61,36 @@ export const config = {
   api: {
     timeout: 10000, // ms
     retryAttempts: 3,
-  }
+  },
 };
 
 /**
  * Check if BYOK (Bring Your Own Key) is enabled on the server
  */
 export async function checkBYOKStatus(): Promise<{
-  byokEnabled: boolean
-  hasSession: boolean
-  sessionActive: boolean
+  byokEnabled: boolean;
+  hasSession: boolean;
+  sessionActive: boolean;
 }> {
   try {
-    const sessionToken = getSessionToken()
-    const headers: HeadersInit = {}
+    const sessionToken = getSessionToken();
+    const headers: HeadersInit = {};
     if (sessionToken) {
-      headers['X-Session-Token'] = sessionToken
+      headers['X-Session-Token'] = sessionToken;
     }
-    const response = await fetch(`${config.apiUrl}/api/opensky/status`, { headers })
+    const response = await fetch(`${config.apiUrl}/api/opensky/status`, { headers });
     if (response.ok) {
-      const data = await response.json()
+      const data = await response.json();
       return {
         byokEnabled: data.byokEnabled ?? false,
         hasSession: data.hasSession ?? false,
         sessionActive: data.sessionActive ?? false,
-      }
+      };
     }
-    return { byokEnabled: false, hasSession: false, sessionActive: false }
+    return { byokEnabled: false, hasSession: false, sessionActive: false };
   } catch (error) {
-    console.warn('Failed to check BYOK status:', error)
-    return { byokEnabled: false, hasSession: false, sessionActive: false }
+    console.warn('Failed to check BYOK status:', error);
+    return { byokEnabled: false, hasSession: false, sessionActive: false };
   }
 }
 
@@ -99,10 +99,10 @@ export async function checkBYOKStatus(): Promise<{
  */
 export function getSessionToken(): string | null {
   try {
-    return localStorage.getItem('byok_session_token')
+    return localStorage.getItem('byok_session_token');
   } catch (error) {
-    console.warn('Failed to get session token from localStorage:', error)
-    return null
+    console.warn('Failed to get session token from localStorage:', error);
+    return null;
   }
 }
 
@@ -111,9 +111,9 @@ export function getSessionToken(): string | null {
  */
 export function saveSessionToken(token: string): void {
   try {
-    localStorage.setItem('byok_session_token', token)
+    localStorage.setItem('byok_session_token', token);
   } catch (error) {
-    console.error('Failed to save session token to localStorage:', error)
+    console.error('Failed to save session token to localStorage:', error);
   }
 }
 
@@ -122,9 +122,9 @@ export function saveSessionToken(token: string): void {
  */
 export function removeSessionToken(): void {
   try {
-    localStorage.removeItem('byok_session_token')
+    localStorage.removeItem('byok_session_token');
   } catch (error) {
-    console.warn('Failed to remove session token from localStorage:', error)
+    console.warn('Failed to remove session token from localStorage:', error);
   }
 }
 
@@ -139,5 +139,5 @@ console.log('🚀 Flight Tracker Config:', {
     VITE_API_URL: import.meta.env.VITE_API_URL,
     VITE_WS_URL: import.meta.env.VITE_WS_URL,
     VITE_NODE_ENV: import.meta.env.VITE_NODE_ENV,
-  }
+  },
 });

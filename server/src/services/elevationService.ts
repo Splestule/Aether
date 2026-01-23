@@ -1,12 +1,12 @@
-import axios from 'axios'
-import { ElevationResponse } from '@vr-flight-tracker/shared'
-import { CacheService } from './cacheService.js'
-import { logger } from '../logger.js'
+import axios from 'axios';
+import { ElevationResponse } from '@vr-flight-tracker/shared';
+import { CacheService } from './cacheService.js';
+import { logger } from '../logger.js';
 
 export class ElevationService {
-  private readonly ELEVATION_API_URL = 'https://api.open-elevation.com/api/v1/lookup'
-  private readonly REQUEST_TIMEOUT = 5000 // 5 seconds
-  private readonly MAX_RETRIES = 2
+  private readonly ELEVATION_API_URL = 'https://api.open-elevation.com/api/v1/lookup';
+  private readonly REQUEST_TIMEOUT = 5000; // 5 seconds
+  private readonly MAX_RETRIES = 2;
 
   constructor(private cacheService?: CacheService) {}
 
@@ -14,92 +14,95 @@ export class ElevationService {
    * Get elevation for a specific coordinate
    */
   async getElevation(latitude: number, longitude: number): Promise<number> {
-    const cacheKey = `elevation_${latitude.toFixed(6)}_${longitude.toFixed(6)}`
-    
+    const cacheKey = `elevation_${latitude.toFixed(6)}_${longitude.toFixed(6)}`;
+
     // Check cache first
     if (this.cacheService) {
-      const cached = this.cacheService.get<number>(cacheKey)
+      const cached = this.cacheService.get<number>(cacheKey);
       if (cached !== undefined) {
-        logger.action('Elevation cache hit', 'Returning cached elevation data')
-        return cached
+        logger.action('Elevation cache hit', 'Returning cached elevation data');
+        return cached;
       }
     }
 
     try {
-      const elevation = await this.fetchElevation(latitude, longitude)
-      
+      const elevation = await this.fetchElevation(latitude, longitude);
+
       // Cache for 1 hour (elevation doesn't change often)
       if (this.cacheService) {
-        this.cacheService.set(cacheKey, elevation, 3600)
+        this.cacheService.set(cacheKey, elevation, 3600);
       }
 
       logger.action(
         'Elevation fetched',
         `Fetched elevation ${elevation}m for ${latitude}, ${longitude}`
-      )
-      return elevation
-
+      );
+      return elevation;
     } catch (error) {
-      logger.error('E-ELV-001', 'Failed to fetch elevation', error)
+      logger.error('E-ELV-001', 'Failed to fetch elevation', error);
       // Return 0 as fallback (sea level)
-      return 0
+      return 0;
     }
   }
 
   /**
    * Get elevation for multiple coordinates
    */
-  async getElevations(coordinates: Array<{ latitude: number; longitude: number }>): Promise<number[]> {
-    const results: number[] = []
-    const uncachedCoordinates: Array<{ latitude: number; longitude: number; index: number }> = []
+  async getElevations(
+    coordinates: Array<{ latitude: number; longitude: number }>
+  ): Promise<number[]> {
+    const results: number[] = [];
+    const uncachedCoordinates: Array<{ latitude: number; longitude: number; index: number }> = [];
 
     // Check cache for each coordinate
     for (let i = 0; i < coordinates.length; i++) {
-      const { latitude, longitude } = coordinates[i]
-      const cacheKey = `elevation_${latitude.toFixed(6)}_${longitude.toFixed(6)}`
-      
+      const { latitude, longitude } = coordinates[i];
+      const cacheKey = `elevation_${latitude.toFixed(6)}_${longitude.toFixed(6)}`;
+
       if (this.cacheService) {
-        const cached = this.cacheService.get<number>(cacheKey)
+        const cached = this.cacheService.get<number>(cacheKey);
         if (cached !== undefined) {
-          results[i] = cached
-          continue
+          results[i] = cached;
+          continue;
         }
       }
-      
-      uncachedCoordinates.push({ latitude, longitude, index: i })
+
+      uncachedCoordinates.push({ latitude, longitude, index: i });
     }
 
     // Fetch uncached coordinates
     if (uncachedCoordinates.length > 0) {
       try {
-        const elevations = await this.fetchElevations(uncachedCoordinates.map(c => ({
-          latitude: c.latitude,
-          longitude: c.longitude
-        })))
+        const elevations = await this.fetchElevations(
+          uncachedCoordinates.map((c) => ({
+            latitude: c.latitude,
+            longitude: c.longitude,
+          }))
+        );
 
         // Store results and cache them
         for (let i = 0; i < uncachedCoordinates.length; i++) {
-          const { index } = uncachedCoordinates[i]
-          const elevation = elevations[i]
-          results[index] = elevation
+          const { index } = uncachedCoordinates[i];
+          const elevation = elevations[i];
+          results[index] = elevation;
 
           // Cache the result
           if (this.cacheService) {
-            const { latitude, longitude } = uncachedCoordinates[i]
-            const cacheKey = `elevation_${latitude.toFixed(6)}_${longitude.toFixed(6)}`
-            this.cacheService.set(cacheKey, elevation, 3600)
+            const { latitude, longitude } = uncachedCoordinates[i];
+            const cacheKey = `elevation_${latitude.toFixed(6)}_${longitude.toFixed(6)}`;
+            this.cacheService.set(cacheKey, elevation, 3600);
           }
         }
       } catch (error) {
-        logger.error('E-ELV-002', 'Failed to fetch elevations batch', error)
+        logger.error('E-ELV-002', 'Failed to fetch elevations batch', error);
         // Fill with 0 for failed requests
         for (const { index } of uncachedCoordinates) {
-          results[index] = 0
+          results[index] = 0;
         }
       }
     }
 
-    return results
+    return results;
   }
 
   /**
@@ -107,18 +110,18 @@ export class ElevationService {
    */
   private async fetchElevation(latitude: number, longitude: number): Promise<number> {
     const requestData = {
-      locations: [{ latitude, longitude }]
-    }
+      locations: [{ latitude, longitude }],
+    };
 
-    let lastError: Error | null = null
+    let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
         logger.action(
           'Elevation API request',
           `Fetching elevation from API (attempt ${attempt}/${this.MAX_RETRIES})`
-        )
-        
+        );
+
         const response = await axios.post<{ results: ElevationResponse[] }>(
           this.ELEVATION_API_URL,
           requestData,
@@ -129,48 +132,51 @@ export class ElevationService {
               'User-Agent': 'VR-Flight-Tracker/1.0',
             },
           }
-        )
+        );
 
         if (response.data && response.data.results && response.data.results.length > 0) {
-          return response.data.results[0].elevation
+          return response.data.results[0].elevation;
         } else {
-          throw new Error('Invalid response format from elevation API')
+          throw new Error('Invalid response format from elevation API');
         }
-
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error('Unknown error')
+        lastError = error instanceof Error ? error : new Error('Unknown error');
         logger.action(
           'Elevation API retry',
           `Elevation API attempt ${attempt} failed: ${lastError.message}`
-        )
-        
+        );
+
         if (attempt < this.MAX_RETRIES) {
           // Short delay before retry
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
     }
 
-    throw new Error(`Failed to fetch elevation after ${this.MAX_RETRIES} attempts: ${lastError?.message}`)
+    throw new Error(
+      `Failed to fetch elevation after ${this.MAX_RETRIES} attempts: ${lastError?.message}`
+    );
   }
 
   /**
    * Fetch elevations for multiple coordinates
    */
-  private async fetchElevations(coordinates: Array<{ latitude: number; longitude: number }>): Promise<number[]> {
+  private async fetchElevations(
+    coordinates: Array<{ latitude: number; longitude: number }>
+  ): Promise<number[]> {
     const requestData = {
-      locations: coordinates
-    }
+      locations: coordinates,
+    };
 
-    let lastError: Error | null = null
+    let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= this.MAX_RETRIES; attempt++) {
       try {
         logger.action(
           'Elevation batch request',
           `Fetching ${coordinates.length} elevations from API (attempt ${attempt}/${this.MAX_RETRIES})`
-        )
-        
+        );
+
         const response = await axios.post<{ results: ElevationResponse[] }>(
           this.ELEVATION_API_URL,
           requestData,
@@ -181,28 +187,29 @@ export class ElevationService {
               'User-Agent': 'VR-Flight-Tracker/1.0',
             },
           }
-        )
+        );
 
         if (response.data && response.data.results) {
-          return response.data.results.map(result => result.elevation)
+          return response.data.results.map((result) => result.elevation);
         } else {
-          throw new Error('Invalid response format from elevation API')
+          throw new Error('Invalid response format from elevation API');
         }
-
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error('Unknown error')
+        lastError = error instanceof Error ? error : new Error('Unknown error');
         logger.action(
           'Elevation API retry',
           `Elevation API attempt ${attempt} failed: ${lastError.message}`
-        )
-        
+        );
+
         if (attempt < this.MAX_RETRIES) {
           // Short delay before retry
-          await new Promise(resolve => setTimeout(resolve, 1000))
+          await new Promise((resolve) => setTimeout(resolve, 1000));
         }
       }
     }
 
-    throw new Error(`Failed to fetch elevations after ${this.MAX_RETRIES} attempts: ${lastError?.message}`)
+    throw new Error(
+      `Failed to fetch elevations after ${this.MAX_RETRIES} attempts: ${lastError?.message}`
+    );
   }
 }

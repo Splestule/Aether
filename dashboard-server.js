@@ -30,22 +30,22 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(scriptDir, 'dashboard')));
 
-const BACKEND_URL = 'http://localhost:8080'
+const BACKEND_URL = 'http://localhost:8080';
 
 // Proxy debug mode state
 app.get('/api/debug', async (_req, res) => {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/debug`)
+    const response = await fetch(`${BACKEND_URL}/api/debug`);
     if (!response.ok) {
-      throw new Error(`Backend responded with ${response.status}`)
+      throw new Error(`Backend responded with ${response.status}`);
     }
-    const data = await response.json()
-    res.json(data)
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
-    console.error('Debug state fetch failed:', error)
-    res.status(502).json({ success: false, error: 'Unable to reach backend debug endpoint' })
+    console.error('Debug state fetch failed:', error);
+    res.status(502).json({ success: false, error: 'Unable to reach backend debug endpoint' });
   }
-})
+});
 
 app.post('/api/debug', async (req, res) => {
   try {
@@ -53,19 +53,19 @@ app.post('/api/debug', async (req, res) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(req.body || {}),
-    })
+    });
 
     if (!response.ok) {
-      throw new Error(`Backend responded with ${response.status}`)
+      throw new Error(`Backend responded with ${response.status}`);
     }
 
-    const data = await response.json()
-    res.json(data)
+    const data = await response.json();
+    res.json(data);
   } catch (error) {
-    console.error('Debug mode toggle failed:', error)
-    res.status(502).json({ success: false, error: 'Unable to toggle debug mode on backend' })
+    console.error('Debug mode toggle failed:', error);
+    res.status(502).json({ success: false, error: 'Unable to toggle debug mode on backend' });
   }
-})
+});
 
 // Serve log files
 app.get('/api/logs/server', (req, res) => {
@@ -104,7 +104,7 @@ app.get('/api/stats', async (req, res) => {
       const response = await new Promise((resolve, reject) => {
         const req = http.get('http://localhost:8080/api/cache/stats', (res) => {
           let data = '';
-          res.on('data', chunk => data += chunk);
+          res.on('data', (chunk) => (data += chunk));
           res.on('end', () => {
             try {
               resolve(JSON.parse(data));
@@ -115,7 +115,10 @@ app.get('/api/stats', async (req, res) => {
           });
         });
         req.on('error', () => resolve(null));
-        req.setTimeout(1000, () => { req.destroy(); resolve(null); });
+        req.setTimeout(1000, () => {
+          req.destroy();
+          resolve(null);
+        });
       });
       if (response && response.data) {
         cacheStats = response.data.cache || null;
@@ -150,7 +153,7 @@ app.get('/api/stats', async (req, res) => {
       },
       client: {
         running: checkPort(3000) || checkPort(5173),
-        port: checkPort(3000) ? 3000 : (checkPort(5173) ? 5173 : null),
+        port: checkPort(3000) ? 3000 : checkPort(5173) ? 5173 : null,
       },
       opensky: openskyStatus,
       dashboard: {
@@ -175,35 +178,38 @@ app.get('/api/stats', async (req, res) => {
 // Stop all servers endpoint
 app.post('/api/stop', (req, res) => {
   console.log('🛑 Stop request received');
-  
+
   // Send response immediately to ensure client gets it
-  res.json({ 
-    success: true, 
+  res.json({
+    success: true,
     message: 'Stopping all servers...',
-    killedCount: 0
+    killedCount: 0,
   });
-  
+
   // Use setImmediate to ensure response is sent before we start killing processes
   setImmediate(() => {
     try {
       const fs = require('fs');
       const pidFile = path.join(scriptDir, '.vr-flight-tracker.pids');
-      
+
       // Function to kill a PID and all its children
       const killProcessTree = (pid) => {
         try {
           // Kill all children first
           try {
-            const children = execSync(`pgrep -P ${pid}`, { encoding: 'utf8', stdio: 'pipe' }).trim();
+            const children = execSync(`pgrep -P ${pid}`, {
+              encoding: 'utf8',
+              stdio: 'pipe',
+            }).trim();
             if (children) {
-              children.split('\n').forEach(childPid => {
+              children.split('\n').forEach((childPid) => {
                 killProcessTree(childPid.trim());
               });
             }
           } catch (e) {
             // No children or already dead
           }
-          
+
           // Kill the process itself
           try {
             execSync(`kill -9 ${pid}`, { stdio: 'pipe' });
@@ -224,7 +230,7 @@ app.post('/api/stop', (req, res) => {
           const result = execSync(`lsof -ti:${port}`, { encoding: 'utf8', stdio: 'pipe' });
           const pids = result.trim();
           if (pids) {
-            const pidArray = pids.split('\n').filter(pid => {
+            const pidArray = pids.split('\n').filter((pid) => {
               const pidNum = pid.trim();
               if (excludeSelf && pidNum === String(process.pid)) {
                 return false;
@@ -232,7 +238,7 @@ app.post('/api/stop', (req, res) => {
               return pidNum;
             });
             let count = 0;
-            pidArray.forEach(pid => {
+            pidArray.forEach((pid) => {
               count += killProcessTree(pid.trim());
             });
             return count;
@@ -249,7 +255,7 @@ app.post('/api/stop', (req, res) => {
           const result = execSync(`pgrep -f "${pattern}"`, { encoding: 'utf8', stdio: 'pipe' });
           const pids = result.trim();
           if (pids) {
-            const pidArray = pids.split('\n').filter(pid => {
+            const pidArray = pids.split('\n').filter((pid) => {
               const pidNum = pid.trim();
               if (excludeSelf && pidNum === String(process.pid)) {
                 return false;
@@ -257,7 +263,7 @@ app.post('/api/stop', (req, res) => {
               return pidNum;
             });
             let count = 0;
-            pidArray.forEach(pid => {
+            pidArray.forEach((pid) => {
               count += killProcessTree(pid.trim());
             });
             return count;
@@ -269,15 +275,15 @@ app.post('/api/stop', (req, res) => {
       };
 
       console.log('🛑 Stopping all servers...');
-      
+
       let killedCount = 0;
-      
+
       // Try to read PIDs from file first (more reliable)
       try {
         if (fs.existsSync(pidFile)) {
           const pidData = fs.readFileSync(pidFile, 'utf8');
           const lines = pidData.split('\n');
-          lines.forEach(line => {
+          lines.forEach((line) => {
             const match = line.match(/(SERVER|CLIENT|DASHBOARD)_PID=(\d+)/);
             if (match) {
               const pid = match[2];
@@ -289,19 +295,19 @@ app.post('/api/stop', (req, res) => {
       } catch (e) {
         console.log('⚠️ Could not read PID file, using fallback methods');
       }
-      
+
       // Fallback: Kill by port
       killedCount += killByPort(8080); // Backend server
       killedCount += killByPort(3000); // Frontend (if using port 3000)
       killedCount += killByPort(5173); // Frontend (Vite default)
-      
+
       // Also kill by process name patterns (kills entire trees)
       killedCount += killByName('tsx watch src/index.ts'); // Backend dev server
       killedCount += killByName('vite'); // Frontend dev server
       killedCount += killByName('npm run dev'); // npm processes
-      
+
       console.log(`✅ Stopped ${killedCount} process(es)`);
-      
+
       // Clean up PID file
       try {
         if (fs.existsSync(pidFile)) {
@@ -310,7 +316,7 @@ app.post('/api/stop', (req, res) => {
       } catch (e) {
         // Ignore
       }
-      
+
       // Kill dashboard server last, after a delay to ensure response was sent
       setTimeout(() => {
         console.log('🛑 Shutting down dashboard server...');
@@ -320,7 +326,6 @@ app.post('/api/stop', (req, res) => {
           process.exit(0);
         }, 200);
       }, 1000);
-      
     } catch (error) {
       console.error('❌ Error stopping servers:', error);
       setTimeout(() => {
@@ -333,4 +338,3 @@ app.post('/api/stop', (req, res) => {
 server.listen(DASHBOARD_PORT, () => {
   console.log(`📊 Dashboard server running on http://localhost:${DASHBOARD_PORT}`);
 });
-

@@ -3,17 +3,19 @@
 @tailwind utilities;
 
 @layer base {
-  html, body {
+  html,
+  body {
     margin: 0;
     padding: 0;
     height: 100%;
     overflow: hidden;
-    font-family: "IBM Plex Mono", "Space Mono", "Roboto Mono", "SFMono-Regular",
-      Menlo, Monaco, Consolas, monospace;
+    font-family:
+      'IBM Plex Mono', 'Space Mono', 'Roboto Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
+      monospace;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    background: radial-gradient(120% 120% at 50% -10%, rgba(198, 160, 232, 0.25), transparent 60%),
-      #030712;
+    background:
+      radial-gradient(120% 120% at 50% -10%, rgba(198, 160, 232, 0.25), transparent 60%), #030712;
     color: #f8fafc;
   }
 
@@ -37,12 +39,12 @@
   .vr-button {
     @apply inline-flex items-center justify-center gap-2 px-5 py-3 rounded-lg border border-white/60 bg-[rgba(26,26,26,0.92)] text-white font-medium uppercase tracking-[0.22em] text-[0.65rem] transition-all duration-300 shadow-[0_0_30px_rgba(198,160,232,0.2)] hover:bg-white/10 hover:border-white hover:text-[#c6a0e8] focus:outline-none focus-visible:ring-2 focus-visible:ring-white/60 focus-visible:ring-offset-2 focus-visible:ring-offset-black disabled:opacity-40 disabled:cursor-not-allowed;
   }
-  
+
   .vr-panel {
     @apply bg-[rgba(26,26,26,0.92)] border border-white/50 rounded-xl backdrop-blur-lg shadow-[0_24px_55px_rgba(15,23,42,0.55)] text-white;
     letter-spacing: 0.08em;
   }
-  
+
   .flight-info-card {
     @apply bg-[rgba(26,26,26,0.94)] border border-white/50 rounded-2xl backdrop-blur-xl shadow-[0_28px_65px_rgba(15,23,42,0.6)] p-5 min-w-[320px] text-white;
     letter-spacing: 0.08em;
@@ -73,7 +75,7 @@
   }
 
   .brand-title {
-    font-family: "Unbounded", "Stack Sans Notch", "Gabarito", "Inter", "Helvetica Neue", sans-serif;
+    font-family: 'Unbounded', 'Stack Sans Notch', 'Gabarito', 'Inter', 'Helvetica Neue', sans-serif;
     font-weight: 500;
     letter-spacing: 0.08em;
     text-transform: none;
@@ -203,20 +205,20 @@
 /* Hide react-three/xr built-in AR button on mobile when flight is selected */
 /* The ARCanvas from react-three/xr renders its button with specific classes */
 @media (max-width: 639px) {
-  body.flight-selected button[class*="xr-button"],
-  body.flight-selected button[class*="ar-button"],
+  body.flight-selected button[class*='xr-button'],
+  body.flight-selected button[class*='ar-button'],
   body.flight-selected [data-ar-button],
-  body.flight-selected button:has-text("Enter AR"),
-  body.flight-selected button:has-text("AR unsupported") {
+  body.flight-selected button:has-text('Enter AR'),
+  body.flight-selected button:has-text('AR unsupported') {
     display: none !important;
     opacity: 0 !important;
     pointer-events: none !important;
     visibility: hidden !important;
   }
-  
+
   /* Target common react-three/xr button patterns */
   body.flight-selected canvas + div button,
-  body.flight-selected [style*="position: fixed"] button[style*="bottom"] {
+  body.flight-selected [style*='position: fixed'] button[style*='bottom'] {
     display: none !important;
     opacity: 0 !important;
     pointer-events: none !important;

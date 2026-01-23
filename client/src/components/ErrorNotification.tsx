@@ -1,6 +1,6 @@
-import { AlertTriangle, X, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
-import { clsx } from "clsx";
+import { AlertTriangle, X, RefreshCw } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { clsx } from 'clsx';
 
 export interface ErrorNotificationData {
   type: 'opensky' | 'network' | 'server';
@@ -101,19 +101,14 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
   return (
     <div
       className={clsx(
-        "w-full relative transition-all duration-300",
-        isDismissing ? "opacity-0 translate-x-full" : "opacity-100 translate-x-0"
+        'w-full relative transition-all duration-300',
+        isDismissing ? 'opacity-0 translate-x-full' : 'opacity-100 translate-x-0'
       )}
       style={{
         pointerEvents: 'auto',
       }}
     >
-      <div
-        className={clsx(
-          "vr-panel p-2.5 sm:p-5 border-2",
-          getErrorColor()
-        )}
-      >
+      <div className={clsx('vr-panel p-2.5 sm:p-5 border-2', getErrorColor())}>
         <div className="flex items-start gap-2 sm:gap-4">
           <AlertTriangle className="w-4 h-4 sm:w-6 sm:h-6 flex-shrink-0 mt-0.5" />
 
@@ -127,7 +122,8 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
 
             {error.details && (
               <p className="compass-subtle text-[9px] sm:text-[0.55rem] text-white/40 mb-2 sm:mb-4 font-mono break-all sm:break-normal">
-                {error.details.substring(0, 50)}{error.details.length > 50 ? '...' : ''}
+                {error.details.substring(0, 50)}
+                {error.details.length > 50 ? '...' : ''}
               </p>
             )}
 
@@ -136,8 +132,8 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
                 <button
                   onClick={onRetry}
                   className={clsx(
-                    "vr-button text-[9px] sm:text-[0.6rem] px-2 py-1 sm:px-4 sm:py-2",
-                    "flex items-center gap-1.5 sm:gap-2"
+                    'vr-button text-[9px] sm:text-[0.6rem] px-2 py-1 sm:px-4 sm:py-2',
+                    'flex items-center gap-1.5 sm:gap-2'
                   )}
                 >
                   <RefreshCw className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
@@ -170,14 +166,3 @@ export function ErrorNotification({ error, onDismiss, onRetry }: ErrorNotificati
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-

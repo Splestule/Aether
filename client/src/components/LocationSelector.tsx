@@ -1,20 +1,14 @@
-import { useState, useEffect, Dispatch, SetStateAction } from "react";
-import {
-  MapContainer,
-  TileLayer,
-  Marker,
-  Popup,
-  useMapEvents,
-} from "react-leaflet";
-import L from "leaflet";
-import { UserLocation } from "@shared/src/types.js";
-import { config } from "../config";
+import { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import L from 'leaflet';
+import { UserLocation } from '@shared/src/types.js';
+import { config } from '../config';
 
 // Create custom purple marker icon (matching original Leaflet design with purple color)
 const createPurpleMarkerIcon = () => {
   // Use unique ID for gradients to avoid conflicts if multiple markers
   const uniqueId = `marker-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   return L.divIcon({
     className: 'custom-purple-marker',
     html: `
@@ -86,7 +80,7 @@ function MapClickHandler({
         const elevationData = await elevationResponse.json();
         setElevation(elevationData.elevation);
       } catch (error) {
-        console.error("Failed to get elevation:", error);
+        console.error('Failed to get elevation:', error);
         setElevation(0); // Default to sea level
       } finally {
         setIsLoading(false);
@@ -98,10 +92,7 @@ function MapClickHandler({
     <>
       {selectedPosition && (
         <Marker position={selectedPosition} icon={createPurpleMarkerIcon()}>
-          <Popup
-            autoPanPadding={[0, 0]}
-            className="!m-0 !p-0 !border-none !bg-transparent"
-          >
+          <Popup autoPanPadding={[0, 0]} className="!m-0 !p-0 !border-none !bg-transparent">
             <div className="p-3 sm:p-[0.77rem] space-y-2 sm:space-y-[0.58rem] text-white bg-[rgba(15,15,15,0.95)] rounded-xl border border-white/20 backdrop-blur-lg shadow-[0_18px_45px_rgba(15,23,42,0.55)] min-w-[140px] sm:min-w-[169px]">
               <div className="compass-subtle text-xs sm:text-[0.46rem]">Selected Location</div>
               <div className="text-xs sm:text-[0.54rem] tracking-[0.16em] text-white/80 space-y-1 sm:space-y-[0.19rem]">
@@ -123,15 +114,9 @@ function MapClickHandler({
 }
 
 export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
-  const [currentLocation, setCurrentLocation] = useState<
-    [number, number] | null
-  >(null);
-  const [selectedPosition, setSelectedPosition] = useState<
-    [number, number] | null
-  >(null);
-  const [selectedElevation, setSelectedElevation] = useState<number | null>(
-    null
-  );
+  const [currentLocation, setCurrentLocation] = useState<[number, number] | null>(null);
+  const [selectedPosition, setSelectedPosition] = useState<[number, number] | null>(null);
+  const [selectedElevation, setSelectedElevation] = useState<number | null>(null);
   const [isSelectionLoading, setIsSelectionLoading] = useState(false);
 
   useEffect(() => {
@@ -152,16 +137,13 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
         (position) => {
           if (isMounted) {
             clearTimeout(timeoutId);
-            setCurrentLocation([
-              position.coords.latitude,
-              position.coords.longitude,
-            ]);
+            setCurrentLocation([position.coords.latitude, position.coords.longitude]);
           }
         },
         (error) => {
           if (isMounted) {
             clearTimeout(timeoutId);
-            console.warn("Could not get current location:", error);
+            console.warn('Could not get current location:', error);
             // Default to Prague, Czech Republic
             setCurrentLocation([50.0755, 14.4378]);
           }
@@ -205,19 +187,20 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
       latitude: selectedPosition[0],
       longitude: selectedPosition[1],
       altitude: selectedElevation ?? 0,
-      name: `Location ${selectedPosition[0].toFixed(
-        4
-      )}, ${selectedPosition[1].toFixed(4)}`,
+      name: `Location ${selectedPosition[0].toFixed(4)}, ${selectedPosition[1].toFixed(4)}`,
     });
   };
 
   return (
-    <div className="space-y-[0.77rem] text-white flex flex-col min-h-0" style={{ maxHeight: 'calc(100vh - 12rem)' }}>
+    <div
+      className="space-y-[0.77rem] text-white flex flex-col min-h-0"
+      style={{ maxHeight: 'calc(100vh - 12rem)' }}
+    >
       <div className="responsive-map-container rounded-2xl overflow-hidden border border-white/40 shadow-[0_30px_65px_rgba(15,23,42,0.55)] flex-shrink min-h-0">
         <MapContainer
           center={currentLocation}
           zoom={10}
-          style={{ height: "100%", width: "100%" }}
+          style={{ height: '100%', width: '100%' }}
           className="z-0"
           zoomControl={true}
           scrollWheelZoom={true}
@@ -243,11 +226,7 @@ export function LocationSelector({ onLocationSelect }: LocationSelectorProps) {
         <button
           type="button"
           onClick={handleConfirmLocation}
-          disabled={
-            !selectedPosition ||
-            isSelectionLoading ||
-            selectedElevation === null
-          }
+          disabled={!selectedPosition || isSelectionLoading || selectedElevation === null}
           className="vr-button justify-center px-4 py-2 sm:px-[1.54rem] sm:py-[0.77rem] text-xs sm:text-[0.58rem]"
         >
           Select This Location

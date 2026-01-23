@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef } from 'react';
 
 interface Particle {
   x: number;
@@ -28,7 +28,7 @@ export function ParticleField() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const resize = () => {
@@ -123,20 +123,19 @@ export function ParticleField() {
       initParticles();
     };
 
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseleave", handleMouseLeave);
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseleave', handleMouseLeave);
 
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseleave", handleMouseLeave);
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseleave', handleMouseLeave);
     };
   }, []);
 
   return <canvas ref={canvasRef} className="particle-field" aria-hidden="true" />;
 }
-

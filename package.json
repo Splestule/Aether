@@ -2,8 +2,7 @@
   "name": "vr-flight-tracker",
   "version": "1.0.1",
   "description": "Real-time airplane visualization in VR space",
-  "license": "UNLICENSED",
-  "private": true,
+  "license": "MIT",
   "workspaces": [
     "client",
     "server",
@@ -15,10 +14,13 @@
     "dev:client": "cd client && npm run dev",
     "build": "npm run build --workspace=@vr-flight-tracker/shared && npm run build --workspace=@vr-flight-tracker/server",
     "start": "npm run build && npm start --workspace=@vr-flight-tracker/server",
-    "install:all": "npm install && cd server && npm install && cd ../client && npm install"
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
+    "prettier": "^3.2.0",
     "vite-plugin-cesium": "^1.2.23"
   },
   "dependencies": {

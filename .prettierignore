@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+
+# Generated files
+*.tsbuildinfo
+package-lock.json
+
+# Environment
+.env*
+!.env.example
+
+# IDE
+.vscode/
+.idea/
+
+# Cesium and Vite assets
+client/public/Assets/
+client/public/Workers/
+client/public/Widgets/
+client/.vite/
+public/cesium/

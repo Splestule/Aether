@@ -1,7 +1,7 @@
-import { ProcessedFlight } from "@shared/src/types.js";
-import { forwardRef, useMemo, useState, useEffect } from "react";
-import * as THREE from "three";
-import { Interactive } from "@react-three/xr";
+import { ProcessedFlight } from '@shared/src/types.js';
+import { forwardRef, useMemo, useState, useEffect } from 'react';
+import * as THREE from 'three';
+import { Interactive } from '@react-three/xr';
 
 interface ARWaypointProps {
   flight: ProcessedFlight;
@@ -13,11 +13,7 @@ interface ARWaypointProps {
 // Detect if device is mobile (touch device or small screen)
 const isMobileDevice = (): boolean => {
   if (typeof window === 'undefined') return false;
-  return (
-    'ontouchstart' in window ||
-    navigator.maxTouchPoints > 0 ||
-    window.innerWidth < 768
-  );
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0 || window.innerWidth < 768;
 };
 
 export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
@@ -34,8 +30,8 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
     // Calculate distance from user (at origin) to plane in meters
     const distanceFromUser = Math.sqrt(
       flight.position.x * flight.position.x +
-      flight.position.y * flight.position.y +
-      flight.position.z * flight.position.z
+        flight.position.y * flight.position.y +
+        flight.position.z * flight.position.z
     );
 
     // Scale sphere size - keep consistent size for visibility, but slightly larger for very far planes
@@ -46,8 +42,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
     // Use a much smaller distance multiplier to prevent distant planes from appearing larger
     // This ensures perspective is maintained - closer planes should appear larger
     // Only slightly increase size for very distant planes (beyond 50km) for clickability
-    const distanceMultiplier =
-      distanceKm > 50 ? Math.min(1.5, 1 + (distanceKm - 50) / 100) : 1;
+    const distanceMultiplier = distanceKm > 50 ? Math.min(1.5, 1 + (distanceKm - 50) / 100) : 1;
 
     // Scale with altitude for high-flying planes (but less aggressive)
     const altitudeMultiplier = Math.max(
@@ -68,9 +63,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
     const baseOpacity = useMemo(() => {
       if (isSelected) return 1;
       if (distanceKm <= fadeStartKm) return 0.8;
-      const clamped =
-        (Math.min(distanceKm, fadeEndKm) - fadeStartKm) /
-        (fadeEndKm - fadeStartKm);
+      const clamped = (Math.min(distanceKm, fadeEndKm) - fadeStartKm) / (fadeEndKm - fadeStartKm);
       return Math.max(0.2, 0.8 - clamped * 0.6);
     }, [distanceKm, isSelected]);
 
@@ -85,11 +78,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
         {lineHeight > 0 && (
           <mesh position={[0, lineCenterY, 0]}>
             <cylinderGeometry args={[lineRadius, lineRadius, lineHeight, 16]} />
-            <meshBasicMaterial
-              color="#ffffff"
-              transparent
-              opacity={lineOpacity}
-            />
+            <meshBasicMaterial color="#ffffff" transparent opacity={lineOpacity} />
           </mesh>
         )}
 
@@ -105,7 +94,7 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
               <mesh>
                 <sphereGeometry args={[sphereSize, 16, 16]} />
                 <meshBasicMaterial
-                  color={isSelected ? "#c6a0e8" : "#ffffff"}
+                  color={isSelected ? '#c6a0e8' : '#ffffff'}
                   transparent
                   opacity={baseOpacity}
                 />
@@ -120,19 +109,19 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
               onPointerOver={(e) => {
                 e.stopPropagation();
                 if (!isMobile) {
-                  document.body.style.cursor = "pointer";
+                  document.body.style.cursor = 'pointer';
                 }
               }}
               onPointerOut={() => {
                 if (!isMobile) {
-                  document.body.style.cursor = "default";
+                  document.body.style.cursor = 'default';
                 }
               }}
               raycast={isMobile ? () => null : undefined}
             >
               <sphereGeometry args={[sphereSize, 16, 16]} />
               <meshBasicMaterial
-                color={isSelected ? "#c6a0e8" : "#ffffff"}
+                color={isSelected ? '#c6a0e8' : '#ffffff'}
                 transparent
                 opacity={baseOpacity}
               />
@@ -147,12 +136,16 @@ export const ARWaypoint = forwardRef<THREE.Group, ARWaypointProps>(
                 }}
               >
                 <sphereGeometry args={[sphereSize * 6, 16, 16]} />
-                <meshBasicMaterial transparent opacity={0} depthWrite={false} side={THREE.DoubleSide} />
+                <meshBasicMaterial
+                  transparent
+                  opacity={0}
+                  depthWrite={false}
+                  side={THREE.DoubleSide}
+                />
               </mesh>
             )}
           </group>
         )}
-
       </group>
     );
   }

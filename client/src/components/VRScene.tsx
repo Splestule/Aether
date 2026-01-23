@@ -1,13 +1,7 @@
-import { Suspense, useRef, useEffect, useState } from "react";
-import {
-  Interactive,
-  useXR,
-  ARCanvas,
-  useController,
-  XRButton,
-} from "@react-three/xr";
-import { OrbitControls, Text } from "@react-three/drei";
-import { useFrame, useThree } from "@react-three/fiber";
+import { Suspense, useRef, useEffect, useState } from 'react';
+import { Interactive, useXR, ARCanvas, useController, XRButton } from '@react-three/xr';
+import { OrbitControls, Text } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
 import {
   Vector3,
   Euler,
@@ -18,18 +12,14 @@ import {
   BufferGeometry,
   LineBasicMaterial,
   BufferAttribute,
-} from "three";
-import { UserLocation, ProcessedFlight, VRConfig } from "@shared/src/types.js";
-import { ARWaypoint } from "./ARWaypoint";
-import { VRCompass } from "./VRCompass";
-import { FlightTrajectory } from "./FlightTrajectory";
-import {
-  formatSpeed,
-  formatAltitude,
-  formatDistance,
-} from "@shared/src/utils.js";
-import React from "react";
-import { MobileARScene } from "./MobileARScene";
+} from 'three';
+import { UserLocation, ProcessedFlight, VRConfig } from '@shared/src/types.js';
+import { ARWaypoint } from './ARWaypoint';
+import { VRCompass } from './VRCompass';
+import { FlightTrajectory } from './FlightTrajectory';
+import { formatSpeed, formatAltitude, formatDistance } from '@shared/src/utils.js';
+import React from 'react';
+import { MobileARScene } from './MobileARScene';
 
 interface VRSceneProps {
   userLocation: UserLocation;
@@ -56,11 +46,11 @@ function VRFlightInfoPanel({
   onClose: () => void;
   isOutOfRange?: boolean;
 }) {
-  const leftController = useController("left");
+  const leftController = useController('left');
   const panelRef = useRef<any>(null);
 
   const formatHeading = (heading: number): string => {
-    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     const index = Math.round(heading / 45) % 8;
     return `${heading.toFixed(0)}° ${directions[index]}`;
   };
@@ -357,11 +347,11 @@ function VRFlightInfoPanel({
         <Text
           position={[baseWidth / 2 - 0.05, baseHeight / 2 - 0.87, 0.01]}
           fontSize={0.035}
-          color={flight.onGround ? "#808080" : "#c6a0e8"}
+          color={flight.onGround ? '#808080' : '#c6a0e8'}
           anchorX="right"
           anchorY="top"
         >
-          {flight.onGround ? "On Ground" : "In Flight"}
+          {flight.onGround ? 'On Ground' : 'In Flight'}
         </Text>
 
         {/* Last Update */}
@@ -374,7 +364,6 @@ function VRFlightInfoPanel({
         >
           Updated {formatLastUpdate(flight.lastUpdate)}
         </Text>
-
       </group>
     </group>
   );
@@ -440,12 +429,10 @@ function HideControllers() {
       scene.traverse((child: any) => {
         const isControllerRelated =
           (child.userData &&
-            (child.userData.controller ||
-              child.userData.hand ||
-              child.userData.xrController)) ||
-          child.name?.toLowerCase().includes("controller") ||
-          child.name?.toLowerCase().includes("hand") ||
-          child.name?.toLowerCase().includes("xr");
+            (child.userData.controller || child.userData.hand || child.userData.xrController)) ||
+          child.name?.toLowerCase().includes('controller') ||
+          child.name?.toLowerCase().includes('hand') ||
+          child.name?.toLowerCase().includes('xr');
 
         if (isControllerRelated) {
           if (child.isMesh || child.isGroup || child.isLine || child.isPoints) {
@@ -510,12 +497,10 @@ function HideControllers() {
       // Hide objects that look like controllers (common patterns in react-three/xr)
       const isControllerRelated =
         (child.userData &&
-          (child.userData.controller ||
-            child.userData.hand ||
-            child.userData.xrController)) ||
-        child.name?.toLowerCase().includes("controller") ||
-        child.name?.toLowerCase().includes("hand") ||
-        child.name?.toLowerCase().includes("xr");
+          (child.userData.controller || child.userData.hand || child.userData.xrController)) ||
+        child.name?.toLowerCase().includes('controller') ||
+        child.name?.toLowerCase().includes('hand') ||
+        child.name?.toLowerCase().includes('xr');
 
       if (isControllerRelated) {
         if (child.isMesh || child.isGroup || child.isLine || child.isPoints) {
@@ -565,12 +550,7 @@ function SingleControllerRaycast({
   const raycaster = useRef(new Raycaster());
 
   useFrame(() => {
-    if (
-      !lineRef.current ||
-      !geometryRef.current ||
-      !materialRef.current ||
-      !controller
-    ) {
+    if (!lineRef.current || !geometryRef.current || !materialRef.current || !controller) {
       if (lineRef.current) {
         lineRef.current.visible = false;
       }
@@ -592,7 +572,9 @@ function SingleControllerRaycast({
     controllerDirection.multiplyScalar(-1);
 
     // Offset start point slightly forward to avoid intersecting controller-attached UI (compass, etc.)
-    const rayOrigin = controllerPosition.clone().add(controllerDirection.clone().multiplyScalar(0.02));
+    const rayOrigin = controllerPosition
+      .clone()
+      .add(controllerDirection.clone().multiplyScalar(0.02));
 
     // Set up raycaster
     raycaster.current.set(rayOrigin, controllerDirection);
@@ -604,33 +586,24 @@ function SingleControllerRaycast({
       // Calculate collision sphere size (matching ARWaypoint calculation)
       const distanceFromUser = Math.sqrt(
         flight.position.x * flight.position.x +
-        flight.position.y * flight.position.y +
-        flight.position.z * flight.position.z
+          flight.position.y * flight.position.y +
+          flight.position.z * flight.position.z
       );
       const distanceKm = distanceFromUser / 1000;
       const baseSize = 50;
       const distanceMultiplier = Math.max(1, Math.sqrt(distanceKm / 5));
-      const altitudeMultiplier = Math.max(
-        1,
-        Math.sqrt(Math.abs(flight.position.y) / 2000)
-      );
+      const altitudeMultiplier = Math.max(1, Math.sqrt(Math.abs(flight.position.y) / 2000));
       const sphereSize = baseSize * distanceMultiplier * altitudeMultiplier;
 
       // Check if ray passes close enough to the waypoint (within collision sphere radius * 3)
-      const waypointPos = new Vector3(
-        flight.position.x,
-        flight.position.y,
-        flight.position.z
-      );
+      const waypointPos = new Vector3(flight.position.x, flight.position.y, flight.position.z);
       const waypointToController = rayOrigin.clone().sub(waypointPos);
       const t =
         -waypointToController.dot(controllerDirection) /
         controllerDirection.dot(controllerDirection);
 
       if (t > 0 && t <= 250000) {
-        const closestPoint = rayOrigin
-          .clone()
-          .add(controllerDirection.clone().multiplyScalar(t));
+        const closestPoint = rayOrigin.clone().add(controllerDirection.clone().multiplyScalar(t));
         const distanceToWaypoint = closestPoint.distanceTo(waypointPos);
 
         if (distanceToWaypoint <= sphereSize * 3) {
@@ -640,19 +613,13 @@ function SingleControllerRaycast({
     });
 
     // Find closest intersection
-    const closestIntersection = waypointMeshes.sort(
-      (a, b) => a.distance - b.distance
-    )[0];
+    const closestIntersection = waypointMeshes.sort((a, b) => a.distance - b.distance)[0];
     const hasHit = !!closestIntersection;
 
     // Calculate line end point
     const maxDistance = 250000; // 250km
-    const hitDistance = closestIntersection
-      ? closestIntersection.distance
-      : maxDistance;
-    const endPoint = rayOrigin
-      .clone()
-      .add(controllerDirection.clone().multiplyScalar(hitDistance));
+    const hitDistance = closestIntersection ? closestIntersection.distance : maxDistance;
+    const endPoint = rayOrigin.clone().add(controllerDirection.clone().multiplyScalar(hitDistance));
 
     // Update line geometry
     const positions = new Float32Array([
@@ -663,10 +630,7 @@ function SingleControllerRaycast({
       endPoint.y,
       endPoint.z,
     ]);
-    geometryRef.current.setAttribute(
-      "position",
-      new BufferAttribute(positions, 3)
-    );
+    geometryRef.current.setAttribute('position', new BufferAttribute(positions, 3));
     geometryRef.current.setDrawRange(0, 2);
 
     // Update line visibility and color
@@ -689,11 +653,7 @@ function VRRaycastLine({ flights }: { flights: ProcessedFlight[] }) {
   return (
     <>
       {controllers.map((controller, index) => (
-        <SingleControllerRaycast
-          key={index}
-          controller={controller}
-          flights={flights}
-        />
+        <SingleControllerRaycast key={index} controller={controller} flights={flights} />
       ))}
     </>
   );
@@ -717,8 +677,8 @@ function JoystickCoefficientAdjuster({
   onSaveDefaults: () => void;
 }) {
   const { controllers, session } = useXR();
-  const leftController = useController("left");
-  const rightController = useController("right");
+  const leftController = useController('left');
+  const rightController = useController('right');
   const heightCoeffRef = useRef(heightCoefficient);
   const distanceCoeffRef = useRef(distanceCoefficient);
   const debugLoggedRef = useRef(false);
@@ -776,28 +736,36 @@ function JoystickCoefficientAdjuster({
         controllersCount: controllers.length,
         leftController: !!leftController,
         rightController: !!rightController,
-        leftGamepad: leftGamepad ? {
-          id: leftGamepad.id,
-          connected: leftGamepad.connected,
-          buttonsLength: leftGamepad.buttons?.length,
-          buttons: leftGamepad.buttons ? Array.from(leftGamepad.buttons).map((btn, idx) => ({
-            index: idx,
-            pressed: btn.pressed,
-            touched: btn.touched,
-            value: btn.value
-          })) : []
-        } : null,
-        rightGamepad: rightGamepad ? {
-          id: rightGamepad.id,
-          connected: rightGamepad.connected,
-          buttonsLength: rightGamepad.buttons?.length,
-          buttons: rightGamepad.buttons ? Array.from(rightGamepad.buttons).map((btn, idx) => ({
-            index: idx,
-            pressed: btn.pressed,
-            touched: btn.touched,
-            value: btn.value
-          })) : []
-        } : null
+        leftGamepad: leftGamepad
+          ? {
+              id: leftGamepad.id,
+              connected: leftGamepad.connected,
+              buttonsLength: leftGamepad.buttons?.length,
+              buttons: leftGamepad.buttons
+                ? Array.from(leftGamepad.buttons).map((btn, idx) => ({
+                    index: idx,
+                    pressed: btn.pressed,
+                    touched: btn.touched,
+                    value: btn.value,
+                  }))
+                : [],
+            }
+          : null,
+        rightGamepad: rightGamepad
+          ? {
+              id: rightGamepad.id,
+              connected: rightGamepad.connected,
+              buttonsLength: rightGamepad.buttons?.length,
+              buttons: rightGamepad.buttons
+                ? Array.from(rightGamepad.buttons).map((btn, idx) => ({
+                    index: idx,
+                    pressed: btn.pressed,
+                    touched: btn.touched,
+                    value: btn.value,
+                  }))
+                : [],
+            }
+          : null,
       });
       debugLoggedRef.current = true;
     }
@@ -893,16 +861,14 @@ function SceneContent({
   const controlsRef = useRef<any>(null);
   const [hasAimed, setHasAimed] = useState(false);
 
-  const filteredFlights = flights.filter(
-    (flight) => flight.distance <= config.maxDistance
-  );
+  const filteredFlights = flights.filter((flight) => flight.distance <= config.maxDistance);
 
   // Aim at the nearest flight on mount (Desktop mode only)
   useEffect(() => {
     // If we have a saved camera orientation, use it instead of auto-aiming
     if (cameraRef?.current && !isPresenting && !hasAimed) {
       const { heading, pitch } = cameraRef.current;
-      console.log("Restoring VR Camera:", { heading, pitch });
+      console.log('Restoring VR Camera:', { heading, pitch });
 
       // Convert Cesium (Heading/Pitch) to Three.js (Position/LookAt)
       // Cesium Heading: 0=North (X+), 90=East (Z+)
@@ -943,11 +909,11 @@ function SceneContent({
       let nearestFlight = filteredFlights[0];
       let minDistance = Infinity;
 
-      filteredFlights.forEach(flight => {
+      filteredFlights.forEach((flight) => {
         const dist = Math.sqrt(
           flight.position.x * flight.position.x +
-          flight.position.y * flight.position.y +
-          flight.position.z * flight.position.z
+            flight.position.y * flight.position.y +
+            flight.position.z * flight.position.z
         );
         if (dist < minDistance) {
           minDistance = dist;
@@ -986,7 +952,7 @@ function SceneContent({
         }
 
         setHasAimed(true);
-        console.log("Aimed at nearest flight:", nearestFlight.callsign);
+        console.log('Aimed at nearest flight:', nearestFlight.callsign);
       }
     }
   }, [isPresenting, hasAimed, filteredFlights, camera]);
@@ -1007,7 +973,7 @@ function SceneContent({
         const pitch = Math.asin(forward.y);
 
         cameraRef.current = { heading, pitch };
-        console.log("Saved VR Camera:", cameraRef.current);
+        console.log('Saved VR Camera:', cameraRef.current);
       }
     };
   }, [camera, isPresenting]);
@@ -1091,7 +1057,9 @@ function SceneContent({
                 isVR={isPresenting}
               />
               {/* Trajectories enabled */}
-              {config.enableTrajectories && isSelected && <FlightTrajectory flight={flight} userLocation={userLocation} isVR={isPresenting} />}
+              {config.enableTrajectories && isSelected && (
+                <FlightTrajectory flight={flight} userLocation={userLocation} isVR={isPresenting} />
+              )}
             </React.Fragment>
           );
         })}
@@ -1132,11 +1100,11 @@ export function VRScene(props: VRSceneProps) {
 
   useEffect(() => {
     // Check for WebXR support
-    if ("xr" in navigator) {
+    if ('xr' in navigator) {
       // @ts-ignore
-      navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+      navigator.xr.isSessionSupported('immersive-ar').then((supported) => {
         setIsWebXRSupported(supported);
-        console.log("[VRScene] WebXR Support:", supported);
+        console.log('[VRScene] WebXR Support:', supported);
       });
     } else {
       setIsWebXRSupported(false);
@@ -1145,10 +1113,12 @@ export function VRScene(props: VRSceneProps) {
     // Check if mobile device
     const checkMobile = () => {
       const ua = navigator.userAgent.toLowerCase();
-      const isAndroid = ua.includes("android");
+      const isAndroid = ua.includes('android');
       const isIOS = /iphone|ipad|ipod/.test(ua);
-      const isIpadOS = ua.includes("macintosh") && navigator.maxTouchPoints > 1;
-      const isTouch = (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) || navigator.maxTouchPoints > 0;
+      const isIpadOS = ua.includes('macintosh') && navigator.maxTouchPoints > 1;
+      const isTouch =
+        (window.matchMedia && window.matchMedia('(pointer: coarse)').matches) ||
+        navigator.maxTouchPoints > 0;
       const mobile = isAndroid || isIOS || isIpadOS || isTouch;
       setIsMobile(mobile);
     };
@@ -1161,19 +1131,19 @@ export function VRScene(props: VRSceneProps) {
   const handleEnterMobileAR = async () => {
     // 1. Request Device Orientation Permission (iOS 13+)
     if (
-      typeof DeviceMotionEvent !== "undefined" &&
+      typeof DeviceMotionEvent !== 'undefined' &&
       // @ts-ignore
-      typeof DeviceMotionEvent.requestPermission === "function"
+      typeof DeviceMotionEvent.requestPermission === 'function'
     ) {
       try {
         // @ts-ignore
         const permissionState = await DeviceMotionEvent.requestPermission();
-        if (permissionState !== "granted") {
-          alert("Compass permission is required for AR mode.");
+        if (permissionState !== 'granted') {
+          alert('Compass permission is required for AR mode.');
           return;
         }
       } catch (error) {
-        console.error("Error requesting device orientation permission:", error);
+        console.error('Error requesting device orientation permission:', error);
       }
     }
     setIsMobileARActive(true);
@@ -1184,8 +1154,8 @@ export function VRScene(props: VRSceneProps) {
   }
 
   const sessionInit = {
-    requiredFeatures: ["local-floor"],
-    optionalFeatures: ["bounded-floor", "hand-tracking"],
+    requiredFeatures: ['local-floor'],
+    optionalFeatures: ['bounded-floor', 'hand-tracking'],
   };
 
   // Standard text style for AR button (matching default XRButton)
@@ -1274,12 +1244,12 @@ export function VRScene(props: VRSceneProps) {
 
       <div
         style={{
-          position: "absolute",
+          position: 'absolute',
           top: 0,
           left: 0,
-          width: "100%",
-          height: "100%",
-          background: "linear-gradient(to bottom, #1a1a2e 0%, #16213e 100%)",
+          width: '100%',
+          height: '100%',
+          background: 'linear-gradient(to bottom, #1a1a2e 0%, #16213e 100%)',
         }}
       >
         <ARCanvas
@@ -1292,7 +1262,7 @@ export function VRScene(props: VRSceneProps) {
           gl={{
             alpha: false,
             antialias: true,
-            powerPreference: "high-performance",
+            powerPreference: 'high-performance',
           }}
           onCreated={({ gl }) => {
             gl.setClearColor(0x0a0a0f, 1);
@@ -1318,9 +1288,7 @@ export function VRScene(props: VRSceneProps) {
         </ARCanvas>
 
         {/* Single AR Button Source of Truth */}
-        <div id="custom-ar-button-wrapper">
-          {renderARButton()}
-        </div>
+        <div id="custom-ar-button-wrapper">{renderARButton()}</div>
       </div>
     </>
   );
@@ -1331,7 +1299,7 @@ function DeleteUnwantedButtons() {
   useEffect(() => {
     const cleanup = () => {
       const buttons = document.querySelectorAll('button');
-      buttons.forEach(btn => {
+      buttons.forEach((btn) => {
         // If the button is NOT one of ours (marked with data-custom-ar-button or class or wrapper OR specific style)
         const isOurs =
           btn.hasAttribute('data-custom-ar-button') ||
@@ -1396,12 +1364,12 @@ function CompassHeading() {
     const degrees = (angle * (180 / Math.PI) + 360) % 360;
 
     // Convert to compass direction
-    const directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
+    const directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
     const index = Math.round(degrees / 45) % 8;
     const direction = directions[index];
 
     // Update the compass display element
-    const compassEl = document.getElementById("compass-display");
+    const compassEl = document.getElementById('compass-display');
     if (compassEl) {
       compassEl.textContent = direction;
     }

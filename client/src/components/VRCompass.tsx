@@ -1,8 +1,8 @@
-import { useRef } from "react";
-import { useController } from "@react-three/xr";
-import { useFrame } from "@react-three/fiber";
-import { Text } from "@react-three/drei";
-import { Vector3, Euler, Group } from "three";
+import { useRef } from 'react';
+import { useController } from '@react-three/xr';
+import { useFrame } from '@react-three/fiber';
+import { Text } from '@react-three/drei';
+import { Vector3, Euler, Group } from 'three';
 
 interface VRCompassProps {
   onRotationChange: (rotationY: number) => void;
@@ -10,24 +10,15 @@ interface VRCompassProps {
   sceneRotation: number; // Current scene rotation offset
 }
 
-export function VRCompass({
-  onRotationChange,
-  selectedFlight,
-  sceneRotation,
-}: VRCompassProps) {
-  const leftController = useController("left");
+export function VRCompass({ onRotationChange, selectedFlight, sceneRotation }: VRCompassProps) {
+  const leftController = useController('left');
   const compassRef = useRef<Group>(null);
   const initialControllerRotationRef = useRef<number | null>(null);
   const initialAccumulatedRotationRef = useRef<number>(0);
 
   useFrame(() => {
     // Hide compass when a flight is selected or no controller
-    if (
-      selectedFlight ||
-      !leftController ||
-      !leftController.controller ||
-      !compassRef.current
-    ) {
+    if (selectedFlight || !leftController || !leftController.controller || !compassRef.current) {
       return;
     }
 
@@ -36,9 +27,7 @@ export function VRCompass({
 
       // Ensure sceneRotation is a valid number
       const safeSceneRotation =
-        typeof sceneRotation === "number" && !isNaN(sceneRotation)
-          ? sceneRotation
-          : 0;
+        typeof sceneRotation === 'number' && !isNaN(sceneRotation) ? sceneRotation : 0;
 
       // Position compass directly on the controller (centered on controller)
       compassRef.current.position.copy(controller.position);
@@ -62,9 +51,7 @@ export function VRCompass({
       // Handle rotation when grabbed (for calibration)
       if (isButtonPressed) {
         // Get controller's Y-axis rotation (around vertical axis)
-        const controllerEuler = new Euler().setFromQuaternion(
-          controller.quaternion
-        );
+        const controllerEuler = new Euler().setFromQuaternion(controller.quaternion);
         const controllerYRotation = controllerEuler.y;
 
         if (initialControllerRotationRef.current === null) {
@@ -73,16 +60,14 @@ export function VRCompass({
           initialAccumulatedRotationRef.current = safeSceneRotation;
         } else {
           // Calculate rotation delta from initial grab position
-          let rotationDelta =
-            controllerYRotation - initialControllerRotationRef.current;
+          let rotationDelta = controllerYRotation - initialControllerRotationRef.current;
 
           // Normalize rotation delta to [-PI, PI] range
           while (rotationDelta > Math.PI) rotationDelta -= 2 * Math.PI;
           while (rotationDelta < -Math.PI) rotationDelta += 2 * Math.PI;
 
           // New accumulated rotation = initial scene rotation + rotation delta
-          const newAccumulated =
-            initialAccumulatedRotationRef.current + rotationDelta;
+          const newAccumulated = initialAccumulatedRotationRef.current + rotationDelta;
 
           // Calculate incremental change since last frame
           const incrementalDelta = newAccumulated - safeSceneRotation;
@@ -105,7 +90,7 @@ export function VRCompass({
       }
     } catch (error) {
       // Silently handle any errors to prevent crashes
-      console.warn("VRCompass error:", error);
+      console.warn('VRCompass error:', error);
     }
   });
 
@@ -119,23 +104,13 @@ export function VRCompass({
       {/* Compass base (flat disc) - horizontal plane */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[compassRadius * 0.85, compassRadius, 32]} />
-        <meshStandardMaterial
-          color="#1a1a1a"
-          metalness={0.7}
-          roughness={0.3}
-          side={2}
-        />
+        <meshStandardMaterial color="#1a1a1a" metalness={0.7} roughness={0.3} side={2} />
       </mesh>
 
       {/* Center disc */}
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[compassRadius * 0.85, 32]} />
-        <meshStandardMaterial
-          color="#0a0a0a"
-          metalness={0.7}
-          roughness={0.3}
-          side={2}
-        />
+        <meshStandardMaterial color="#0a0a0a" metalness={0.7} roughness={0.3} side={2} />
       </mesh>
 
       {/* N label - fixed, pointing to world North (X+ direction), oriented outward from center */}

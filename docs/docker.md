@@ -11,10 +11,10 @@ This page keeps everything about Docker in one simple place so you can follow al
 
 ## Images we provide
 
-| Image | Purpose | Exposed port |
-| --- | --- | --- |
-| `server/Dockerfile` | Express API + WebSocket server | `8080` |
-| `client/Dockerfile` | Built React/WebXR frontend served by nginx | `80` |
+| Image               | Purpose                                    | Exposed port |
+| ------------------- | ------------------------------------------ | ------------ |
+| `server/Dockerfile` | Express API + WebSocket server             | `8080`       |
+| `client/Dockerfile` | Built React/WebXR frontend served by nginx | `80`         |
 
 Both images use the shared TypeScript package, and the `client` build also accepts two build-time values:
 
@@ -41,10 +41,10 @@ docker build \
 => ERROR [client builder 18/18] RUN npm run build --prefix client         1.3s
 ------
  > [client builder 18/18] RUN npm run build --prefix client:
-0.133 
+0.133
 0.133 > @vr-flight-tracker/client@1.0.0 build
 0.133 > tsc && vite build
-0.133 
+0.133
 1.271 src/App.tsx(181,9): error TS6133: 'handleVRToggle' is declared but its value is never read.
 1.271 src/components/LocationSelector.tsx(74,3): error TS6133: 'onConfirm' is declared but its value is never read.
 1.272 src/components/LocationSelector.tsx(140,20): error TS2503: Cannot find namespace 'NodeJS'.
@@ -56,11 +56,11 @@ Dockerfile:34
 
   32 |     ENV VITE_WS_URL=${VITE_WS_URL}
 
-  33 |     
+  33 |
 
   34 | >>> RUN npm run build --prefix client
 
-  35 |     
+  35 |
 
   36 |     FROM nginx:1.27-alpine AS production
 
@@ -99,4 +99,3 @@ You can mix and match: host the API on one machine and serve the static build vi
 - **Use real credentials** – Provide environment variables (never commit secrets into the repo).
 
 If something is unclear, follow the Compose flow first. It is the quickest way to see both containers working together.
-
