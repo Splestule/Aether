@@ -2,46 +2,38 @@
   <img src="client/public/aether-logo.png" alt="Aether Logo" width="180" />
   <br />
 
-# Aether. Unlike any other.
+# Aether
 
-### Immersive Real-Time VR Flight Tracker
+### Real-Time VR Flight Tracker
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18.0-61dafb.svg)](https://reactjs.org/)
 [![WebXR](https://img.shields.io/badge/WebXR-Ready-orange.svg)](https://immersiveweb.dev/)
 
-**[🚀 Live Demo](https://aether-app.up.railway.app/)** | **[📖 Contributing](CONTRIBUTING.md)**
+**[Live Demo](https://aether-app.up.railway.app/)** | **[Contributing](CONTRIBUTING.md)**
 
-  <p align="center">
-    Experience live air traffic control from your living room. <br/>
-    Visualize real-time flight data in a stunning 3D environment using the power of the web.
-  </p>
 </div>
 
 ---
 
-## ✨ Overview
+## What is this?
 
-**Aether** turns global air traffic data into a tangible reality. Built for both desktop and VR headsets (Meta Quest etc.), it fetches live flight positions from the **OpenSky Network** and renders them in high-fidelity 3D. Whether you're a flight enthusiast or just love data visualization, Aether puts you in the center of the airspace.
+Aether is a flight tracker built for VR. Put on a Meta Quest (or any WebXR headset), look up at the sky, and see real planes exactly where they're flying — live positions, correct direction, the whole thing.
 
-### Key Features
+It also works on desktop as a 3D flight map, and on mobile as an AR experience. You can teleport anywhere in the world, watch traffic flow in real-time, and inspect individual flights for details like altitude, speed, and trajectory.
 
-- **🥽 WebXR Immersive Mode**: Step into the map with full VR support for Meta Quest and compatible headsets.
-- **✈️ Real-Time Tracking**: Live position updates via WebSocket for butter-smooth aircraft movement.
-- **🌍 3D Geospatial Environment**: Powered by **Google Photorealistic 3D Tiles** for immersive cities and landscapes, layered over **Cesium World Terrain** for global accuracy.
-- **🎯 Interactive Inspection**: "Laser point" at aircraft to reveal detailed telemetry (speed, altitude, airline, trajectory).
-- **📍 Location Freedom**: Teleport anywhere in the world to monitor local airspace.
+Built on OpenSky Network data, rendered with Google Photorealistic 3D Tiles and Cesium terrain.
 
-## 💡 Real-Life Use Cases
+### Features
 
-- **🛩️ Plane Spotting 2.0**: Identify the exact flight flying over your house in real-time AR/VR just by looking up.
-- **🎓 Aviation Education**: Visualize flight corridors, approach paths, and air traffic density in a tangible 3D space.
-- **🧘 Immersive Relaxation**: Teleport to a busy airport like Heathrow or Haneda and watch the traffic flow from a "God Mode" perspective.
+- **VR support** — Full WebXR mode for Meta Quest and other compatible headsets
+- **Live tracking** — Real-time position updates via WebSocket
+- **3D environment** — Google Photorealistic 3D Tiles + Cesium World Terrain
+- **Flight inspection** — Point at aircraft to see telemetry data
+- **Global coverage** — Teleport anywhere to monitor local airspace
 
-## 🏗️ Architecture
-
-Aether is built on a modern full-stack architecture tailored for low-latency visualization.
+## Architecture
 
 ```mermaid
 graph TD
@@ -66,155 +58,122 @@ graph TD
 
 ### Tech Stack
 
-- **Frontend**: React, Three.js (via React Three Fiber), CesiumJS, TailwindCSS.
-- **Backend**: Node.js, Express, WebSocket.
-- **Data Sources**: OpenSky Network (Flights), Open-Elevation (Terrain).
-- **DevOps**: Docker, Docker Compose.
+- **Frontend**: React, Three.js (React Three Fiber), WebXR, CesiumJS, TailwindCSS
+- **Backend**: Node.js, Express, WebSocket
+- **Data**: OpenSky Network (flights), Open-Elevation (terrain)
+- **DevOps**: Docker, Docker Compose
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 
-- **Node.js** v18+
-- **npm** or **pnpm**
-- **Git**
+- Node.js v18+
+- npm or pnpm
+- Git
 
 ### Installation
 
-1.  **Clone the repository**
+1. Clone the repo
 
     ```bash
     git clone https://github.com/Splestule/Aether.git
     cd Aether
     ```
 
-2.  **Install dependencies**
+2. Install dependencies
 
     ```bash
     npm run install:all
     ```
 
-3.  **Configure Environment**
-    Create a `.env` file in the `server/` directory. You can copy the example:
+3. Set up environment variables
 
     ```bash
     cp server/env.example server/.env
     ```
 
-4.  **Launch Aether**
+4. Start the dev server
+
     ```bash
     npm run dev
     ```
-    This spins up the backend on port `8080` and the frontend on port `3000`.
 
-### 🔑 Bring Your Own Key (BYOK)
+    Backend runs on port `8080`, frontend on port `3000`.
 
-Aether supports a "Bring Your Own Key" (BYOK) feature that allows users to provide their own OpenSky Network credentials for enhanced API access.
+### Bring Your Own Key (BYOK)
 
-#### Enabling BYOK
+You can use your own OpenSky Network credentials for better API access.
 
-To enable BYOK mode, set the `BYOK` environment variable to `true` in your server `.env` file:
+To enable it, set this in your `server/.env`:
 
 ```bash
 BYOK=true
 ```
 
-When `BYOK=false` (default), the app behaves exactly as before, using only server-configured credentials.
+When enabled:
+- **Without credentials**: Limited API access (10 requests/min)
+- **With credentials**: Full API access
 
-#### How It Works
+Users can enter their OpenSky credentials through the UI. Credentials are validated, stored in a session token (24h expiry), and never logged.
 
-When BYOK is enabled:
-
-- **Without User Credentials**: Users have limited API access (10 requests per minute)
-- **With User Credentials**: Users get full API access (same quota as server credentials)
-
-Users can provide their OpenSky credentials through the frontend interface. Credentials are:
-
-- Validated before being accepted
-- Stored securely in a session token (expires after 24 hours)
-- Never logged or exposed in server logs
-- Transmitted over HTTPS (recommended for production)
-
-#### Security Considerations
-
-- Session tokens are cryptographically secure (UUID v4)
-- Credentials are validated before session creation
-- Sessions automatically expire after 24 hours
-- Use HTTPS in production for secure credential transmission
-- Rate limiting prevents abuse
-
-#### User Experience
-
-When BYOK is enabled, users will see an "OpenSky Credentials" option in the location selector screen. They can:
-
-- Enter their OpenSky Client ID and Client Secret
-- View their current session status
-- Remove their credentials at any time
-
-### 🐳 Docker Usage
+### Docker
 
 ```bash
-# Build and start all services
+# Build and run
 docker compose up --build
 
-# Or run in detached mode
+# Or detached
 docker compose up -d --build
+
+# Stop
+docker compose down
 ```
 
-**Services:**
 | Service | URL | Port |
 |---------|-----|------|
 | Frontend | http://localhost:4173 | 4173 |
-| Backend API | http://localhost:8080 | 8080 |
+| Backend | http://localhost:8080 | 8080 |
 
-**Environment Variables:**
-
-Create a `.env` file in the project root to configure:
+Create a `.env` file in the project root:
 
 ```bash
-# OpenSky credentials
 OPENSKY_USERNAME=your_username
 OPENSKY_PASSWORD=your_password
 ```
 
-**Stop containers:**
-```bash
-docker compose down
-```
+## Controls
 
-## 🎮 Controls
+| Action | Desktop | VR Controller |
+|:-------|:--------|:--------------|
+| Move Camera | Mouse Drag | Thumbstick |
+| Select Flight | Left Click | Laser Pointer + Trigger |
+| Calibrate Direction | — | Left Trigger + Rotate |
+| Change Mode | UI Buttons | UI Buttons (in browser) |
 
-| Action                  | Desktop    | VR Controller                       |
-| :---------------------- | :--------- | :---------------------------------- |
-| **Move Camera**         | Mouse Drag | Thumbstick                          |
-| **Select Flight**       | Left Click | Laser Pointer + Trigger             |
-| **Calibrate Direction** |            | Left Controller Trigger + Rotate It |
-| **Change Mode**         | UI Buttons | UI Buttons (In browser)             |
-
-## 📂 Project Structure
+## Project Structure
 
 ```text
 Aether/
-├── client/              # React application (Vite)
+├── client/              # React app (Vite)
 │   ├── src/
-│   │   ├── components/  # 3D & UI Components
+│   │   ├── components/  # 3D & UI components
 │   │   └── hooks/       # Flight data logic
 ├── server/              # Node.js Express API
 │   ├── src/
-│   │   └── services/    # Data fetching & Caching
-├── shared/              # Types shared between Front/Back
-├── docker-compose.yml   # Container orchestration
-└── README.md            # You are here
+│   │   └── services/    # Data fetching & caching
+├── shared/              # Shared types
+├── docker-compose.yml
+└── README.md
 ```
 
-## 📄 License
+## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+MIT — see [LICENSE](LICENSE) for details.
 
 ---
 
 <p align="center">
-  <b>Built with ❤️ by Eduard Šimon</b>
+  Built by Eduard Šimon
   <br/>
   <span style="font-size: 0.8em">Data provided by OpenSky Network</span>
 </p>
