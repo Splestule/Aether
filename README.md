@@ -17,13 +17,19 @@
 
 ---
 
-## What is this?
+## What is Aether?
 
 Aether is a flight tracker built for VR. Put on a Meta Quest (or any WebXR headset), look up at the sky, and see real planes exactly where they're flying — live positions, correct direction, the whole thing.
 
 It also works on desktop as a 3D flight map, and on mobile as an AR experience. You can teleport anywhere in the world, watch traffic flow in real-time, and inspect individual flights for details like altitude, speed, and trajectory.
 
 Built on OpenSky Network data, rendered with Google Photorealistic 3D Tiles and Cesium terrain.
+
+## Achievements & Recognition
+
+> 🏆 **3rd Place** — Czech Electrotechnical Olympiad (2025)
+>
+> **Featured in:** [Feedit.cz](https://feedit.cz/2025/12/19/robot-pro-vyuku-i-prenos-soucastek-to-je-vitezny-projekt-letosni-elektrotechnicke-olympiady/), [Hitrádio Vysočina](https://hitradiovysocina.cz/novinky/studenti-z-gymnazia-ve-zdaru-nad-sazavou-bodovali-v-elektronicke-olympiade), [Žďárský Deník](https://zdarsky.denik.cz/zpravy_region/zdar-gymnazium-student-uspech-celostatni-soutez-zajimava-aplikace-letovy-provoz.html), [Kraj Vysočina](https://www.kr-vysocina.cz/eduard-simon-ze-zdarskeho-gymnazia-uspel-v-celostatni-soutezi-ziskal-bronz-v-elektrotechnicke-olympiade/d-4135702)
 
 ### Features
 
@@ -137,8 +143,8 @@ docker compose down
 Create a `.env` file in the project root:
 
 ```bash
-OPENSKY_USERNAME=your_username
-OPENSKY_PASSWORD=your_password
+OPENSKY_CLIENT_ID=your_client_id
+OPENSKY_CLIENT_SECRET=your_client_secret
 ```
 
 ## Controls
