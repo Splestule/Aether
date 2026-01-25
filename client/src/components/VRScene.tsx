@@ -586,8 +586,8 @@ function SingleControllerRaycast({
       // Calculate collision sphere size (matching ARWaypoint calculation)
       const distanceFromUser = Math.sqrt(
         flight.position.x * flight.position.x +
-          flight.position.y * flight.position.y +
-          flight.position.z * flight.position.z
+        flight.position.y * flight.position.y +
+        flight.position.z * flight.position.z
       );
       const distanceKm = distanceFromUser / 1000;
       const baseSize = 50;
@@ -738,33 +738,33 @@ function JoystickCoefficientAdjuster({
         rightController: !!rightController,
         leftGamepad: leftGamepad
           ? {
-              id: leftGamepad.id,
-              connected: leftGamepad.connected,
-              buttonsLength: leftGamepad.buttons?.length,
-              buttons: leftGamepad.buttons
-                ? Array.from(leftGamepad.buttons).map((btn, idx) => ({
-                    index: idx,
-                    pressed: btn.pressed,
-                    touched: btn.touched,
-                    value: btn.value,
-                  }))
-                : [],
-            }
+            id: leftGamepad.id,
+            connected: leftGamepad.connected,
+            buttonsLength: leftGamepad.buttons?.length,
+            buttons: leftGamepad.buttons
+              ? Array.from(leftGamepad.buttons).map((btn, idx) => ({
+                index: idx,
+                pressed: btn.pressed,
+                touched: btn.touched,
+                value: btn.value,
+              }))
+              : [],
+          }
           : null,
         rightGamepad: rightGamepad
           ? {
-              id: rightGamepad.id,
-              connected: rightGamepad.connected,
-              buttonsLength: rightGamepad.buttons?.length,
-              buttons: rightGamepad.buttons
-                ? Array.from(rightGamepad.buttons).map((btn, idx) => ({
-                    index: idx,
-                    pressed: btn.pressed,
-                    touched: btn.touched,
-                    value: btn.value,
-                  }))
-                : [],
-            }
+            id: rightGamepad.id,
+            connected: rightGamepad.connected,
+            buttonsLength: rightGamepad.buttons?.length,
+            buttons: rightGamepad.buttons
+              ? Array.from(rightGamepad.buttons).map((btn, idx) => ({
+                index: idx,
+                pressed: btn.pressed,
+                touched: btn.touched,
+                value: btn.value,
+              }))
+              : [],
+          }
           : null,
       });
       debugLoggedRef.current = true;
@@ -912,8 +912,8 @@ function SceneContent({
       filteredFlights.forEach((flight) => {
         const dist = Math.sqrt(
           flight.position.x * flight.position.x +
-            flight.position.y * flight.position.y +
-            flight.position.z * flight.position.z
+          flight.position.y * flight.position.y +
+          flight.position.z * flight.position.z
         );
         if (dist < minDistance) {
           minDistance = dist;
@@ -1161,7 +1161,7 @@ export function VRScene(props: VRSceneProps) {
   // Standard text style for AR button (matching default XRButton)
   const standardButtonStyle: React.CSSProperties = {
     position: 'absolute',
-    bottom: '25px', // Changed from 20px to distinguish from default button
+    bottom: '25px',
     left: 'calc(50% - 80px)', // Centered (160/2 = 80)
     width: '160px',
     padding: '12px 6px',
