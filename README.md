@@ -147,6 +147,25 @@ OPENSKY_CLIENT_ID=your_client_id
 OPENSKY_CLIENT_SECRET=your_client_secret
 ```
 
+### Dashboard
+
+Aether includes a built-in dashboard for monitoring server status, viewing logs, and managing processes.
+
+- **URL**: `http://localhost:8081`
+- **Features**:
+  - Start/Stop servers
+  - View real-time logs (Backend, Frontend)
+  - Toggle Debug Mode
+  - Monitor OpenSky API connection status
+
+To run the dashboard independently:
+
+```bash
+npm run dashboard
+```
+
+(Note: The dashboard starts automatically when running `npm run dev` via the start script).
+
 ## Controls
 
 | Action | Desktop | VR Controller |

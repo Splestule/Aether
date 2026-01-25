@@ -12,6 +12,7 @@
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "cd server && npm run dev",
     "dev:client": "cd client && npm run dev",
+    "dashboard": "node dashboard-server.js",
     "build": "npm run build --workspace=@vr-flight-tracker/shared && npm run build --workspace=@vr-flight-tracker/server",
     "start": "npm run build && npm start --workspace=@vr-flight-tracker/server",
     "install:all": "npm install && cd server && npm install && cd ../client && npm install",
