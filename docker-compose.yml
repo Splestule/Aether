@@ -9,8 +9,8 @@ services:
       NODE_ENV: production
       PORT: 8080
       CLIENT_ORIGINS: ${CLIENT_ORIGINS:-http://localhost:4173,http://localhost:3000}
-      OPENSKY_USERNAME: ${OPENSKY_USERNAME:-}
-      OPENSKY_PASSWORD: ${OPENSKY_PASSWORD:-}
+      OPENSKY_CLIENT_ID: ${OPENSKY_CLIENT_ID:-}
+      OPENSKY_CLIENT_SECRET: ${OPENSKY_CLIENT_SECRET:-}
       OPENSKY_API_URL: ${OPENSKY_API_URL:-https://opensky-network.org/api/states/all}
       OPENSKY_TRACKS_API_URL: ${OPENSKY_TRACKS_API_URL:-https://opensky-network.org/api/tracks/all}
     ports:

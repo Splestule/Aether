@@ -134,9 +134,9 @@ export function BYOKSettings({ onClose }: BYOKSettingsProps) {
   }
 
   return (
-    <div className="vr-panel p-4 sm:p-6 space-y-4">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl sm:text-2xl font-bold text-white">Bring Your Own Key</h2>
+    <div className="space-y-3 sm:space-y-4 border-t border-white/20 pt-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-base sm:text-lg font-bold text-white">Bring Your Own Key</h2>
         {onClose && (
           <button
             onClick={onClose}
@@ -148,9 +148,8 @@ export function BYOKSettings({ onClose }: BYOKSettingsProps) {
         )}
       </div>
 
-      <p className="text-sm text-white/80 mb-4">
-        Provide your own OpenSky Network credentials to get full API access. Without credentials,
-        you'll have limited access (10 requests/minute).
+      <p className="text-xs sm:text-sm text-white/80">
+        Provide your own OpenSky credentials for full API access. Without credentials, you'll have limited access (10 req/min).
       </p>
 
       {hasSession ? (
@@ -226,12 +225,9 @@ export function BYOKSettings({ onClose }: BYOKSettingsProps) {
         </form>
       )}
 
-      <div className="text-xs text-white/60 mt-4 pt-4 border-t border-white/10">
-        <p>
-          Your credentials are stored securely in a session token. Sessions expire after 24 hours
-          for security.
-        </p>
-      </div>
+      <p className="text-[10px] sm:text-xs text-white/50 mt-3">
+        Credentials are stored securely in a session token. Sessions expire after 24 hours.
+      </p>
     </div>
   );
 }

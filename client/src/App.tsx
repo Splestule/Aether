@@ -402,7 +402,7 @@ function App() {
         {/* Location Selector */}
         {!userLocation && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/70 pb-32 sm:pb-16 overflow-y-auto">
-            <div className="vr-panel p-4 sm:p-[0.96rem] max-w-[36.9rem] w-full mx-4 space-y-4 sm:space-y-[0.77rem] max-h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-4rem)]">
+            <div className="vr-panel p-4 sm:p-[0.96rem] max-w-[36.9rem] w-full mx-4 space-y-4 sm:space-y-[0.77rem] max-h-[calc(100vh-8rem)] sm:max-h-[calc(100vh-4rem)] overflow-y-auto">
               <div className="brand-header flex justify-center">
                 <div className="flex items-center gap-2 sm:gap-[0.38rem]">
                   <img
@@ -500,21 +500,19 @@ function App() {
             <div className="flex flex-col gap-2 w-full">
               <button
                 onClick={() => setViewMode('vr')}
-                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${
-                  viewMode === 'vr'
+                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${viewMode === 'vr'
                     ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
                     : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
-                }`}
+                  }`}
               >
                 Passthrough View
               </button>
               <button
                 onClick={() => setViewMode('cesium')}
-                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${
-                  viewMode === 'cesium'
+                className={`vr-button w-full justify-center !px-3 !py-2.5 sm:!px-4 sm:!py-3 !text-[0.65rem] sm:!text-[0.7rem] !tracking-[0.15em] transition-all duration-300 ${viewMode === 'cesium'
                     ? '!bg-[#c6a0e8] !text-black !border-[#c6a0e8] font-bold shadow-[0_0_20px_rgba(198,160,232,0.4)]'
                     : 'hover:!border-[#c6a0e8] hover:!text-[#c6a0e8]'
-                }`}
+                  }`}
               >
                 Virtual Environment
               </button>

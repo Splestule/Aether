@@ -89,7 +89,7 @@ graph TD
 2. Install dependencies
 
     ```bash
-    npm run install:all
+    npm install
     ```
 
 3. Set up environment variables
@@ -98,7 +98,13 @@ graph TD
     cp server/env.example server/.env
     ```
 
-4. Start the dev server
+4. Build the shared package (required once before first run)
+
+    ```bash
+    npm run build
+    ```
+
+5. Start the dev server
 
     ```bash
     npm run dev
