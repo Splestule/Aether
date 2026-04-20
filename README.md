@@ -11,7 +11,7 @@
 [![React](https://img.shields.io/badge/React-18.0-61dafb.svg)](https://reactjs.org/)
 [![WebXR](https://img.shields.io/badge/WebXR-Ready-orange.svg)](https://immersiveweb.dev/)
 
-**[Live Demo](https://aether-app.up.railway.app/)** | **[Contributing](CONTRIBUTING.md)**
+**[Contributing](CONTRIBUTING.md)**
 
 </div>
 
@@ -27,7 +27,7 @@ Built on OpenSky Network data, rendered with Google Photorealistic 3D Tiles and 
 
 ## Achievements & Recognition
 
-> 🏆 **3rd Place** — Czech Electrotechnical Olympiad (2025)
+> 🏆 **3rd Place** — [Czech Electrotechnical Olympiad (2025)](https://go2.fel.cvut.cz/finale/)
 >
 > **Featured in:** [Feedit.cz](https://feedit.cz/2025/12/19/robot-pro-vyuku-i-prenos-soucastek-to-je-vitezny-projekt-letosni-elektrotechnicke-olympiady/), [Hitrádio Vysočina](https://hitradiovysocina.cz/novinky/studenti-z-gymnazia-ve-zdaru-nad-sazavou-bodovali-v-elektronicke-olympiade), [Žďárský Deník](https://zdarsky.denik.cz/zpravy_region/zdar-gymnazium-student-uspech-celostatni-soutez-zajimava-aplikace-letovy-provoz.html), [Kraj Vysočina](https://www.kr-vysocina.cz/eduard-simon-ze-zdarskeho-gymnazia-uspel-v-celostatni-soutezi-ziskal-bronz-v-elektrotechnicke-olympiade/d-4135702)
 
